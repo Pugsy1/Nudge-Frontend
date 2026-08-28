@@ -6,6 +6,7 @@ using Nudge.Core.Abstractions;
 using Nudge.Core.Diagnostics;
 using Nudge.Vpx.Discovery;
 using Nudge.Vpx.Identification;
+using Nudge.Vpx.Launching;
 using Nudge.Vpx.Platform;
 using Nudge.Vpx.Settings;
 using Nudge.Vpx.TableFiles;
@@ -54,6 +55,9 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IOleTableInfoReader, OleTableInfoReader>();
         services.TryAddSingleton<ITableFilenameParser, TableFilenameParser>();
         services.TryAddSingleton<ITableFileReader, VpxTableFileReader>();
+
+        services.TryAddSingleton<IProcessRunner, ProcessRunner>();
+        services.TryAddSingleton<ILaunchEngine, LaunchEngine>();
 
         services.TryAddSingleton<ISettingsService>(provider => new JsonSettingsService(
             provider.GetRequiredService<IFileSystem>(),

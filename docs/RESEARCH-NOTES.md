@@ -59,6 +59,16 @@ anything, so none of this is wired up yet — it's recorded here for when the la
 VR mode is selected by the settings file, not the command line. On 10.8.0 the OpenGL build
 autodetects a SteamVR driver install; absent that it starts in 2D.
 
+**Maintainer-confirmed, treat as settled project guidance**: the OpenGL build (`VPinballX_GL64.exe`
+etc.) auto-engages VR on every user's machine it's been observed on, not just the maintainer's own -
+directly confirmed when Phase 5's launch-engine verification launched it with a plain `-Play`
+(no `-Ini`, no VR flag of any kind - there is no VR flag) and it came up in VR anyway. Until Phase 6
+gives Nudge its own VR profile / `-Ini` control, **Nudge treats OpenGL as unusable for a Desktop
+launch and never selects it for one** - see `VpxInstallation.BestDesktopExecutable` in
+`Nudge.Core`, which excludes `VpxFlavor.OpenGL` from Desktop selection the same way it excludes
+`VpxFlavor.VP9Legacy`. An OpenGL-only installation currently reports no Desktop build available
+rather than risk silently launching VR on the user.
+
 The mechanism for "PLAY IN VR" will be:
 
 ```
@@ -66,6 +76,12 @@ VPinballX_GL64.exe -Ini "<Nudge's own VR profile.ini>" -Play "<table.vpx>"
 ```
 
 Nudge will own that ini file, inside Nudge's own data directory, when this is built in Phase 6.
+
+**Maintainer's stated direction for Phase 6's UI** (not designed yet, noted here so it isn't lost):
+the frontend should always default to the plain DirectX9 build (`VPinballX.exe`) for a normal Play
+action, with a separate, explicit way to launch VR instead - possibly a one-click switch or a
+hover-revealed option on the table tile. Exact interaction still undecided; whoever designs Phase
+6's UI should treat this as the starting brief, not a locked decision.
 
 ## Settings files
 

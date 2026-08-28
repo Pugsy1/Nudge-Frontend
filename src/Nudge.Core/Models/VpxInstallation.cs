@@ -62,4 +62,36 @@ public sealed record VpxInstallation
             return VrCapability.Unknown;
         }
     }
+
+    /// <summary>
+    /// The executable Nudge will launch for a normal desktop session: the most modern recognised
+    /// build available (currently BGFX, then DirectX 9), preferring x64 over x86 when a flavor is
+    /// available in both. Null when nothing here can be trusted to launch to the desktop.
+    /// </summary>
+    /// <remarks>
+    /// Two flavors are deliberately excluded, even as a last resort:
+    /// <list type="bullet">
+    /// <item><see cref="VpxFlavor.VP9Legacy"/> plays the older <c>.vpt</c> format, not <c>.vpx</c> -
+    /// per docs/RESEARCH-NOTES.md - so launching it against a scanned <c>.vpx</c> table would not
+    /// fail loudly, it would just be wrong.</item>
+    /// <item><see cref="VpxFlavor.OpenGL"/> is excluded from Desktop selection specifically because
+    /// of a real, observed behaviour on a Baller-installed machine: per AGENTS.md section 4.3, "the
+    /// OpenGL build autodetects a SteamVR driver install" and launches straight into VR with no
+    /// command-line flag involved - there is no way to tell a plain "-Play" launch will stay on the
+    /// desktop until Phase 6 builds proper VR profile / "-Ini" control. Until then, an OpenGL-only
+    /// installation reports no Desktop build available rather than risk silently launching VR.</item>
+    /// </list>
+    /// </remarks>
+    public VpxExecutable? BestDesktopExecutable => RecognisedExecutables
+        .Where(e => DesktopFlavorRank(e.Flavor) >= 0)
+        .OrderByDescending(e => DesktopFlavorRank(e.Flavor))
+        .ThenByDescending(e => e.Architecture == ProcessorArchitecture.X64)
+        .FirstOrDefault();
+
+    private static int DesktopFlavorRank(VpxFlavor flavor) => flavor switch
+    {
+        VpxFlavor.Bgfx => 1,
+        VpxFlavor.DirectX9 => 0,
+        _ => -1
+    };
 }
