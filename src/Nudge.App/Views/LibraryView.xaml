@@ -89,11 +89,22 @@
       <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
 
         <!-- The search box has no separate placeholder property in WPF, so an overlay TextBlock
-             fills that role, hidden once the user has typed anything. -->
+             fills that role, hidden once the user has typed anything. A small magnifying-glass
+             glyph (Segoe MDL2 Assets, the same icon font the title bar buttons use) sits to its
+             left, tinted with the accent colour - the one hint of colour in an otherwise
+             monochrome header, marking this out as the one control worth reaching for first. -->
         <Grid Margin="{DynamicResource Gap.Right.M}" VerticalAlignment="Center">
           <TextBox Style="{StaticResource TextBox.Search}"
                     Width="{DynamicResource Size.SearchBox.Width}"
                     Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
+          <TextBlock Text="&#xE721;"
+                      FontFamily="Segoe MDL2 Assets"
+                      FontSize="12"
+                      Margin="14,0,0,0"
+                      HorizontalAlignment="Left"
+                      VerticalAlignment="Center"
+                      IsHitTestVisible="False"
+                      Foreground="{DynamicResource Brush.Accent}" />
           <TextBlock Style="{StaticResource Text.Caption}"
                       Margin="{DynamicResource Padding.SearchBox}"
                       IsHitTestVisible="False"

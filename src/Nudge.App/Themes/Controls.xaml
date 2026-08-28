@@ -31,8 +31,12 @@
                               RecognizesAccessKey="True" />
           </Border>
           <ControlTemplate.Triggers>
+            <!-- Explicit BorderThickness here, not just BorderBrush: Button.Secondary keeps no
+                 border at rest for a cleaner look, so focus needs to draw one in rather than just
+                 recolour one that isn't there. -->
             <Trigger Property="IsKeyboardFocused" Value="True">
               <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
+              <Setter TargetName="Root" Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
             </Trigger>
             <Trigger Property="IsEnabled" Value="False">
               <Setter TargetName="Root" Property="Opacity" Value="0.5" />
@@ -69,17 +73,17 @@
     </Style.Triggers>
   </Style>
 
-  <!-- Close in tone to the surface behind it, differentiated mainly by its soft shadow. -->
+  <!-- Borderless at rest - close in tone to the surface behind it, differentiated purely by its
+       soft shadow and a lighter fill on hover, for a cleaner outline-free look than a stroked pill. -->
   <Style x:Key="Button.Secondary" TargetType="Button" BasedOn="{StaticResource Button.Base}">
     <Setter Property="Background" Value="{DynamicResource Brush.Control.Background}" />
     <Setter Property="Foreground" Value="{DynamicResource Brush.Control.Foreground}" />
-    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Surface.EdgeHighlight}" />
-    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
     <Setter Property="Effect" Value="{DynamicResource Effect.Button.Shadow}" />
     <Style.Triggers>
       <Trigger Property="IsMouseOver" Value="True">
         <Setter Property="Background" Value="{DynamicResource Brush.Control.BackgroundHover}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource Brush.Control.BorderHover}" />
       </Trigger>
       <Trigger Property="IsPressed" Value="True">
         <Setter Property="Background" Value="{DynamicResource Brush.Control.BackgroundPressed}" />
@@ -108,15 +112,16 @@
   <!-- ============================ Text input ============================ -->
 
   <!-- Reads as recessed rather than raised - the same "inset" language Surface.Inset already uses -
-       so a typing field visually differs from the raised cards and buttons around it without a
-       heavier border or a strong contrast change. -->
+       so a typing field visually differs from the raised, borderless-pill buttons around it. Fully
+       pill-shaped regardless of height (CornerRadius.Pill) and borderless until focused, when a thin
+       accent ring draws in - the one control in the header that visibly "lights up" on interaction. -->
   <Style x:Key="TextBox.Search" TargetType="TextBox">
     <Setter Property="FontFamily" Value="{DynamicResource Font.Family.Primary}" />
     <Setter Property="FontSize" Value="{DynamicResource Font.Size.Body}" />
     <Setter Property="Foreground" Value="{DynamicResource Brush.Control.Foreground}" />
-    <Setter Property="CaretBrush" Value="{DynamicResource Brush.Control.Foreground}" />
+    <Setter Property="CaretBrush" Value="{DynamicResource Brush.Accent}" />
     <Setter Property="Background" Value="{DynamicResource Brush.Surface.BackgroundAlt}" />
-    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Surface.EdgeHighlight}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
     <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
     <Setter Property="Padding" Value="{DynamicResource Padding.SearchBox}" />
     <Setter Property="VerticalContentAlignment" Value="Center" />
@@ -129,7 +134,7 @@
                   Background="{TemplateBinding Background}"
                   BorderBrush="{TemplateBinding BorderBrush}"
                   BorderThickness="{TemplateBinding BorderThickness}"
-                  CornerRadius="{DynamicResource CornerRadius.M}">
+                  CornerRadius="{DynamicResource CornerRadius.Pill}">
             <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="Center" />
           </Border>
           <ControlTemplate.Triggers>
@@ -208,6 +213,7 @@
   <Style TargetType="ScrollBar">
     <Setter Property="Background" Value="{DynamicResource Brush.Scrollbar.Track}" />
     <Setter Property="Width" Value="{DynamicResource Size.Scrollbar}" />
+    <Setter Property="Margin" Value="{DynamicResource Margin.Scrollbar}" />
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="ScrollBar">
