@@ -234,9 +234,24 @@ but nothing in the UI triggers a scan or displays scanned tables yet - that's Ph
   approach. It does not hash file contents, so a file rewritten with the exact same size and
   write-time (vanishingly unlikely in practice, but not impossible with certain backup/sync tools)
   would be wrongly skipped. Matches the documented design; flagged here so it isn't forgotten.
-- **No concurrent-scan protection.** Two overlapping scans of the same installation would race on
-  the same rows. Not a real risk yet, since nothing triggers a scan automatically, but worth
-  guarding against before Phase 4 adds a "rescan" button.
+- ~~No concurrent-scan protection.~~ **Fixed.** `VpxLibraryScanner` now holds a per-installation
+  semaphore so a second `ScanAsync` call for an installation already being scanned waits for the
+  first to finish rather than racing it - see the commit that closed this out. Scans of different
+  installations are unaffected by each other's gate. Covered by
+  `Concurrent_scans_of_the_same_installation_are_serialized_not_racing` in
+  `Nudge.Library.Tests`.
+- **Separately noticed while adding that test, not fixed**: `VpxLibraryScanner` is registered as a
+  DI singleton (`AddNudgeLibrary`) but its constructor takes `ITableRepository` directly, which is
+  registered Scoped (`AddNudgeData`) - the same EF Core default the note above already flags for
+  a future Phase 4 view model. In practice this means the scanner captures one `NudgeDbContext`
+  instance at startup and reuses it for the app's entire lifetime (a "captive dependency"): its
+  change tracker only grows, never resets, across every scan the app ever runs. `Host.CreateApplicationBuilder()`
+  only validates this at container-build time when the environment is `Development`, which this
+  desktop app never sets, so nothing currently throws - it just silently keeps one DbContext alive
+  forever. The scan-gate fix above does not depend on this and works either way. The fix, if wanted,
+  is for `VpxLibraryScanner` to take an `IServiceScopeFactory` and resolve a fresh `ITableRepository`
+  per `ScanAsync` call instead of a constructor-injected one - not applied here since it changes
+  shared DI plumbing the Phase 4 UI work may already be assuming.
 - **Migrations have been generated and applied against a real file once**, in the running app and
   in the throwaway validation harness, but not yet exercised across an upgrade path (an existing
   `nudge.db` from an older schema version being migrated forward) - there's only ever been one
