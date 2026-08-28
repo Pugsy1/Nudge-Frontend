@@ -56,6 +56,12 @@ public partial class MainWindow : Window
         StateChanged += (_, _) => UpdateMaximizeRestoreGlyph();
         PreviewKeyDown += OnPreviewKeyDown;
         UpdateMaximizeRestoreGlyph();
+
+        // SourceInitialized, not Loaded: the Win32 HWND (and so PresentationSource/CompositionTarget,
+        // which ApplyMonitorBounds needs for the DPI conversion) exists by this point, but the window
+        // hasn't been shown yet - so it opens directly at fullscreen bounds instead of flashing the
+        // windowed size first and then snapping to fullscreen a frame later.
+        SourceInitialized += (_, _) => ToggleFullscreen();
     }
 
     private void OnMinimizeClick(object sender, RoutedEventArgs e) => SystemCommands.MinimizeWindow(this);
