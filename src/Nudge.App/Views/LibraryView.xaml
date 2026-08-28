@@ -56,13 +56,53 @@
                 <Border Grid.Row="0"
                         Background="{DynamicResource Brush.Accent.Subtle}"
                         CornerRadius="{DynamicResource CornerRadius.Card.Top}">
-                  <TextBlock Text="{Binding Initial}"
-                             HorizontalAlignment="Center"
-                             VerticalAlignment="Center"
-                             FontFamily="{DynamicResource Font.Family.Primary}"
-                             FontSize="{DynamicResource Font.Size.Display}"
-                             FontWeight="{DynamicResource Font.Weight.SemiBold}"
-                             Foreground="{DynamicResource Brush.Accent}" />
+                  <Grid>
+                    <TextBlock Text="{Binding Initial}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               FontFamily="{DynamicResource Font.Family.Primary}"
+                               FontSize="{DynamicResource Font.Size.Display}"
+                               FontWeight="{DynamicResource Font.Weight.SemiBold}"
+                               Foreground="{DynamicResource Brush.Accent}" />
+
+                    <!-- "Play in VR" - only shown when the confirmed installation has a recognised
+                         VR-capable build (see LibraryViewModel.HasVr). A nested Button works fine
+                         here: WPF marks its Click as handled before it can bubble to the tile's own
+                         Button underneath, so this doesn't also trigger a desktop launch. -->
+                    <Button Content="VR"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Margin="6"
+                            Padding="8,3,8,3"
+                            FontFamily="{DynamicResource Font.Family.Primary}"
+                            FontSize="{DynamicResource Font.Size.Caption}"
+                            FontWeight="{DynamicResource Font.Weight.SemiBold}"
+                            Cursor="Hand"
+                            Focusable="False"
+                            ToolTip="Play in VR"
+                            Visibility="{Binding DataContext.HasVr, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource BoolToVisibility}}"
+                            Command="{Binding DataContext.LaunchTableVrCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                            CommandParameter="{Binding}">
+                      <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                          <Border x:Name="VrRoot"
+                                  Background="{DynamicResource Brush.Accent}"
+                                  CornerRadius="{DynamicResource CornerRadius.S}">
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                               TextElement.Foreground="{DynamicResource Brush.Accent.Foreground}" />
+                          </Border>
+                          <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                              <Setter TargetName="VrRoot" Property="Background" Value="{DynamicResource Brush.Accent.Hover}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                              <Setter TargetName="VrRoot" Property="Opacity" Value="0.5" />
+                            </Trigger>
+                          </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                      </Button.Template>
+                    </Button>
+                  </Grid>
                 </Border>
 
                 <StackPanel Grid.Row="1" Margin="{DynamicResource Padding.TableCell}">

@@ -109,6 +109,10 @@ public sealed partial class LibraryViewModel : ObservableObject
 
     public bool HasTables => TableCount > 0;
 
+    /// <summary>True when the confirmed installation has a recognised VR-capable build - shows the "play in VR" affordance on every tile.</summary>
+    [ObservableProperty]
+    private bool _hasVr;
+
     public string ThemeToggleLabel => _themeService.Current == AppTheme.Dark
         ? "Switch to light theme"
         : "Switch to dark theme";
@@ -124,6 +128,7 @@ public sealed partial class LibraryViewModel : ObservableObject
     {
         _installation = installation;
         InstallationDisplayName = installation.DisplayName;
+        HasVr = installation.BestVrExecutable is not null;
         StatusMessage = string.Empty;
 
         await LoadFromDatabaseAsync().ConfigureAwait(true);
@@ -156,26 +161,54 @@ public sealed partial class LibraryViewModel : ObservableObject
     private static readonly TimeSpan LaunchForegroundGracePeriod = TimeSpan.FromSeconds(12);
 
     /// <summary>
-    /// Launches a table's best desktop-capable executable and waits for Visual Pinball to exit -
-    /// the "click a tile, play, VPX exits, back to the library" core loop from AGENTS.md section 1.
-    /// VR launching is a separate, later capability (Phase 6); this always launches to the desktop.
+    /// Launches a table on the installation's best desktop-capable executable and waits for Visual
+    /// Pinball to exit - the "click a tile, play, VPX exits, back to the library" core loop from
+    /// AGENTS.md section 1.
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanLaunch))]
-    private async Task LaunchTableAsync(TableTileViewModel? tile)
+    private async Task LaunchTableAsync(TableTileViewModel? tile) =>
+        await LaunchTableCoreAsync(tile, useVr: false).ConfigureAwait(true);
+
+    private bool CanLaunch(TableTileViewModel? tile) => !IsLaunching && _installation is not null;
+
+    /// <summary>
+    /// Launches a table on the installation's best VR-capable executable instead of the desktop
+    /// build. Nudge does not manage a VR settings/-Ini profile (a separate, later capability) - this
+    /// relies entirely on Visual Pinball's own autodetection of an active headset/SteamVR, per
+    /// AGENTS.md section 4.3 and confirmed against the maintainer's own hardware.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanLaunchVr))]
+    private async Task LaunchTableVrAsync(TableTileViewModel? tile) =>
+        await LaunchTableCoreAsync(tile, useVr: true).ConfigureAwait(true);
+
+    private bool CanLaunchVr(TableTileViewModel? tile) => CanLaunch(tile) && HasVr;
+
+    private async Task LaunchTableCoreAsync(TableTileViewModel? tile, bool useVr)
     {
         if (tile is null || _installation is null || IsLaunching)
         {
             return;
         }
 
+        VpxExecutable? vrExecutable = useVr ? _installation.BestVrExecutable : null;
+        if (useVr && vrExecutable is null)
+        {
+            // Guarded by CanLaunchVr already; defensive only, e.g. against a stale CommandParameter.
+            return;
+        }
+
         IsLaunching = true;
         LaunchTableCommand.NotifyCanExecuteChanged();
-        StatusMessage = $"Launching {tile.DisplayTitle}...";
+        LaunchTableVrCommand.NotifyCanExecuteChanged();
+        StatusMessage = useVr
+            ? $"Launching {tile.DisplayTitle} in VR..."
+            : $"Launching {tile.DisplayTitle}...";
 
         // Visual Pinball's own process steals foreground focus - and shows its own blank loading
         // screen - the instant it's created. Nudge holds focus for itself instead for a fixed grace
         // period, then explicitly hands off to whichever new Visual Pinball window appeared.
-        IReadOnlyList<string> processNamePrefixes = _installation.BestDesktopExecutable is { } exe
+        VpxExecutable? targetExecutable = vrExecutable ?? _installation.BestDesktopExecutable;
+        IReadOnlyList<string> processNamePrefixes = targetExecutable is { } exe
             ? [System.IO.Path.GetFileNameWithoutExtension(exe.FileName)]
             : [];
         IReadOnlySet<int> existingProcessIds = _windowActivation.SnapshotProcessIds(processNamePrefixes);
@@ -198,9 +231,9 @@ public sealed partial class LibraryViewModel : ObservableObject
 
         try
         {
-            Result<LaunchOutcome> result = await _launchEngine
-                .LaunchAsync(_installation, tile.Table.Path)
-                .ConfigureAwait(true);
+            Result<LaunchOutcome> result = vrExecutable is not null
+                ? await _launchEngine.LaunchAsync(vrExecutable, tile.Table.Path).ConfigureAwait(true)
+                : await _launchEngine.LaunchAsync(_installation, tile.Table.Path).ConfigureAwait(true);
 
             if (result.IsFailure)
             {
@@ -231,10 +264,9 @@ public sealed partial class LibraryViewModel : ObservableObject
 
             IsLaunching = false;
             LaunchTableCommand.NotifyCanExecuteChanged();
+            LaunchTableVrCommand.NotifyCanExecuteChanged();
         }
     }
-
-    private bool CanLaunch(TableTileViewModel? tile) => !IsLaunching && _installation is not null;
 
     [RelayCommand]
     private async Task ToggleThemeAsync()
