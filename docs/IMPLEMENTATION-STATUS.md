@@ -240,18 +240,16 @@ but nothing in the UI triggers a scan or displays scanned tables yet - that's Ph
   installations are unaffected by each other's gate. Covered by
   `Concurrent_scans_of_the_same_installation_are_serialized_not_racing` in
   `Nudge.Library.Tests`.
-- **Separately noticed while adding that test, not fixed**: `VpxLibraryScanner` is registered as a
-  DI singleton (`AddNudgeLibrary`) but its constructor takes `ITableRepository` directly, which is
-  registered Scoped (`AddNudgeData`) - the same EF Core default the note above already flags for
-  a future Phase 4 view model. In practice this means the scanner captures one `NudgeDbContext`
-  instance at startup and reuses it for the app's entire lifetime (a "captive dependency"): its
-  change tracker only grows, never resets, across every scan the app ever runs. `Host.CreateApplicationBuilder()`
-  only validates this at container-build time when the environment is `Development`, which this
-  desktop app never sets, so nothing currently throws - it just silently keeps one DbContext alive
-  forever. The scan-gate fix above does not depend on this and works either way. The fix, if wanted,
-  is for `VpxLibraryScanner` to take an `IServiceScopeFactory` and resolve a fresh `ITableRepository`
-  per `ScanAsync` call instead of a constructor-injected one - not applied here since it changes
-  shared DI plumbing the Phase 4 UI work may already be assuming.
+- ~~`VpxLibraryScanner` captured a Scoped `ITableRepository` in a singleton constructor.~~
+  **Fixed.** It now takes an `IServiceScopeFactory` and resolves a fresh `ITableRepository` (and
+  therefore a fresh `NudgeDbContext`) inside every `ScanAsync` call, scoped and disposed with that
+  call. `IVpxLibraryScanner`'s public contract - and therefore every caller, including whatever the
+  Phase 4 UI resolves - is unchanged; only the scanner's own constructor and internals changed. No
+  DI registration changes were needed: `IServiceScopeFactory` is provided automatically by the
+  built-in container. Confirmed via all 11 `Nudge.Library.Tests` still passing, including the
+  concurrency-gate test above, using a small fake `IServiceScopeFactory` in the test that hands out
+  a fresh in-memory-SQLite-backed repository per scope, the same shape `AddNudgeData` gives the
+  running app.
 - **Migrations have been generated and applied against a real file once**, in the running app and
   in the throwaway validation harness, but not yet exercised across an upgrade path (an existing
   `nudge.db` from an older schema version being migrated forward) - there's only ever been one

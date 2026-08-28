@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.IO.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Nudge.Core.Abstractions;
 using Nudge.Core.Diagnostics;
@@ -24,7 +25,7 @@ public sealed class VpxLibraryScanner : IVpxLibraryScanner
 
     private readonly IFileSystem _fileSystem;
     private readonly ITableFileReader _tableFileReader;
-    private readonly ITableRepository _repository;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly IPathRedactor _redactor;
     private readonly ILogger<VpxLibraryScanner> _logger;
 
@@ -39,16 +40,25 @@ public sealed class VpxLibraryScanner : IVpxLibraryScanner
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _scanGates =
         new(StringComparer.OrdinalIgnoreCase);
 
+    /// <remarks>
+    /// Takes an <see cref="IServiceScopeFactory"/> rather than an <see cref="ITableRepository"/>
+    /// directly: this class is registered as a DI singleton (so its per-installation scan gates
+    /// persist for the app's lifetime - see <see cref="_scanGates"/>), but <c>ITableRepository</c>
+    /// and its <c>NudgeDbContext</c> are Scoped. A singleton that captured a scoped dependency in
+    /// its constructor would hold one database context open forever, its change tracker only ever
+    /// growing. Resolving a fresh repository from a fresh scope inside each <see cref="ScanAsync"/>
+    /// call avoids that without changing the singleton's own lifetime.
+    /// </remarks>
     public VpxLibraryScanner(
         IFileSystem fileSystem,
         ITableFileReader tableFileReader,
-        ITableRepository repository,
+        IServiceScopeFactory scopeFactory,
         IPathRedactor redactor,
         ILogger<VpxLibraryScanner> logger)
     {
         _fileSystem = fileSystem;
         _tableFileReader = tableFileReader;
-        _repository = repository;
+        _scopeFactory = scopeFactory;
         _redactor = redactor;
         _logger = logger;
     }
@@ -83,6 +93,9 @@ public sealed class VpxLibraryScanner : IVpxLibraryScanner
         IProgress<ScanProgress>? progress,
         CancellationToken cancellationToken)
     {
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        ITableRepository repository = scope.ServiceProvider.GetRequiredService<ITableRepository>();
+
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
         if (!_fileSystem.Directory.Exists(tablesPath))
@@ -123,7 +136,7 @@ public sealed class VpxLibraryScanner : IVpxLibraryScanner
         _logger.LogInformation("Scanning {Count} table file(s) in {Path}.", files.Count, _redactor.Redact(tablesPath));
 
         IReadOnlyDictionary<string, ScannedFileFingerprint> knownFingerprints =
-            await _repository.GetFingerprintsAsync(installationId, cancellationToken).ConfigureAwait(false);
+            await repository.GetFingerprintsAsync(installationId, cancellationToken).ConfigureAwait(false);
 
         var currentPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var pendingBatch = new List<TableScanEntry>(BatchSize);
@@ -177,17 +190,17 @@ public sealed class VpxLibraryScanner : IVpxLibraryScanner
 
             if (pendingBatch.Count >= BatchSize)
             {
-                await _repository.UpsertManyAsync(installationId, pendingBatch, cancellationToken).ConfigureAwait(false);
+                await repository.UpsertManyAsync(installationId, pendingBatch, cancellationToken).ConfigureAwait(false);
                 pendingBatch.Clear();
             }
         }
 
         if (pendingBatch.Count > 0)
         {
-            await _repository.UpsertManyAsync(installationId, pendingBatch, cancellationToken).ConfigureAwait(false);
+            await repository.UpsertManyAsync(installationId, pendingBatch, cancellationToken).ConfigureAwait(false);
         }
 
-        int removed = await _repository.DeleteMissingAsync(installationId, currentPaths, cancellationToken)
+        int removed = await repository.DeleteMissingAsync(installationId, currentPaths, cancellationToken)
             .ConfigureAwait(false);
 
         progress?.Report(new ScanProgress(files.Count, files.Count, string.Empty));

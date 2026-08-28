@@ -1,5 +1,6 @@
 using System.IO.Abstractions.TestingHelpers;
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Nudge.Core.Abstractions;
 using Nudge.Core.Diagnostics;
@@ -218,16 +219,40 @@ public sealed class VpxLibraryScannerTests : IDisposable
     {
         var redactor = new PathRedactor("TestUser");
 
-        NudgeDbContext dbContext = _database.CreateContext();
-        var repository = new TableRepository(dbContext);
-
         var oleReader = new Nudge.Vpx.TableFiles.OleTableInfoReader(_fileSystem, redactor, NullLogger<Nudge.Vpx.TableFiles.OleTableInfoReader>.Instance);
         var filenameParser = new Nudge.Vpx.TableFiles.TableFilenameParser();
         ITableFileReader tableFileReader = new Nudge.Vpx.TableFiles.VpxTableFileReader(
             _fileSystem, oleReader, filenameParser, redactor, NullLogger<Nudge.Vpx.TableFiles.VpxTableFileReader>.Instance);
 
+        // A fresh NudgeDbContext (and TableRepository wrapping it) per scope, mirroring how
+        // AddNudgeData registers both Scoped in production - see the remark on VpxLibraryScanner's
+        // constructor for why the scanner resolves its repository this way instead of taking one
+        // directly.
+        var scopeFactory = new FakeScopeFactory(() => new TableRepository(_database.CreateContext()));
+
         return new VpxLibraryScanner(
-            _fileSystem, tableFileReader, repository, redactor, NullLogger<VpxLibraryScanner>.Instance);
+            _fileSystem, tableFileReader, scopeFactory, redactor, NullLogger<VpxLibraryScanner>.Instance);
+    }
+
+    /// <summary>Minimal <see cref="IServiceScopeFactory"/> that hands out a fresh <see cref="ITableRepository"/> per scope, without pulling in a real DI container just for this one test seam.</summary>
+    private sealed class FakeScopeFactory(Func<ITableRepository> createRepository) : IServiceScopeFactory
+    {
+        public IServiceScope CreateScope() => new FakeScope(createRepository());
+    }
+
+    private sealed class FakeScope(ITableRepository repository) : IServiceScope
+    {
+        public IServiceProvider ServiceProvider { get; } = new FakeServiceProvider(repository);
+
+        public void Dispose()
+        {
+        }
+    }
+
+    private sealed class FakeServiceProvider(ITableRepository repository) : IServiceProvider
+    {
+        public object? GetService(Type serviceType) =>
+            serviceType == typeof(ITableRepository) ? repository : null;
     }
 
     private async Task<IReadOnlyList<VpxTableFile>> GetAllAsync()
