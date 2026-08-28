@@ -148,8 +148,26 @@
         <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
 
-      <!-- Plain wordmark for now - to be replaced with a supplied logo PNG. -->
-      <TextBlock Grid.Column="0" Style="{StaticResource Text.Subtitle}" Text="Nudge" />
+      <!--
+        The logo is recoloured with the theme's own primary text colour via an OpacityMask, rather
+        than shown as its original white/chrome artwork. The source art is white-on-transparent,
+        which reads fine on the dark palette but is nearly invisible against the light one; masking
+        it against Brush.Text.Primary guarantees contrast in both themes from a single asset,
+        instead of needing a second logo file supplied for light mode.
+      -->
+      <Rectangle Grid.Column="0"
+                 Width="90" Height="30"
+                 HorizontalAlignment="Left"
+                 VerticalAlignment="Center"
+                 Fill="{DynamicResource Brush.Text.Primary}"
+                 UseLayoutRounding="True"
+                 SnapsToDevicePixels="True"
+                 RenderOptions.BitmapScalingMode="HighQuality"
+                 RenderOptions.EdgeMode="Unspecified">
+        <Rectangle.OpacityMask>
+          <ImageBrush ImageSource="pack://application:,,,/Assets/nudge-logo.png" Stretch="Uniform" />
+        </Rectangle.OpacityMask>
+      </Rectangle>
 
       <Button Grid.Column="1"
               Style="{StaticResource Button.Secondary}"

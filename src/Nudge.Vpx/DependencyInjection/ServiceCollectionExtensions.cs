@@ -8,6 +8,7 @@ using Nudge.Vpx.Discovery;
 using Nudge.Vpx.Identification;
 using Nudge.Vpx.Platform;
 using Nudge.Vpx.Settings;
+using Nudge.Vpx.TableFiles;
 
 namespace Nudge.Vpx.DependencyInjection;
 
@@ -49,6 +50,10 @@ public static class ServiceCollectionExtensions
 
         services.TryAddSingleton<InstallationValidator>();
         services.TryAddSingleton<IVpxInstallationDiscovery, VpxInstallationDiscovery>();
+
+        services.TryAddSingleton<IOleTableInfoReader, OleTableInfoReader>();
+        services.TryAddSingleton<ITableFilenameParser, TableFilenameParser>();
+        services.TryAddSingleton<ITableFileReader, VpxTableFileReader>();
 
         services.TryAddSingleton<ISettingsService>(provider => new JsonSettingsService(
             provider.GetRequiredService<IFileSystem>(),

@@ -6,6 +6,7 @@ using Nudge.Vpx.Discovery;
 using Nudge.Vpx.Identification;
 using Nudge.Vpx.Platform;
 using Nudge.Vpx.Settings;
+using Nudge.Vpx.TableFiles;
 
 namespace Nudge.TestSupport;
 
@@ -114,4 +115,18 @@ public sealed class NudgeTestHarness
         settingsPath ?? FileSystem.Path.Combine(Environment.LocalAppData, "Nudge", "settings.json"),
         Redactor,
         NullLogger<JsonSettingsService>.Instance);
+
+    public IOleTableInfoReader OleTableInfoReader => new OleTableInfoReader(
+        FileSystem,
+        Redactor,
+        NullLogger<OleTableInfoReader>.Instance);
+
+    public ITableFilenameParser FilenameParser { get; } = new TableFilenameParser();
+
+    public ITableFileReader BuildTableFileReader() => new VpxTableFileReader(
+        FileSystem,
+        OleTableInfoReader,
+        FilenameParser,
+        Redactor,
+        NullLogger<VpxTableFileReader>.Instance);
 }

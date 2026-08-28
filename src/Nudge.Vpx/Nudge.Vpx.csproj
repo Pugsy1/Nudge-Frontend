@@ -19,6 +19,8 @@
     <PackageReference Include="System.IO.Abstractions" Version="22.0.15" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
+    <!-- .vpx files are OLE compound documents (see docs/RESEARCH-NOTES.md); this reads them. -->
+    <PackageReference Include="OpenMcdf" Version="3.2.0" />
   </ItemGroup>
 
   <ItemGroup>

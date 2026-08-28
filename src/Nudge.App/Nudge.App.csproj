@@ -21,6 +21,8 @@
   <ItemGroup>
     <!-- Also included as a WPF resource so Window.Icon can reference it via pack URI at runtime. -->
     <Resource Include="Assets\nudge.ico" />
+    <!-- The header wordmark. -->
+    <Resource Include="Assets\nudge-logo.png" />
   </ItemGroup>
 
   <ItemGroup>

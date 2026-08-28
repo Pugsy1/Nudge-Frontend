@@ -82,15 +82,35 @@ assuming `<install>\Tables`. See `Nudge.Vpx.Settings.VpxIniFile`.
 ## Table files
 
 `.vpx` is a **Microsoft OLE Compound Document** (magic `D0 CF 11 E0 A1 B1 1A E1`), NOT a zip.
-Storages: `GameStg` and `TableInfo`. Typical size 2–150 MB. Not read at all in Phase 1 — this
-matters starting Phase 2.
+Storages: `GameStg` and `TableInfo`. Typical size 2–460 MB in the real, mixed-quality table
+collection used to validate Phase 2 — mostly images and sound sitting in `GameStg`.
 
 - `TableInfo` holds author metadata — **frequently blank or inherited-and-wrong**, because most
-  tables are mods of mods. Filename parsing is often *more* accurate.
+  tables are mods of mods. Filename parsing is often *more* accurate. **Directly confirmed**: a
+  real file named `Breaking Badv2.vpx` reports `TableName = "Strange Science"` internally — the mod
+  chain moved on and the metadata never caught up. Nudge's table reader treats this as an ordinary,
+  expected case, not an anomaly: it prefers the filename for the display title when the two
+  disagree, but keeps both values and records the disagreement as evidence.
+- **The `TableInfo` stream encoding is plain UTF-16LE text, with no length prefix and no null
+  terminator** — the stream's own byte length is exactly `2 × character count`. Verified against 33
+  real table files spanning 12 different table authors/mod chains during Phase 2 development; the
+  encoding held with zero exceptions. See `Nudge.Vpx.TableFiles.OleTableInfoReader`.
+- `ReleaseDate` has **no consistent format**. Real values observed: `"01/04/22"`, `"09.07.2025"`,
+  `"7/24/2021"`, `"june 2018"`, `"2-4-2022"`, `"December 2019"`, `"July 17, 2021"`. Never parsed
+  into a `DateTime` — kept as free text.
+- The `.vpx` filename convention `"Title (Manufacturer Year).vpx"` is followed by roughly **half**
+  of real files. `BlackKnight2000(Williams 1989).vpx` and
+  `CreatureFromTheBlackLagoon(Bally 1992)_1.3.vpx` match cleanly; `Batman66.vpx` and
+  `AttackfromMarsMidway 1995v600.vpx` have no parseable structure; `Albator the movie (VR ROOM).vpx`
+  has parentheses that are not a manufacturer/year pair at all. `Nudge.Vpx.TableFiles.TableFilenameParser`
+  is built to produce an honest partial or empty result for all three shapes, never a wrong guess.
 - **The PinMAME ROM name is not metadata.** It is a `cGameName` assignment inside the table's
-  VBScript in `GameStg`. Extracting it requires parsing the script.
-- A fast scan should read only the small `TableInfo` streams. Never load a whole file. Script
-  extraction is a second-pass background operation.
+  VBScript in `GameStg`. Extracting it requires parsing the script. **Not yet implemented** —
+  deliberately deferred past the initial Phase 2 pass as a second-pass background operation, per
+  the plan below.
+- A fast scan should read only the small `TableInfo` streams. Never load a whole file. Phase 2's
+  reader does exactly this — confirmed by running it against 33 real files up to 460 MB each
+  without reading their `GameStg` storage at all.
 
 ## Surrounding ecosystem
 
