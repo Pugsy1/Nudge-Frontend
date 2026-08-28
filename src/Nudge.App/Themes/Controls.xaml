@@ -4,9 +4,6 @@
   <!--
     Control templates. WPF's stock controls look dated, so every control Nudge uses is templated
     here against the named colour, type and spacing resources.
-
-    The window frame itself is deliberately left as standard Windows chrome in Phase 1; custom
-    chrome arrives in Phase 4 with the library shell.
   -->
 
   <!-- ============================ Buttons ============================ -->
@@ -145,6 +142,47 @@
     </Setter>
   </Style>
 
+  <!-- ============================ Title bar (custom window chrome) ============================ -->
+
+  <Style x:Key="TitleBarButton" TargetType="Button">
+    <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
+    <Setter Property="FontSize" Value="10" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Width" Value="{DynamicResource Size.TitleBarButton.Width}" />
+    <Setter Property="Height" Value="{DynamicResource Size.TitleBar.Height}" />
+    <Setter Property="Cursor" Value="Arrow" />
+    <Setter Property="Focusable" Value="False" />
+    <Setter Property="SnapsToDevicePixels" Value="True" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="Root" Background="{TemplateBinding Background}">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.Control.BackgroundHover}" />
+              <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- The close button gets its own hover colour - red, rather than the neutral hover every other
+       title bar button uses - because closing is the one action here worth a distinct warning cue. -->
+  <Style x:Key="TitleBarButton.Close" TargetType="Button" BasedOn="{StaticResource TitleBarButton}">
+    <Style.Triggers>
+      <Trigger Property="IsMouseOver" Value="True">
+        <Setter Property="Background" Value="{DynamicResource Brush.Status.Error}" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Accent.Foreground}" />
+      </Trigger>
+    </Style.Triggers>
+  </Style>
+
   <!-- ============================ Scrollbars ============================ -->
 
   <Style x:Key="ScrollBar.Thumb" TargetType="Thumb">
@@ -155,7 +193,7 @@
         <ControlTemplate TargetType="Thumb">
           <Border x:Name="Root"
                   Background="{DynamicResource Brush.Scrollbar.Thumb}"
-                  CornerRadius="{DynamicResource CornerRadius.S}" />
+                  CornerRadius="{DynamicResource CornerRadius.Scrollbar}" />
           <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
               <Setter TargetName="Root" Property="Background"

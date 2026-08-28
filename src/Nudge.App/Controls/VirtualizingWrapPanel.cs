@@ -61,11 +61,22 @@ public sealed class VirtualizingWrapPanel : VirtualizingPanel, IScrollInfo
         double extentWidth = double.IsInfinity(availableSize.Width) ? ItemWidth * itemCount : _columns * ItemWidth;
         double extentHeight = rows * ItemHeight;
 
+        // ScrollContentPresenter measures IScrollInfo content with PositiveInfinity along whichever
+        // axis it can scroll (here, height - CanVerticallyScroll is true), precisely so the content
+        // decides its own full extent instead of being constrained to what's visible. That means
+        // availableSize.Height is never the real viewport height; the only place that size is ever
+        // known is ArrangeOverride's finalSize (always finite), so fall back to the last value
+        // Arrange recorded rather than an infinite one, which would otherwise make RealizeItems
+        // think "every remaining row fits" and the windowing logic realize the wrong rows.
+        double viewportHeight = double.IsInfinity(availableSize.Height) ? _viewport.Height : availableSize.Height;
+        double viewportWidth = double.IsInfinity(availableSize.Width) ? _viewport.Width : availableSize.Width;
+
         var newExtent = new Size(extentWidth, extentHeight);
-        if (newExtent != _extent || availableSize != _viewport)
+        var newViewport = new Size(viewportWidth, viewportHeight);
+        if (newExtent != _extent || newViewport != _viewport)
         {
             _extent = newExtent;
-            _viewport = availableSize;
+            _viewport = newViewport;
             ScrollOwner?.InvalidateScrollInfo();
         }
 
@@ -85,6 +96,22 @@ public sealed class VirtualizingWrapPanel : VirtualizingPanel, IScrollInfo
 
     protected override Size ArrangeOverride(Size finalSize)
     {
+        // The one place the real viewport size is guaranteed finite. If it differs from what
+        // MeasureOverride had to guess (see the comment there), record it and ask for another
+        // measure pass so RealizeItems windows against the correct size instead of a stale one.
+        if (Math.Abs(finalSize.Width - _viewport.Width) > 0.5 || Math.Abs(finalSize.Height - _viewport.Height) > 0.5)
+        {
+            _viewport = finalSize;
+            ScrollOwner?.InvalidateScrollInfo();
+            InvalidateMeasure();
+        }
+
+        // Centers the block of columns horizontally within any leftover width the floor-division
+        // column count didn't use, so a partial remainder splits evenly between both edges instead
+        // of piling up on the right.
+        double usedWidth = _columns * ItemWidth;
+        double columnOffsetX = finalSize.Width > usedWidth ? (finalSize.Width - usedWidth) / 2 : 0;
+
         for (int i = 0; i < InternalChildren.Count; i++)
         {
             UIElement child = InternalChildren[i];
@@ -97,8 +124,8 @@ public sealed class VirtualizingWrapPanel : VirtualizingPanel, IScrollInfo
             int column = itemIndex % _columns;
             int row = itemIndex / _columns;
 
-            double x = column * ItemWidth - _offset.X;
-            double y = row * ItemHeight - _offset.Y;
+            double x = columnOffsetX + (column * ItemWidth) - _offset.X;
+            double y = (row * ItemHeight) - _offset.Y;
 
             child.Arrange(new Rect(x, y, ItemWidth, ItemHeight));
         }

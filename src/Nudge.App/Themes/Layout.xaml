@@ -55,8 +55,11 @@
        square-cornered panel sitting inside a rounded one. -->
   <CornerRadius x:Key="CornerRadius.Card.Top">14,14,0,0</CornerRadius>
 
+  <!-- Half of Size.Scrollbar, so the thumb's ends are always fully rounded regardless of track width. -->
+  <CornerRadius x:Key="CornerRadius.Scrollbar">3</CornerRadius>
+
   <!-- Fixed dimensions -->
-  <system:Double x:Key="Size.Scrollbar">10</system:Double>
+  <system:Double x:Key="Size.Scrollbar">6</system:Double>
   <system:Double x:Key="Size.MinButtonWidth">96</system:Double>
   <system:Double x:Key="Size.Window.MinWidth">860</system:Double>
   <system:Double x:Key="Size.Window.MinHeight">560</system:Double>
@@ -65,9 +68,17 @@
 
   <!-- The library grid -->
   <system:Double x:Key="Size.Tile.Width">180</system:Double>
-  <system:Double x:Key="Size.Tile.Height">248</system:Double>
+  <system:Double x:Key="Size.Tile.Height">256</system:Double>
   <system:Double x:Key="Size.SearchBox.Width">240</system:Double>
   <Thickness x:Key="Margin.Tile">6</Thickness>
   <Thickness x:Key="Padding.SearchBox">12,6,12,6</Thickness>
+
+  <!-- Custom window chrome -->
+  <system:Double x:Key="Size.TitleBar.Height">34</system:Double>
+  <system:Double x:Key="Size.TitleBarButton.Width">44</system:Double>
+  <!-- Same value as Size.TitleBar.Height, as a GridLength - RowDefinition.Height needs that type,
+       and DynamicResource doesn't run a double through GridLengthConverter the way a literal
+       attribute string would. -->
+  <GridLength x:Key="RowHeight.TitleBar">34</GridLength>
 
 </ResourceDictionary>

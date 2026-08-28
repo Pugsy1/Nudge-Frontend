@@ -17,9 +17,12 @@
     <!-- One tile in the grid. Fixed size to match VirtualizingWrapPanel's ItemWidth/ItemHeight,
          which arranges every child at exactly that size regardless of its content. -->
     <DataTemplate x:Key="TableTileTemplate" DataType="{x:Type vm:TableTileViewModel}">
-      <Border Width="{DynamicResource Size.Tile.Width}"
-              Height="{DynamicResource Size.Tile.Height}"
-              Margin="{DynamicResource Margin.Tile}"
+      <!-- No explicit Width/Height here - the panel arranges every child at exactly
+           (Size.Tile.Width, Size.Tile.Height); with Margin also set, adding an explicit Width/Height
+           on top of that made this element request more space than its arranged slot actually had,
+           which showed up as inconsistent corner rounding and clipped text. Stretch (the default)
+           plus Margin alone fills the slot minus the gutter, with no conflict. -->
+      <Border Margin="{DynamicResource Margin.Tile}"
               Background="{DynamicResource Brush.Surface.Background}"
               BorderBrush="{DynamicResource Brush.Surface.EdgeHighlight}"
               BorderThickness="{DynamicResource BorderThickness.Thin}"

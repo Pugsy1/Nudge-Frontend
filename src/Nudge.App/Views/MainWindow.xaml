@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:views="clr-namespace:Nudge.App.Views"
         xmlns:vm="clr-namespace:Nudge.App.ViewModels"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="Nudge"
         Icon="pack://application:,,,/Assets/nudge.ico"
         Width="{DynamicResource Size.Window.Width}"
@@ -10,15 +11,30 @@
         MinWidth="{DynamicResource Size.Window.MinWidth}"
         MinHeight="{DynamicResource Size.Window.MinHeight}"
         WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        ResizeMode="CanResize"
         Background="{DynamicResource Brush.Window.Background}"
         TextOptions.TextFormattingMode="Display"
         UseLayoutRounding="True">
 
   <!--
-    Standard Windows title bar, by decision - custom chrome is a separate, larger piece of work
-    (hit-testing, snap layouts, DPI) not part of this pass. ShellViewModel.CurrentViewModel decides
-    which screen shows; the DataTemplates below map each view model to its view.
+    Custom window chrome, themed to match the rest of the app instead of the plain system title
+    bar. Built on WindowChrome (not raw WndProc hit-testing) so resizing, dragging, and Aero snap
+    keep working "for free" - only the caption area's own content (icon/title/min/max/close) is
+    hand-drawn; everything else about being a window is still the OS's job.
+
+    Known limitation: Windows 11's snap-layout flyout (hovering the maximize button) needs the
+    system-drawn caption buttons (UseAeroCaptionButtons="True") to appear - it does not fire for a
+    hand-drawn button. Traded away here for a themed button; drag-to-edge snapping itself still
+    works, since that comes from WindowChrome's own hit-testing, not the flyout.
   -->
+  <WindowChrome.WindowChrome>
+    <WindowChrome CaptionHeight="{DynamicResource Size.TitleBar.Height}"
+                  ResizeBorderThickness="6"
+                  GlassFrameThickness="0"
+                  CornerRadius="0"
+                  UseAeroCaptionButtons="False" />
+  </WindowChrome.WindowChrome>
 
   <Window.Resources>
     <DataTemplate DataType="{x:Type vm:SetupViewModel}">
@@ -29,6 +45,54 @@
     </DataTemplate>
   </Window.Resources>
 
-  <ContentControl Content="{Binding CurrentViewModel}" Focusable="False" />
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="{DynamicResource RowHeight.TitleBar}" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+
+    <!-- Caption: everything here except the buttons column is drag-to-move / double-click-to-maximize,
+         by virtue of sitting within WindowChrome's CaptionHeight. -->
+    <Grid Grid.Row="0" Background="{DynamicResource Brush.TitleBar.Background}">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+
+      <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center">
+        <Image Source="pack://application:,,,/Assets/nudge.ico" Width="16" Height="16" />
+        <TextBlock Text="Nudge"
+                   Margin="8,0,0,0"
+                   VerticalAlignment="Center"
+                   FontFamily="{DynamicResource Font.Family.Primary}"
+                   FontSize="{DynamicResource Font.Size.Caption}"
+                   Foreground="{DynamicResource Brush.Text.Secondary}" />
+      </StackPanel>
+
+      <!-- Marked hit-test-visible so clicks land on the buttons instead of being treated as a
+           caption drag - WindowChrome otherwise reports the whole CaptionHeight strip as HTCAPTION. -->
+      <StackPanel Grid.Column="1" Orientation="Horizontal" WindowChrome.IsHitTestVisibleInChrome="True">
+        <Button x:Name="MinimizeButton"
+                Style="{StaticResource TitleBarButton}"
+                Content="&#xE921;"
+                ToolTip="Minimize"
+                Click="OnMinimizeClick" />
+        <Button x:Name="MaximizeRestoreButton"
+                Style="{StaticResource TitleBarButton}"
+                Content="&#xE922;"
+                ToolTip="Maximize"
+                Click="OnMaximizeRestoreClick" />
+        <Button x:Name="CloseButton"
+                Style="{StaticResource TitleBarButton.Close}"
+                Content="&#xE8BB;"
+                ToolTip="Close"
+                Click="OnCloseClick" />
+      </StackPanel>
+    </Grid>
+
+    <!-- ShellViewModel.CurrentViewModel decides which screen shows; the DataTemplates above map
+         each view model to its view. -->
+    <ContentControl Grid.Row="1" Content="{Binding CurrentViewModel}" Focusable="False" />
+  </Grid>
 
 </Window>
