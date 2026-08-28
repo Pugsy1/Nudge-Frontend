@@ -27,10 +27,34 @@ public interface IWindowActivationService
 
 public sealed class WindowActivationService : IWindowActivationService
 {
+    private const int SW_RESTORE = 9;
+    private const uint GA_ROOT = 2;
+
     private static readonly TimeSpan ReassertInterval = TimeSpan.FromMilliseconds(400);
 
     [DllImport("user32.dll")]
     private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsIconic(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
+    [DllImport("user32.dll")]
+    private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetAncestor(IntPtr hWnd, uint gaFlags);
+
+    [DllImport("kernel32.dll")]
+    private static extern uint GetCurrentThreadId();
 
     public async Task KeepForegroundAsync(CancellationToken cancellationToken)
     {
@@ -62,12 +86,43 @@ public sealed class WindowActivationService : IWindowActivationService
     {
         Process? newest = MatchingProcesses(processNamePrefixes)
             .Where(p => !excludeProcessIds.Contains(p.Id))
-            .OrderByDescending(p => SafeStartTime(p))
+            .OrderByDescending(SafeStartTime)
             .FirstOrDefault();
 
-        if (newest is not null && newest.MainWindowHandle != IntPtr.Zero)
+        IntPtr handle = newest?.MainWindowHandle ?? IntPtr.Zero;
+        if (handle == IntPtr.Zero)
         {
-            SetForegroundWindow(newest.MainWindowHandle);
+            return;
+        }
+
+        // A plain SetForegroundWindow from a background thread is unreliable once Windows' foreground
+        // lock has settled on a different window (which it has, here - Nudge has been holding it for
+        // the whole grace period) - a bare call to it is exactly what silently did nothing before.
+        // Briefly attaching this thread's input state to the target window's owning thread borrows
+        // that thread's standing foreground-activation right for the duration of the call, which is
+        // the standard, documented workaround (the same technique window-switcher utilities use).
+        if (IsIconic(handle))
+        {
+            ShowWindow(handle, SW_RESTORE);
+        }
+
+        IntPtr foreground = GetForegroundWindow();
+        uint currentThreadId = GetCurrentThreadId();
+        uint foregroundThreadId = GetWindowThreadProcessId(GetAncestor(foreground, GA_ROOT), out _);
+
+        bool attached = foregroundThreadId != 0
+                         && foregroundThreadId != currentThreadId
+                         && AttachThreadInput(currentThreadId, foregroundThreadId, true);
+        try
+        {
+            SetForegroundWindow(handle);
+        }
+        finally
+        {
+            if (attached)
+            {
+                AttachThreadInput(currentThreadId, foregroundThreadId, false);
+            }
         }
     }
 

@@ -8,7 +8,11 @@
     without the preferred font installed.
   -->
 
-  <FontFamily x:Key="Font.Family.Primary">Segoe UI, Tahoma, sans-serif</FontFamily>
+  <!-- Segoe UI Variable is Windows 11's rounder, warmer system font - fits the calmer material
+       language better than classic Segoe UI's tighter geometry. Not bundled on older Windows 10,
+       so the fallback chain still ends on the fonts guaranteed present down to AGENTS.md's minimum
+       OS (Windows 10 21H2). -->
+  <FontFamily x:Key="Font.Family.Primary">Segoe UI Variable Text, Segoe UI, Tahoma, sans-serif</FontFamily>
   <FontFamily x:Key="Font.Family.Mono">Cascadia Mono, Consolas, Courier New, monospace</FontFamily>
 
   <system:Double x:Key="Font.Size.Caption">11</system:Double>

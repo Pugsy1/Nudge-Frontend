@@ -6,7 +6,9 @@
     Spacing scale and shapes. Every margin, padding, corner radius and border thickness in a view
     comes from here, so spacing stays consistent and can be adjusted in one place.
 
-    The scale is a 4px grid: 4, 8, 12, 16, 24, 32.
+    The scale is a 4px grid: 4, 8, 12, 16, 24, 32, 48. The larger steps carry most of the layout in
+    this design - the brief is calm and spacious, so page padding and grid gutters deliberately sit
+    at the top of the scale rather than the middle.
   -->
 
   <system:Double x:Key="Space.XS">4</system:Double>
@@ -15,6 +17,7 @@
   <system:Double x:Key="Space.L">16</system:Double>
   <system:Double x:Key="Space.XL">24</system:Double>
   <system:Double x:Key="Space.XXL">32</system:Double>
+  <system:Double x:Key="Space.XXXL">48</system:Double>
 
   <!-- Uniform insets -->
   <Thickness x:Key="Inset.XS">4</Thickness>
@@ -22,6 +25,7 @@
   <Thickness x:Key="Inset.M">12</Thickness>
   <Thickness x:Key="Inset.L">16</Thickness>
   <Thickness x:Key="Inset.XL">24</Thickness>
+  <Thickness x:Key="Inset.XXL">32</Thickness>
 
   <!-- Directional gaps, used as margins between stacked or inline elements -->
   <Thickness x:Key="Gap.Below.XS">0,0,0,4</Thickness>
@@ -31,15 +35,20 @@
   <Thickness x:Key="Gap.Below.XL">0,0,0,24</Thickness>
   <Thickness x:Key="Gap.Above.S">0,8,0,0</Thickness>
   <Thickness x:Key="Gap.Above.M">0,12,0,0</Thickness>
+  <Thickness x:Key="Gap.Above.L">0,16,0,0</Thickness>
+  <Thickness x:Key="Gap.Above.XL">0,24,0,0</Thickness>
   <Thickness x:Key="Gap.Right.S">0,0,8,0</Thickness>
   <Thickness x:Key="Gap.Right.M">0,0,12,0</Thickness>
+  <Thickness x:Key="Gap.Right.L">0,0,16,0</Thickness>
 
-  <!-- Component-specific padding -->
-  <Thickness x:Key="Padding.Page">24</Thickness>
-  <Thickness x:Key="Padding.Card">16</Thickness>
-  <Thickness x:Key="Padding.Button">16,8,16,8</Thickness>
-  <Thickness x:Key="Padding.TableCell">12,8,12,8</Thickness>
-  <Thickness x:Key="Padding.Badge">8,2,8,2</Thickness>
+  <!-- Component-specific padding. Generous by design - see the note on the scale above. -->
+  <Thickness x:Key="Padding.Page">40,32,40,32</Thickness>
+  <Thickness x:Key="Padding.Grid">32,8,32,32</Thickness>
+  <Thickness x:Key="Padding.Card">20</Thickness>
+  <Thickness x:Key="Padding.Button">18,9,18,9</Thickness>
+  <Thickness x:Key="Padding.TableCell">14,10,14,12</Thickness>
+  <Thickness x:Key="Padding.Badge">8,3,8,3</Thickness>
+  <Thickness x:Key="Padding.Flyout">20</Thickness>
 
   <!-- Borders -->
   <Thickness x:Key="BorderThickness.Thin">1</Thickness>
@@ -48,50 +57,55 @@
 
   <CornerRadius x:Key="CornerRadius.S">8</CornerRadius>
   <CornerRadius x:Key="CornerRadius.M">14</CornerRadius>
-  <CornerRadius x:Key="CornerRadius.L">22</CornerRadius>
+  <CornerRadius x:Key="CornerRadius.L">20</CornerRadius>
 
-  <!-- Larger than any control it's used on is tall, so it's always a full stadium/pill regardless
-       of exact rendered height - used for the one control meant to read as distinctly shaped. -->
-  <CornerRadius x:Key="CornerRadius.Pill">20</CornerRadius>
+  <!-- Larger than any control it's used on is tall, so it always renders as a full stadium/pill. -->
+  <CornerRadius x:Key="CornerRadius.Pill">22</CornerRadius>
 
-  <!-- Rounds only the top corners, at the same radius as CornerRadius.M, for a tile's artwork area
-       so it reads as one continuous rounded shape with the card around it rather than a separate
-       square-cornered panel sitting inside a rounded one. -->
+  <!-- Rounds only the top corners, matching CornerRadius.M, for a tile's artwork area so it reads
+       as one continuous rounded shape with the card around it. -->
   <CornerRadius x:Key="CornerRadius.Card.Top">14,14,0,0</CornerRadius>
 
-  <!-- Half of Size.Scrollbar, so the thumb's ends are always fully rounded regardless of track width. -->
+  <!-- Half of Size.Scrollbar, so the thumb's ends are always fully rounded. -->
   <CornerRadius x:Key="CornerRadius.Scrollbar">3</CornerRadius>
-
-  <!-- Insets the whole scrollbar away from the top/bottom of the content area and the window's
-       right edge, so it reads as a short floating pill rather than a bar spanning full height. -->
-  <Thickness x:Key="Margin.Scrollbar">0,10,4,10</Thickness>
 
   <!-- Fixed dimensions -->
   <system:Double x:Key="Size.Scrollbar">6</system:Double>
   <system:Double x:Key="Size.MinButtonWidth">96</system:Double>
-  <system:Double x:Key="Size.IconButton">36</system:Double>
-  <system:Double x:Key="Size.Window.MinWidth">860</system:Double>
-  <system:Double x:Key="Size.Window.MinHeight">560</system:Double>
-  <system:Double x:Key="Size.Window.Width">1040</system:Double>
-  <system:Double x:Key="Size.Window.Height">720</system:Double>
+  <system:Double x:Key="Size.IconButton">38</system:Double>
+  <system:Double x:Key="Size.Window.MinWidth">940</system:Double>
+  <system:Double x:Key="Size.Window.MinHeight">600</system:Double>
+  <system:Double x:Key="Size.Window.Width">1180</system:Double>
+  <system:Double x:Key="Size.Window.Height">780</system:Double>
 
-  <!-- The library grid -->
-  <system:Double x:Key="Size.Tile.Width">180</system:Double>
-  <system:Double x:Key="Size.Tile.Height">272</system:Double>
-  <!-- Two lines of Font.Size.Body, so a long title wraps once instead of truncating after a
-       handful of characters - CharacterEllipsis still trims a title too long even for two lines. -->
+  <!--
+    The library grid. Tiles are wide and breathable, with a loose gutter (Margin.Tile is applied on
+    all four sides of every tile, so the visible gap between two tiles is twice this).
+  -->
+  <system:Double x:Key="Size.Tile.Width">208</system:Double>
+  <system:Double x:Key="Size.Tile.Height">296</system:Double>
   <system:Double x:Key="Size.Tile.TitleHeight">36</system:Double>
-  <system:Double x:Key="Size.SearchBox.Width">240</system:Double>
-  <Thickness x:Key="Margin.Tile">6</Thickness>
-  <!-- Left inset is wider than the other three sides to leave room for the search icon. -->
-  <Thickness x:Key="Padding.SearchBox">32,6,12,6</Thickness>
+  <Thickness x:Key="Margin.Tile">10</Thickness>
+
+  <!-- How far a tile scales up on hover. Small on purpose - a lift, not a jump. -->
+  <system:Double x:Key="Scale.Tile.Hover">1.035</system:Double>
+
+  <system:Double x:Key="Size.SearchBox.Width">260</system:Double>
+  <Thickness x:Key="Padding.SearchBox">36,8,14,8</Thickness>
+
+  <!-- Insets the scrollbar from the content edges so it reads as a short floating pill. -->
+  <Thickness x:Key="Margin.Scrollbar">0,16,6,16</Thickness>
 
   <!-- Custom window chrome -->
-  <system:Double x:Key="Size.TitleBar.Height">34</system:Double>
-  <system:Double x:Key="Size.TitleBarButton.Width">44</system:Double>
+  <system:Double x:Key="Size.TitleBar.Height">38</system:Double>
+  <system:Double x:Key="Size.TitleBarButton.Width">46</system:Double>
   <!-- Same value as Size.TitleBar.Height, as a GridLength - RowDefinition.Height needs that type,
        and DynamicResource doesn't run a double through GridLengthConverter the way a literal
        attribute string would. -->
-  <GridLength x:Key="RowHeight.TitleBar">34</GridLength>
+  <GridLength x:Key="RowHeight.TitleBar">38</GridLength>
+
+  <!-- Motion. Short enough to feel immediate, long enough to read as a movement rather than a cut. -->
+  <Duration x:Key="Duration.Hover">0:0:0.13</Duration>
+  <Duration x:Key="Duration.Fade">0:0:0.22</Duration>
 
 </ResourceDictionary>

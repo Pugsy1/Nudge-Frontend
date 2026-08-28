@@ -4,6 +4,11 @@
   <!--
     Control templates. WPF's stock controls look dated, so every control Nudge uses is templated
     here against the named colour, type and spacing resources.
+
+    The shared material language: a raised control has a satin gradient fill, a diagonal bevel
+    border (bright top-left, dark bottom-right) and a downward shadow. Pressing it inverts the
+    gradient and tightens the shadow, so it reads as sinking toward its base. Recessed controls
+    (text slots) use the inverted gradient at rest.
   -->
 
   <!-- ============================ Buttons ============================ -->
@@ -31,15 +36,12 @@
                               RecognizesAccessKey="True" />
           </Border>
           <ControlTemplate.Triggers>
-            <!-- Explicit BorderThickness here, not just BorderBrush: Button.Secondary keeps no
-                 border at rest for a cleaner look, so focus needs to draw one in rather than just
-                 recolour one that isn't there. -->
             <Trigger Property="IsKeyboardFocused" Value="True">
               <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
               <Setter TargetName="Root" Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
             </Trigger>
             <Trigger Property="IsEnabled" Value="False">
-              <Setter TargetName="Root" Property="Opacity" Value="0.5" />
+              <Setter TargetName="Root" Property="Opacity" Value="0.45" />
               <Setter Property="Cursor" Value="Arrow" />
             </Trigger>
           </ControlTemplate.Triggers>
@@ -48,42 +50,35 @@
     </Setter>
   </Style>
 
-  <!--
-    The single most important action on a screen. Kept flat and saturated rather than neumorphic -
-    a primary action should read as the one thing that stands out by colour, not blend into a
-    monochrome shadow-differentiated surface. It still gets the soft shadow, for the same "raised"
-    depth cue as everything else, and a smaller one on press for a "pushed in" feel.
-  -->
+  <!-- The single most important action on a screen: a lit brass cap. -->
   <Style x:Key="Button.Primary" TargetType="Button" BasedOn="{StaticResource Button.Base}">
-    <Setter Property="Background" Value="{DynamicResource Brush.Accent}" />
+    <Setter Property="Background" Value="{DynamicResource Brush.Accent.Surface}" />
     <Setter Property="Foreground" Value="{DynamicResource Brush.Accent.Foreground}" />
-    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
-    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
-    <Setter Property="Effect" Value="{DynamicResource Effect.Button.Shadow}" />
-    <Style.Triggers>
-      <Trigger Property="IsMouseOver" Value="True">
-        <Setter Property="Background" Value="{DynamicResource Brush.Accent.Hover}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent.Hover}" />
-      </Trigger>
-      <Trigger Property="IsPressed" Value="True">
-        <Setter Property="Background" Value="{DynamicResource Brush.Accent.Pressed}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent.Pressed}" />
-        <Setter Property="Effect" Value="{DynamicResource Effect.Button.Shadow.Pressed}" />
-      </Trigger>
-    </Style.Triggers>
-  </Style>
-
-  <!-- Borderless at rest - close in tone to the surface behind it, differentiated purely by its
-       soft shadow and a lighter fill on hover, for a cleaner outline-free look than a stroked pill. -->
-  <Style x:Key="Button.Secondary" TargetType="Button" BasedOn="{StaticResource Button.Base}">
-    <Setter Property="Background" Value="{DynamicResource Brush.Control.Background}" />
-    <Setter Property="Foreground" Value="{DynamicResource Brush.Control.Foreground}" />
     <Setter Property="BorderBrush" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="Effect" Value="{DynamicResource Effect.Button.Shadow}" />
     <Style.Triggers>
       <Trigger Property="IsMouseOver" Value="True">
+        <Setter Property="Background" Value="{DynamicResource Brush.Accent.Hover}" />
+      </Trigger>
+      <Trigger Property="IsPressed" Value="True">
+        <Setter Property="Background" Value="{DynamicResource Brush.Accent.Pressed}" />
+        <Setter Property="Effect" Value="{DynamicResource Effect.Button.Shadow.Pressed}" />
+      </Trigger>
+    </Style.Triggers>
+  </Style>
+
+  <!-- A satin panel cap: bevel border, soft shadow, sinks on press. -->
+  <Style x:Key="Button.Secondary" TargetType="Button" BasedOn="{StaticResource Button.Base}">
+    <Setter Property="Background" Value="{DynamicResource Brush.Control.Background}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Control.Foreground}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Surface.EdgeHighlight}" />
+    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
+    <Setter Property="Effect" Value="{DynamicResource Effect.Button.Shadow}" />
+    <Style.Triggers>
+      <Trigger Property="IsMouseOver" Value="True">
         <Setter Property="Background" Value="{DynamicResource Brush.Control.BackgroundHover}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.Surface.RimLight}" />
       </Trigger>
       <Trigger Property="IsPressed" Value="True">
         <Setter Property="Background" Value="{DynamicResource Brush.Control.BackgroundPressed}" />
@@ -92,23 +87,12 @@
     </Style.Triggers>
   </Style>
 
-  <!-- Icon-only, square-ish button for an auxiliary action that doesn't need a text label - e.g.
-       the settings placeholder. Reuses Button.Secondary's borderless/shadow treatment. -->
-  <Style x:Key="Button.Icon" TargetType="Button" BasedOn="{StaticResource Button.Secondary}">
-    <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
-    <Setter Property="FontSize" Value="14" />
-    <Setter Property="MinWidth" Value="0" />
-    <Setter Property="Width" Value="{DynamicResource Size.IconButton}" />
-    <Setter Property="Height" Value="{DynamicResource Size.IconButton}" />
-    <Setter Property="Padding" Value="0" />
-  </Style>
-
-  <!-- Low-emphasis inline action, e.g. "show the evidence". -->
+  <!-- Low-emphasis inline action. Flush with the page until hovered. -->
   <Style x:Key="Button.Subtle" TargetType="Button" BasedOn="{StaticResource Button.Base}">
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
     <Setter Property="BorderBrush" Value="Transparent" />
-    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
+    <Setter Property="BorderThickness" Value="0" />
     <Setter Property="MinWidth" Value="0" />
     <Setter Property="FontSize" Value="{DynamicResource Font.Size.Caption}" />
     <Setter Property="Padding" Value="{DynamicResource Padding.Badge}" />
@@ -120,19 +104,142 @@
     </Style.Triggers>
   </Style>
 
+  <!-- Icon-only, square-ish auxiliary action, e.g. the settings cog. -->
+  <Style x:Key="Button.Icon" TargetType="Button" BasedOn="{StaticResource Button.Secondary}">
+    <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
+    <Setter Property="FontSize" Value="15" />
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="Width" Value="{DynamicResource Size.IconButton}" />
+    <Setter Property="Height" Value="{DynamicResource Size.IconButton}" />
+    <Setter Property="Padding" Value="0" />
+  </Style>
+
+  <!-- ============================ Segmented switch (2D / VR) ============================ -->
+
+  <!--
+    A physical two-position selector: the whole control is a recessed slot, and the selected
+    segment is a raised cap sitting inside it. Built from RadioButtons so exactly one is always
+    active, with the group enforced by the usual GroupName.
+  -->
+  <Style x:Key="Segment" TargetType="RadioButton">
+    <Setter Property="FontFamily" Value="{DynamicResource Font.Family.Primary}" />
+    <Setter Property="FontSize" Value="{DynamicResource Font.Size.Caption}" />
+    <Setter Property="FontWeight" Value="{DynamicResource Font.Weight.SemiBold}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Muted}" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="SnapsToDevicePixels" Value="True" />
+    <Setter Property="Padding" Value="18,6,18,6" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="RadioButton">
+          <Border x:Name="Root"
+                  Background="Transparent"
+                  BorderBrush="Transparent"
+                  BorderThickness="{DynamicResource BorderThickness.Thin}"
+                  CornerRadius="{DynamicResource CornerRadius.Pill}">
+            <ContentPresenter Margin="{TemplateBinding Padding}"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center" />
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
+            </Trigger>
+            <!-- Selected: the cap rises out of the slot, lit and bevelled. -->
+            <Trigger Property="IsChecked" Value="True">
+              <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.Control.Background}" />
+              <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Surface.EdgeHighlight}" />
+              <Setter TargetName="Root" Property="Effect" Value="{DynamicResource Effect.Button.Shadow}" />
+              <Setter Property="Foreground" Value="{DynamicResource Brush.Accent}" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter TargetName="Root" Property="Opacity" Value="0.45" />
+              <Setter Property="Cursor" Value="Arrow" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- The recessed housing the segments sit in. -->
+  <Style x:Key="Segment.Track" TargetType="Border">
+    <Setter Property="Background" Value="{DynamicResource Brush.Surface.Recessed}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Surface.Border}" />
+    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource CornerRadius.Pill}" />
+    <Setter Property="Padding" Value="{DynamicResource Inset.XS}" />
+    <Setter Property="SnapsToDevicePixels" Value="True" />
+  </Style>
+
+  <!-- ============================ Toggle switch (settings) ============================ -->
+
+  <!-- A physical rocker: a recessed track with a raised knob that slides between two positions. -->
+  <Style x:Key="Switch" TargetType="CheckBox">
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="SnapsToDevicePixels" Value="True" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="CheckBox">
+          <Grid Background="Transparent">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <ContentPresenter Grid.Column="0"
+                              VerticalAlignment="Center"
+                              HorizontalAlignment="Left" />
+
+            <Border x:Name="Track"
+                    Grid.Column="1"
+                    Width="40" Height="22"
+                    Margin="{DynamicResource Gap.Right.S}"
+                    Background="{DynamicResource Brush.Surface.Recessed}"
+                    BorderBrush="{DynamicResource Brush.Surface.Border}"
+                    BorderThickness="{DynamicResource BorderThickness.Thin}"
+                    CornerRadius="{DynamicResource CornerRadius.Pill}">
+              <Border x:Name="Knob"
+                      Width="16" Height="16"
+                      HorizontalAlignment="Left"
+                      Margin="2,0,0,0"
+                      Background="{DynamicResource Brush.Control.Background}"
+                      BorderBrush="{DynamicResource Brush.Surface.EdgeHighlight}"
+                      BorderThickness="{DynamicResource BorderThickness.Thin}"
+                      CornerRadius="{DynamicResource CornerRadius.Pill}"
+                      Effect="{DynamicResource Effect.Button.Shadow.Pressed}" />
+            </Border>
+          </Grid>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsChecked" Value="True">
+              <Setter TargetName="Knob" Property="HorizontalAlignment" Value="Right" />
+              <Setter TargetName="Knob" Property="Margin" Value="0,0,2,0" />
+              <Setter TargetName="Knob" Property="Background" Value="{DynamicResource Brush.Accent.Surface}" />
+              <Setter TargetName="Knob" Property="BorderBrush" Value="Transparent" />
+            </Trigger>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource Brush.Control.BorderHover}" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter Property="Opacity" Value="0.45" />
+              <Setter Property="Cursor" Value="Arrow" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
   <!-- ============================ Text input ============================ -->
 
-  <!-- Reads as recessed rather than raised - the same "inset" language Surface.Inset already uses -
-       so a typing field visually differs from the raised, borderless-pill buttons around it. Fully
-       pill-shaped regardless of height (CornerRadius.Pill) and borderless until focused, when a thin
-       accent ring draws in - the one control in the header that visibly "lights up" on interaction. -->
+  <!-- A slot milled into the panel: inverted sheen, tight inner shadow, no border until focused. -->
   <Style x:Key="TextBox.Search" TargetType="TextBox">
     <Setter Property="FontFamily" Value="{DynamicResource Font.Family.Primary}" />
     <Setter Property="FontSize" Value="{DynamicResource Font.Size.Body}" />
     <Setter Property="Foreground" Value="{DynamicResource Brush.Control.Foreground}" />
     <Setter Property="CaretBrush" Value="{DynamicResource Brush.Accent}" />
-    <Setter Property="Background" Value="{DynamicResource Brush.Surface.BackgroundAlt}" />
-    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="Background" Value="{DynamicResource Brush.Surface.Recessed}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Surface.Border}" />
     <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
     <Setter Property="Padding" Value="{DynamicResource Padding.SearchBox}" />
     <Setter Property="VerticalContentAlignment" Value="Center" />
@@ -158,12 +265,146 @@
     </Setter>
   </Style>
 
+  <!-- ============================ Dropdown ============================ -->
+
+  <Style x:Key="ComboBox.Item" TargetType="ComboBoxItem">
+    <Setter Property="FontFamily" Value="{DynamicResource Font.Family.Primary}" />
+    <Setter Property="FontSize" Value="{DynamicResource Font.Size.Body}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
+    <Setter Property="Padding" Value="14,9,14,9" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="SnapsToDevicePixels" Value="True" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ComboBoxItem">
+          <Border x:Name="Root"
+                  Background="Transparent"
+                  CornerRadius="{DynamicResource CornerRadius.S}"
+                  Padding="{TemplateBinding Padding}">
+            <ContentPresenter VerticalAlignment="Center" />
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.Control.BackgroundHover}" />
+              <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
+            </Trigger>
+            <Trigger Property="IsSelected" Value="True">
+              <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.Accent.Subtle}" />
+              <Setter Property="Foreground" Value="{DynamicResource Brush.Accent}" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style x:Key="ComboBox.Standard" TargetType="ComboBox">
+    <Setter Property="FontFamily" Value="{DynamicResource Font.Family.Primary}" />
+    <Setter Property="FontSize" Value="{DynamicResource Font.Size.Body}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Control.Foreground}" />
+    <Setter Property="Background" Value="{DynamicResource Brush.Control.Background}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Surface.EdgeHighlight}" />
+    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
+    <Setter Property="Padding" Value="{DynamicResource Padding.Button}" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="SnapsToDevicePixels" Value="True" />
+    <Setter Property="ItemContainerStyle" Value="{StaticResource ComboBox.Item}" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ComboBox">
+          <Grid>
+            <!-- The closed control: a satin cap, same material as Button.Secondary. -->
+            <ToggleButton x:Name="PART_Toggle"
+                          Focusable="False"
+                          ClickMode="Press"
+                          Cursor="Hand"
+                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+              <ToggleButton.Template>
+                <ControlTemplate TargetType="ToggleButton">
+                  <Border x:Name="Cap"
+                          Background="{DynamicResource Brush.Control.Background}"
+                          BorderBrush="{DynamicResource Brush.Surface.EdgeHighlight}"
+                          BorderThickness="{DynamicResource BorderThickness.Thin}"
+                          CornerRadius="{DynamicResource CornerRadius.M}"
+                          Effect="{DynamicResource Effect.Button.Shadow}">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <ContentPresenter Grid.Column="0"
+                                        Margin="{DynamicResource Padding.Button}"
+                                        VerticalAlignment="Center" />
+                      <TextBlock Grid.Column="1"
+                                 Text="&#xE70D;"
+                                 FontFamily="Segoe MDL2 Assets"
+                                 FontSize="9"
+                                 Margin="0,0,14,0"
+                                 VerticalAlignment="Center"
+                                 Foreground="{DynamicResource Brush.Text.Muted}" />
+                    </Grid>
+                  </Border>
+                  <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                      <Setter TargetName="Cap" Property="Background" Value="{DynamicResource Brush.Control.BackgroundHover}" />
+                      <Setter TargetName="Cap" Property="BorderBrush" Value="{DynamicResource Brush.Surface.RimLight}" />
+                    </Trigger>
+                    <Trigger Property="IsChecked" Value="True">
+                      <Setter TargetName="Cap" Property="Background" Value="{DynamicResource Brush.Control.BackgroundPressed}" />
+                      <Setter TargetName="Cap" Property="Effect" Value="{DynamicResource Effect.Button.Shadow.Pressed}" />
+                    </Trigger>
+                  </ControlTemplate.Triggers>
+                </ControlTemplate>
+              </ToggleButton.Template>
+
+              <!-- Bound directly to SelectedItem.Label rather than SelectionBoxItem/Template:
+                   ComboBox only auto-generates a SelectionBoxItemTemplate from DisplayMemberPath
+                   when using its own default template, not a fully custom one like this, so
+                   SelectionBoxItem was rendering the OptionItem record's ToString() instead. -->
+              <TextBlock Text="{Binding SelectedItem.Label, RelativeSource={RelativeSource TemplatedParent}}"
+                         Foreground="{DynamicResource Brush.Control.Foreground}"
+                         VerticalAlignment="Center" />
+            </ToggleButton>
+
+            <!-- The open list: a floating panel, well above the page. -->
+            <Popup x:Name="PART_Popup"
+                   IsOpen="{TemplateBinding IsDropDownOpen}"
+                   Placement="Bottom"
+                   VerticalOffset="6"
+                   AllowsTransparency="True"
+                   PopupAnimation="Fade"
+                   Focusable="False">
+              <Border MinWidth="{Binding ActualWidth, ElementName=PART_Toggle}"
+                      Margin="10"
+                      Background="{DynamicResource Brush.Surface.BackgroundAlt}"
+                      BorderBrush="{DynamicResource Brush.Surface.EdgeHighlight}"
+                      BorderThickness="{DynamicResource BorderThickness.Thin}"
+                      CornerRadius="{DynamicResource CornerRadius.M}"
+                      Padding="{DynamicResource Inset.XS}"
+                      Effect="{DynamicResource Effect.Flyout.Shadow}">
+                <ScrollViewer MaxHeight="280">
+                  <ItemsPresenter />
+                </ScrollViewer>
+              </Border>
+            </Popup>
+          </Grid>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter Property="Opacity" Value="0.45" />
+              <Setter Property="Cursor" Value="Arrow" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
   <!-- ============================ Title bar (custom window chrome) ============================ -->
 
   <Style x:Key="TitleBarButton" TargetType="Button">
     <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
     <Setter Property="FontSize" Value="10" />
-    <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Muted}" />
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="Width" Value="{DynamicResource Size.TitleBarButton.Width}" />
@@ -188,13 +429,12 @@
     </Setter>
   </Style>
 
-  <!-- The close button gets its own hover colour - red, rather than the neutral hover every other
-       title bar button uses - because closing is the one action here worth a distinct warning cue. -->
+  <!-- Close gets a distinct warning hover; every other caption button uses the neutral one. -->
   <Style x:Key="TitleBarButton.Close" TargetType="Button" BasedOn="{StaticResource TitleBarButton}">
     <Style.Triggers>
       <Trigger Property="IsMouseOver" Value="True">
         <Setter Property="Background" Value="{DynamicResource Brush.Status.Error}" />
-        <Setter Property="Foreground" Value="{DynamicResource Brush.Accent.Foreground}" />
+        <Setter Property="Foreground" Value="#FFFFFF" />
       </Trigger>
     </Style.Triggers>
   </Style>
@@ -262,8 +502,6 @@
 
   <!-- ============================ Surfaces ============================ -->
 
-  <!-- The main raised container. A soft shadow plus a faint top-left rim light do the work that a
-       hard border and strong background contrast would otherwise do in a flatter design. -->
   <Style x:Key="Surface.Card" TargetType="Border">
     <Setter Property="Background" Value="{DynamicResource Brush.Surface.Background}" />
     <Setter Property="BorderBrush" Value="{DynamicResource Brush.Surface.EdgeHighlight}" />
@@ -274,8 +512,21 @@
     <Setter Property="Effect" Value="{DynamicResource Effect.Card.Shadow}" />
   </Style>
 
+  <!-- A frosted panel that lets the ambient ground glow read through it. -->
+  <Style x:Key="Surface.Glass" TargetType="Border">
+    <Setter Property="Background" Value="{DynamicResource Brush.Surface.Glass}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Surface.EdgeHighlight}" />
+    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource CornerRadius.L}" />
+    <Setter Property="Padding" Value="{DynamicResource Padding.Card}" />
+    <Setter Property="SnapsToDevicePixels" Value="True" />
+    <Setter Property="Effect" Value="{DynamicResource Effect.Card.Shadow}" />
+  </Style>
+
   <Style x:Key="Surface.Inset" TargetType="Border">
-    <Setter Property="Background" Value="{DynamicResource Brush.Surface.BackgroundAlt}" />
+    <Setter Property="Background" Value="{DynamicResource Brush.Surface.Recessed}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Surface.Border}" />
+    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
     <Setter Property="CornerRadius" Value="{DynamicResource CornerRadius.M}" />
     <Setter Property="Padding" Value="{DynamicResource Padding.Card}" />
     <Setter Property="SnapsToDevicePixels" Value="True" />
@@ -289,7 +540,6 @@
     <Setter Property="Padding" Value="{DynamicResource Padding.Card}" />
   </Style>
 
-  <!-- A small pill used for flavor, architecture, VR and confidence labels. -->
   <Style x:Key="Badge" TargetType="Border">
     <Setter Property="CornerRadius" Value="{DynamicResource CornerRadius.S}" />
     <Setter Property="Padding" Value="{DynamicResource Padding.Badge}" />
@@ -303,7 +553,7 @@
   <Style x:Key="Progress.Indeterminate" TargetType="ProgressBar">
     <Setter Property="Height" Value="{DynamicResource Space.XS}" />
     <Setter Property="IsIndeterminate" Value="True" />
-    <Setter Property="Background" Value="{DynamicResource Brush.Surface.BackgroundAlt}" />
+    <Setter Property="Background" Value="{DynamicResource Brush.Surface.Recessed}" />
     <Setter Property="Foreground" Value="{DynamicResource Brush.Accent}" />
     <Setter Property="BorderThickness" Value="0" />
   </Style>

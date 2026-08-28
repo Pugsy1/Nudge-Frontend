@@ -17,6 +17,9 @@ public sealed class TableTileViewModel
 
     public string DisplayTitle => Table.DisplayTitle;
 
+    /// <summary>Null when the table's year is unknown - used by the year sort to group those last.</summary>
+    public int? Year => Table.DisplayYear;
+
     public string Subtitle
     {
         get
@@ -29,6 +32,24 @@ public sealed class TableTileViewModel
             return Table.DisplayManufacturer ?? Table.DisplayYear?.ToString() ?? string.Empty;
         }
     }
+
+    /// <summary>
+    /// How confident Nudge is that it identified this table correctly. Surfaced as a small status
+    /// lamp on the tile, behind a settings toggle - the underlying data has always been computed
+    /// (see AGENTS.md section 7, "confidence is a first-class concept"), it just wasn't shown.
+    /// </summary>
+    public Confidence Confidence => Table.Confidence;
+
+    public string ConfidenceLabel => Table.Confidence switch
+    {
+        Core.Models.Confidence.High => "Identified confidently",
+        Core.Models.Confidence.Medium => "Probably identified correctly",
+        Core.Models.Confidence.Low => "Poorly identified - check this table's details",
+        _ => "Not identified"
+    };
+
+    /// <summary>The reasoning behind the identification, shown as the tile's tooltip when lamps are on.</summary>
+    public string EvidenceSummary => Table.Evidence.Summary;
 
     /// <summary>
     /// Placeholder art shown in place of real artwork - Nudge has no artwork pipeline yet (that's a

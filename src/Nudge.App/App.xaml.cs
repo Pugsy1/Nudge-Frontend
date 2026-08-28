@@ -128,6 +128,7 @@ public partial class App : Application
 
         builder.Services.AddSingleton<SetupViewModel>();
         builder.Services.AddSingleton<LibraryViewModel>();
+        builder.Services.AddSingleton<SettingsViewModel>();
         builder.Services.AddSingleton<ShellViewModel>();
         builder.Services.AddSingleton<MainWindow>();
 

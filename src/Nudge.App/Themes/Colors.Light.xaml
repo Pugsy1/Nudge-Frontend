@@ -2,86 +2,141 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
   <!--
-    Light palette. Neutral grey, deliberately - every surface/text/control colour below has equal
-    (or near-equal) R/G/B, so nothing reads as blue-tinted. Only Accent and the semantic colours
-    (Confidence, Status) carry hue; everything else is monochrome. Defines exactly the same keys as
+    Light palette - calm, spacious modern skeuomorphism. Defines exactly the same keys as
     Colors.Dark.xaml.
+
+    Same material logic as the dark palette: a satin panel lit from above, with a bright top-left
+    bevel and a soft shadow below. On a light ground the bevel highlight goes to near-white and the
+    falling edge to a warm grey, rather than the dark palette's slate.
 
     If you add a key to one of these files you must add it to the other, or the missing theme will
     fail to resolve it at runtime.
   -->
 
-  <!--
-    Surfaces. Kept close in tone to the window background on purpose - a neumorphic surface reads
-    as "raised" mainly through its soft shadow (see Effects.xaml), not through strong contrast.
-  -->
-  <SolidColorBrush x:Key="Brush.Window.Background" Color="#EBEBEB" />
-  <SolidColorBrush x:Key="Brush.Surface.Background" Color="#EBEBEB" />
-  <SolidColorBrush x:Key="Brush.Surface.BackgroundAlt" Color="#E2E2E2" />
-  <SolidColorBrush x:Key="Brush.Surface.Border" Color="#D6D6D6" />
+  <!-- ============================ Ground ============================ -->
 
-  <!-- The soft shadow colour used by every raised surface. Neutral mid-grey reads better than pure black on a light background. -->
-  <Color x:Key="Color.Shadow">#A8A8A8</Color>
+  <RadialGradientBrush x:Key="Brush.Window.Background" GradientOrigin="0.5,0.28" Center="0.5,0.28" RadiusX="0.9" RadiusY="0.85">
+    <GradientStop Color="#F4F5F8" Offset="0" />
+    <GradientStop Color="#E9EBF0" Offset="0.75" />
+    <GradientStop Color="#DFE2E9" Offset="1" />
+  </RadialGradientBrush>
 
-  <!-- A faint top-left rim light, glazed across a raised surface's border to suggest a light source. -->
-  <LinearGradientBrush x:Key="Brush.Surface.EdgeHighlight" StartPoint="0,0" EndPoint="1,1">
+  <SolidColorBrush x:Key="Brush.Window.BackgroundFlat" Color="#E9EBF0" />
+
+  <!-- ============================ Surfaces ============================ -->
+
+  <LinearGradientBrush x:Key="Brush.Surface.Background" StartPoint="0,0" EndPoint="0,1">
     <GradientStop Color="#FFFFFF" Offset="0" />
-    <GradientStop Color="#D8D8D8" Offset="1" />
+    <GradientStop Color="#F0F2F6" Offset="1" />
   </LinearGradientBrush>
 
-  <!-- Text -->
-  <SolidColorBrush x:Key="Brush.Text.Primary" Color="#1C1C1C" />
-  <SolidColorBrush x:Key="Brush.Text.Secondary" Color="#545454" />
-  <SolidColorBrush x:Key="Brush.Text.Muted" Color="#7A7A7A" />
+  <LinearGradientBrush x:Key="Brush.Surface.BackgroundAlt" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Color="#F6F7FA" Offset="0" />
+    <GradientStop Color="#E9EBF0" Offset="1" />
+  </LinearGradientBrush>
 
-  <!-- Accent -->
-  <SolidColorBrush x:Key="Brush.Accent" Color="#C4462F" />
-  <SolidColorBrush x:Key="Brush.Accent.Hover" Color="#D8543C" />
-  <SolidColorBrush x:Key="Brush.Accent.Pressed" Color="#A63924" />
+  <!-- A recessed slot - darker at the top where the lip casts into it. -->
+  <LinearGradientBrush x:Key="Brush.Surface.Recessed" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Color="#DCDFE7" Offset="0" />
+    <GradientStop Color="#EDEFF3" Offset="1" />
+  </LinearGradientBrush>
+
+  <SolidColorBrush x:Key="Brush.Surface.Border" Color="#D5D9E2" />
+
+  <SolidColorBrush x:Key="Brush.Surface.Glass" Color="#B3FFFFFF" />
+
+  <LinearGradientBrush x:Key="Brush.Surface.EdgeHighlight" StartPoint="0.1,0" EndPoint="0.9,1">
+    <GradientStop Color="#FFFFFF" Offset="0" />
+    <GradientStop Color="#E4E7EE" Offset="0.45" />
+    <GradientStop Color="#C4C9D5" Offset="1" />
+  </LinearGradientBrush>
+
+  <LinearGradientBrush x:Key="Brush.Surface.RimLight" StartPoint="0.1,0" EndPoint="0.9,1">
+    <GradientStop Color="#FFFFFF" Offset="0" />
+    <GradientStop Color="#DCE0E9" Offset="0.5" />
+    <GradientStop Color="#AEB5C4" Offset="1" />
+  </LinearGradientBrush>
+
+  <!-- A warm mid-grey reads better than pure black for shadows on a light ground. -->
+  <Color x:Key="Color.Shadow">#96A0B4</Color>
+
+  <!-- ============================ Text ============================ -->
+
+  <SolidColorBrush x:Key="Brush.Text.Primary" Color="#1B1F27" />
+  <SolidColorBrush x:Key="Brush.Text.Secondary" Color="#535B6B" />
+  <SolidColorBrush x:Key="Brush.Text.Muted" Color="#7C8494" />
+
+  <!-- ============================ Accent ============================ -->
+
+  <!-- Darker amber than the dark palette's, so it holds contrast against a white surface. -->
+  <SolidColorBrush x:Key="Brush.Accent" Color="#B0762A" />
+  <SolidColorBrush x:Key="Brush.Accent.Hover" Color="#C68835" />
+  <SolidColorBrush x:Key="Brush.Accent.Pressed" Color="#946122" />
   <SolidColorBrush x:Key="Brush.Accent.Foreground" Color="#FFFFFF" />
-  <SolidColorBrush x:Key="Brush.Accent.Subtle" Color="#FBEDEA" />
+  <SolidColorBrush x:Key="Brush.Accent.Subtle" Color="#FBF2E3" />
 
-  <!-- Controls. Close in tone to the surfaces around them - a raised look comes from the shadow, not contrast. -->
-  <SolidColorBrush x:Key="Brush.Control.Background" Color="#EBEBEB" />
-  <SolidColorBrush x:Key="Brush.Control.BackgroundHover" Color="#F2F2F2" />
-  <SolidColorBrush x:Key="Brush.Control.BackgroundPressed" Color="#DCDCDC" />
-  <SolidColorBrush x:Key="Brush.Control.Border" Color="#D4D4D4" />
-  <SolidColorBrush x:Key="Brush.Control.BorderHover" Color="#A3A3A3" />
-  <SolidColorBrush x:Key="Brush.Control.Foreground" Color="#1C1C1C" />
-  <SolidColorBrush x:Key="Brush.Control.ForegroundDisabled" Color="#ABABAB" />
+  <LinearGradientBrush x:Key="Brush.Accent.Surface" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Color="#C08430" Offset="0" />
+    <GradientStop Color="#A56D25" Offset="1" />
+  </LinearGradientBrush>
 
-  <!-- Focus: the accent colour, rather than a separate blue - one signal colour for "the thing that
-       matters right now" (primary actions and keyboard focus alike) instead of two competing hues. -->
-  <SolidColorBrush x:Key="Brush.Focus" Color="#C4462F" />
+  <!-- ============================ Controls ============================ -->
 
-  <!-- Confidence -->
-  <SolidColorBrush x:Key="Brush.Confidence.High" Color="#237A48" />
-  <SolidColorBrush x:Key="Brush.Confidence.Medium" Color="#9A6B10" />
-  <SolidColorBrush x:Key="Brush.Confidence.Low" Color="#A85218" />
-  <SolidColorBrush x:Key="Brush.Confidence.Unknown" Color="#6C6C6C" />
+  <LinearGradientBrush x:Key="Brush.Control.Background" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Color="#FFFFFF" Offset="0" />
+    <GradientStop Color="#EFF1F5" Offset="1" />
+  </LinearGradientBrush>
 
-  <SolidColorBrush x:Key="Brush.Confidence.High.Background" Color="#E6F4EB" />
-  <SolidColorBrush x:Key="Brush.Confidence.Medium.Background" Color="#FAF0DC" />
-  <SolidColorBrush x:Key="Brush.Confidence.Low.Background" Color="#FBEBDF" />
-  <SolidColorBrush x:Key="Brush.Confidence.Unknown.Background" Color="#EDEDED" />
+  <LinearGradientBrush x:Key="Brush.Control.BackgroundHover" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Color="#FFFFFF" Offset="0" />
+    <GradientStop Color="#F7F8FB" Offset="1" />
+  </LinearGradientBrush>
 
-  <!-- Status -->
-  <SolidColorBrush x:Key="Brush.Status.Error" Color="#B3261E" />
-  <SolidColorBrush x:Key="Brush.Status.Error.Background" Color="#FBEAE8" />
-  <SolidColorBrush x:Key="Brush.Status.Error.Border" Color="#E8B4AF" />
-  <SolidColorBrush x:Key="Brush.Status.Info" Color="#1F5FA8" />
-  <SolidColorBrush x:Key="Brush.Status.Info.Background" Color="#E8F0FA" />
+  <LinearGradientBrush x:Key="Brush.Control.BackgroundPressed" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Color="#DFE2E9" Offset="0" />
+    <GradientStop Color="#EDEFF3" Offset="1" />
+  </LinearGradientBrush>
 
-  <!-- Scrollbars -->
-  <SolidColorBrush x:Key="Brush.Scrollbar.Track" Color="#EDEDED" />
-  <SolidColorBrush x:Key="Brush.Scrollbar.Thumb" Color="#C9C9C9" />
-  <SolidColorBrush x:Key="Brush.Scrollbar.ThumbHover" Color="#A3A3A3" />
+  <SolidColorBrush x:Key="Brush.Control.Border" Color="#D2D6DF" />
+  <SolidColorBrush x:Key="Brush.Control.BorderHover" Color="#9BA3B4" />
+  <SolidColorBrush x:Key="Brush.Control.Foreground" Color="#1B1F27" />
+  <SolidColorBrush x:Key="Brush.Control.ForegroundDisabled" Color="#A8AEBB" />
 
-  <!-- Custom window chrome -->
-  <SolidColorBrush x:Key="Brush.TitleBar.Background" Color="#DDDDDD" />
+  <SolidColorBrush x:Key="Brush.Focus" Color="#B0762A" />
 
-  <!-- A dimming scrim over the grid while a table is launching, so the loading spinner reads as
-       "something is happening" without hiding the grid entirely. -->
-  <SolidColorBrush x:Key="Brush.Overlay.Scrim" Color="#CCF2F2F2" />
+  <!-- ============================ Indicator LEDs ============================ -->
+
+  <SolidColorBrush x:Key="Brush.Confidence.High" Color="#2A7A52" />
+  <SolidColorBrush x:Key="Brush.Confidence.Medium" Color="#96691C" />
+  <SolidColorBrush x:Key="Brush.Confidence.Low" Color="#A2512A" />
+  <SolidColorBrush x:Key="Brush.Confidence.Unknown" Color="#6E7688" />
+
+  <SolidColorBrush x:Key="Brush.Confidence.High.Background" Color="#E6F2EA" />
+  <SolidColorBrush x:Key="Brush.Confidence.Medium.Background" Color="#FBF2E3" />
+  <SolidColorBrush x:Key="Brush.Confidence.Low.Background" Color="#FAEDE5" />
+  <SolidColorBrush x:Key="Brush.Confidence.Unknown.Background" Color="#ECEEF2" />
+
+  <!-- ============================ Status ============================ -->
+
+  <SolidColorBrush x:Key="Brush.Status.Error" Color="#B03A2C" />
+  <SolidColorBrush x:Key="Brush.Status.Error.Background" Color="#FBEBE9" />
+  <SolidColorBrush x:Key="Brush.Status.Error.Border" Color="#E5B7B1" />
+  <SolidColorBrush x:Key="Brush.Status.Info" Color="#25618F" />
+  <SolidColorBrush x:Key="Brush.Status.Info.Background" Color="#E8F0F7" />
+
+  <!-- ============================ Scrollbars ============================ -->
+
+  <SolidColorBrush x:Key="Brush.Scrollbar.Track" Color="#00000000" />
+  <SolidColorBrush x:Key="Brush.Scrollbar.Thumb" Color="#C2C8D4" />
+  <SolidColorBrush x:Key="Brush.Scrollbar.ThumbHover" Color="#9BA3B4" />
+
+  <!-- ============================ Window chrome ============================ -->
+
+  <LinearGradientBrush x:Key="Brush.TitleBar.Background" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Color="#F2F4F8" Offset="0" />
+    <GradientStop Color="#E4E7EE" Offset="1" />
+  </LinearGradientBrush>
+
+  <SolidColorBrush x:Key="Brush.Overlay.Scrim" Color="#D9EDEFF3" />
 
 </ResourceDictionary>

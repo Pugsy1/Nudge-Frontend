@@ -20,6 +20,25 @@ public sealed class NudgeSettings
     /// <summary>"Dark" or "Light".</summary>
     public string ThemeName { get; set; } = "Dark";
 
+    /// <summary>
+    /// How the library grid is ordered. Stored as the name of the UI's sort-order enum, so an
+    /// unrecognised value (an older or newer build) falls back to the default rather than failing.
+    /// </summary>
+    public string SortOrder { get; set; } = "TitleAscending";
+
+    /// <summary>
+    /// Shows the per-table identification-confidence lamp in the library. Off by default: the
+    /// confidence data is always computed (AGENTS.md section 7), but it's diagnostic detail rather
+    /// than something most users need on screen all the time.
+    /// </summary>
+    public bool ShowConfidence { get; set; }
+
+    /// <summary>
+    /// Whether the library's 2D/VR switch was last left on VR. Only honoured when the confirmed
+    /// installation actually has a VR-capable build.
+    /// </summary>
+    public bool PreferVr { get; set; }
+
     /// <summary>Installations the user has confirmed or added manually, newest last.</summary>
     public List<KnownInstallation> KnownInstallations { get; set; } = [];
 }

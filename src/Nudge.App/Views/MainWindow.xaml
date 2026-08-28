@@ -43,11 +43,14 @@
     <DataTemplate DataType="{x:Type vm:LibraryViewModel}">
       <views:LibraryView />
     </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
+      <views:SettingsView />
+    </DataTemplate>
   </Window.Resources>
 
   <Grid>
     <Grid.RowDefinitions>
-      <RowDefinition Height="{DynamicResource RowHeight.TitleBar}" />
+      <RowDefinition x:Name="TitleBarRow" Height="{DynamicResource RowHeight.TitleBar}" />
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
@@ -72,6 +75,11 @@
       <!-- Marked hit-test-visible so clicks land on the buttons instead of being treated as a
            caption drag - WindowChrome otherwise reports the whole CaptionHeight strip as HTCAPTION. -->
       <StackPanel Grid.Column="1" Orientation="Horizontal" WindowChrome.IsHitTestVisibleInChrome="True">
+        <Button x:Name="FullscreenButton"
+                Style="{StaticResource TitleBarButton}"
+                Content="&#xE740;"
+                ToolTip="Full screen (F11)"
+                Click="OnFullscreenClick" />
         <Button x:Name="MinimizeButton"
                 Style="{StaticResource TitleBarButton}"
                 Content="&#xE921;"

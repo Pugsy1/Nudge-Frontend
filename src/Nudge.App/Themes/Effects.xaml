@@ -2,61 +2,76 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
   <!--
-    Soft shadows for the neumorphic surfaces. Each effect's Color is bound with DynamicResource to
-    Color.Shadow, defined per palette in Colors.Dark.xaml / Colors.Light.xaml, so a theme swap
-    re-tints every shadow along with everything else.
+    Drop shadows for the extruded surfaces. Each effect's Color is bound with DynamicResource to
+    Color.Shadow, defined per palette, so a theme swap re-tints every shadow along with everything
+    else.
 
-    A true two-shadow neumorphic look (a dark shadow on one corner, a light highlight on the
-    opposite one) needs two stacked elements per surface. That is done only for Surface.Card, the
-    one container prominent enough to be worth it (see Controls.xaml); everything else uses a
-    single soft shadow, which still reads as "raised" against the low-contrast surfaces without the
-    extra element per control.
+    Direction is 270 (straight down) rather than the diagonal a two-shadow treatment would need:
+    the light source in this design sits above the app, so a surface casts its shadow downward,
+    while the *bevel* (Brush.Surface.EdgeHighlight, a diagonal gradient border) carries the
+    directional cue. One shadow plus one gradient border per surface, rather than stacked elements,
+    keeps the grid cheap at 1,000 tiles - see AGENTS.md section 8.
   -->
 
   <DropShadowEffect x:Key="Effect.Card.Shadow"
                      Color="{DynamicResource Color.Shadow}"
-                     Direction="315"
-                     ShadowDepth="12"
+                     Direction="270"
+                     ShadowDepth="10"
                      BlurRadius="34"
-                     Opacity="0.45"
+                     Opacity="0.42"
                      RenderingBias="Performance" />
 
   <DropShadowEffect x:Key="Effect.Button.Shadow"
                      Color="{DynamicResource Color.Shadow}"
-                     Direction="315"
-                     ShadowDepth="5"
-                     BlurRadius="16"
-                     Opacity="0.38"
+                     Direction="270"
+                     ShadowDepth="3"
+                     BlurRadius="12"
+                     Opacity="0.34"
                      RenderingBias="Performance" />
 
-  <!-- A smaller, tighter shadow for the pressed state - less depth, so the button reads as pushed in. -->
+  <!-- Pressed: the surface sinks toward its base, so the shadow tightens and shortens. -->
   <DropShadowEffect x:Key="Effect.Button.Shadow.Pressed"
                      Color="{DynamicResource Color.Shadow}"
-                     Direction="315"
+                     Direction="270"
                      ShadowDepth="1"
-                     BlurRadius="5"
+                     BlurRadius="4"
+                     Opacity="0.26"
+                     RenderingBias="Performance" />
+
+  <!-- Library tiles at rest. Lighter than Effect.Card.Shadow since many are on screen at once. -->
+  <DropShadowEffect x:Key="Effect.Tile.Shadow"
+                     Color="{DynamicResource Color.Shadow}"
+                     Direction="270"
+                     ShadowDepth="5"
+                     BlurRadius="18"
+                     Opacity="0.36"
+                     RenderingBias="Performance" />
+
+  <!-- Hover: the tile lifts toward the light, so its shadow deepens and spreads. -->
+  <DropShadowEffect x:Key="Effect.Tile.Shadow.Hover"
+                     Color="{DynamicResource Color.Shadow}"
+                     Direction="270"
+                     ShadowDepth="12"
+                     BlurRadius="32"
+                     Opacity="0.52"
+                     RenderingBias="Performance" />
+
+  <!-- Recessed controls (the search slot) - a tight shadow at rest reads as "set into" the panel. -->
+  <DropShadowEffect x:Key="Effect.Inset.Shadow"
+                     Color="{DynamicResource Color.Shadow}"
+                     Direction="270"
+                     ShadowDepth="1"
+                     BlurRadius="6"
                      Opacity="0.30"
                      RenderingBias="Performance" />
 
-  <!-- The library grid's tile cards: a touch lighter than Effect.Card.Shadow since many tiles are
-       ever on screen at once, but still clearly "raised" rather than flat. -->
-  <DropShadowEffect x:Key="Effect.Tile.Shadow"
+  <!-- A floating panel (the settings flyout) sits well above the page, so it casts furthest. -->
+  <DropShadowEffect x:Key="Effect.Flyout.Shadow"
                      Color="{DynamicResource Color.Shadow}"
-                     Direction="315"
-                     ShadowDepth="7"
-                     BlurRadius="20"
-                     Opacity="0.38"
-                     RenderingBias="Performance" />
-
-  <!-- Used on recessed controls (the search box) to read as pressed into the surface rather than
-       sitting flush with it - the same tight, close shadow a button gets on press, applied at rest
-       instead of only on interaction. -->
-  <DropShadowEffect x:Key="Effect.Inset.Shadow"
-                     Color="{DynamicResource Color.Shadow}"
-                     Direction="315"
-                     ShadowDepth="1"
-                     BlurRadius="6"
-                     Opacity="0.32"
+                     Direction="270"
+                     ShadowDepth="14"
+                     BlurRadius="44"
+                     Opacity="0.55"
                      RenderingBias="Performance" />
 
 </ResourceDictionary>
