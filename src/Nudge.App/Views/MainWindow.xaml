@@ -103,8 +103,9 @@
     <ContentControl Grid.Row="1" Content="{Binding CurrentViewModel}" Focusable="False" />
 
     <!-- Fullscreen-only corner controls: the real title bar row above is hidden entirely while
-         fullscreen (Height 0), so this is the only way to exit fullscreen or close the app without
-         reaching for F11/Alt+F4 - always on top of whichever screen is showing, via Grid.RowSpan. -->
+         fullscreen (Height 0), so this is the only way to minimize, exit fullscreen, or close the
+         app without reaching for F11/Alt+F4 - always on top of whichever screen is showing, via
+         Grid.RowSpan. -->
     <StackPanel x:Name="FullscreenCornerControls"
                 Grid.Row="0" Grid.RowSpan="2"
                 Orientation="Horizontal"
@@ -112,6 +113,11 @@
                 VerticalAlignment="Top"
                 Visibility="Collapsed"
                 Panel.ZIndex="1000">
+      <Button x:Name="MinimizeCornerButton"
+              Style="{StaticResource TitleBarButton}"
+              Content="&#xE921;"
+              ToolTip="Minimize"
+              Click="OnMinimizeClick" />
       <Button x:Name="ExitFullscreenCornerButton"
               Style="{StaticResource TitleBarButton}"
               Content="&#xE73F;"

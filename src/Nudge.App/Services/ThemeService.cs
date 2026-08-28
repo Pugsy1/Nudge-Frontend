@@ -3,13 +3,22 @@ using System.Windows;
 
 namespace Nudge.App.Services;
 
+/// <summary>
+/// Dark/Light are the two base materials (graphite vs porcelain); Jade/Sapphire/Crimson are the
+/// same dark material with a different accent colour, following the pattern <c>Colors.Dark.xaml</c>
+/// already established (Focus tied to Accent, everything else neutral grey) - see each palette file
+/// for its exact values.
+/// </summary>
 public enum AppTheme
 {
     Dark,
-    Light
+    Light,
+    Jade,
+    Sapphire,
+    Crimson
 }
 
-/// <summary>Switches the application between the light and dark palettes.</summary>
+/// <summary>Switches the application between the available palettes.</summary>
 public interface IThemeService
 {
     AppTheme Current { get; }
@@ -33,14 +42,20 @@ public interface IThemeService
 /// </summary>
 public sealed class ThemeService : IThemeService
 {
-    private const string DarkPaletteUri = "pack://application:,,,/Themes/Colors.Dark.xaml";
-    private const string LightPaletteUri = "pack://application:,,,/Themes/Colors.Light.xaml";
+    private static readonly IReadOnlyDictionary<AppTheme, string> PaletteFileNames = new Dictionary<AppTheme, string>
+    {
+        [AppTheme.Dark] = "Colors.Dark.xaml",
+        [AppTheme.Light] = "Colors.Light.xaml",
+        [AppTheme.Jade] = "Colors.Jade.xaml",
+        [AppTheme.Sapphire] = "Colors.Sapphire.xaml",
+        [AppTheme.Crimson] = "Colors.Crimson.xaml"
+    };
 
     public AppTheme Current { get; private set; } = AppTheme.Dark;
 
     public AppTheme Parse(string? themeName) =>
-        string.Equals(themeName, nameof(AppTheme.Light), StringComparison.OrdinalIgnoreCase)
-            ? AppTheme.Light
+        Enum.TryParse(themeName, ignoreCase: true, out AppTheme parsed) && PaletteFileNames.ContainsKey(parsed)
+            ? parsed
             : AppTheme.Dark;
 
     public void Apply(AppTheme theme)
@@ -56,7 +71,7 @@ public sealed class ThemeService : IThemeService
         int paletteIndex = FindPaletteIndex(merged);
         var palette = new ResourceDictionary
         {
-            Source = new Uri(theme == AppTheme.Light ? LightPaletteUri : DarkPaletteUri)
+            Source = new Uri($"pack://application:,,,/Themes/{PaletteFileNames[theme]}")
         };
 
         if (paletteIndex >= 0)
@@ -76,17 +91,23 @@ public sealed class ThemeService : IThemeService
         Current = theme;
     }
 
-    /// <summary>Finds whichever of the two palette dictionaries is currently merged in.</summary>
+    /// <summary>Finds whichever palette dictionary is currently merged in.</summary>
     private static int FindPaletteIndex(Collection<ResourceDictionary> merged)
     {
         for (int i = 0; i < merged.Count; i++)
         {
             Uri? source = merged[i].Source;
-            if (source is not null
-                && (source.OriginalString.EndsWith("Colors.Dark.xaml", StringComparison.OrdinalIgnoreCase)
-                    || source.OriginalString.EndsWith("Colors.Light.xaml", StringComparison.OrdinalIgnoreCase)))
+            if (source is null)
             {
-                return i;
+                continue;
+            }
+
+            foreach (string fileName in PaletteFileNames.Values)
+            {
+                if (source.OriginalString.EndsWith(fileName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return i;
+                }
             }
         }
 

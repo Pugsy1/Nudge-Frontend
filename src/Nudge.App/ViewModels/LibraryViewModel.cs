@@ -95,7 +95,10 @@ public sealed partial class LibraryViewModel : ObservableObject
         ThemeOptions =
         [
             new OptionItem<AppTheme>("Graphite  (dark)", AppTheme.Dark),
-            new OptionItem<AppTheme>("Porcelain  (light)", AppTheme.Light)
+            new OptionItem<AppTheme>("Porcelain  (light)", AppTheme.Light),
+            new OptionItem<AppTheme>("Jade", AppTheme.Jade),
+            new OptionItem<AppTheme>("Sapphire", AppTheme.Sapphire),
+            new OptionItem<AppTheme>("Crimson", AppTheme.Crimson)
         ];
         _selectedTheme = ThemeOptions[0];
 
