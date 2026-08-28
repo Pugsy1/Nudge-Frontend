@@ -9,6 +9,7 @@ using Nudge.App.Services;
 using Nudge.Core.Abstractions;
 using Nudge.Core.Diagnostics;
 using Nudge.Core.Models;
+using Nudge.Core.Results;
 
 namespace Nudge.App.ViewModels;
 
@@ -26,6 +27,8 @@ public sealed partial class LibraryViewModel : ObservableObject
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IVpxLibraryScanner _scanner;
+    private readonly ILaunchEngine _launchEngine;
+    private readonly IWindowActivationService _windowActivation;
     private readonly IThemeService _themeService;
     private readonly ISettingsService _settingsService;
     private readonly IPathRedactor _redactor;
@@ -36,6 +39,8 @@ public sealed partial class LibraryViewModel : ObservableObject
     public LibraryViewModel(
         IServiceScopeFactory scopeFactory,
         IVpxLibraryScanner scanner,
+        ILaunchEngine launchEngine,
+        IWindowActivationService windowActivation,
         SetupViewModel setup,
         IThemeService themeService,
         ISettingsService settingsService,
@@ -44,6 +49,8 @@ public sealed partial class LibraryViewModel : ObservableObject
     {
         _scopeFactory = scopeFactory;
         _scanner = scanner;
+        _launchEngine = launchEngine;
+        _windowActivation = windowActivation;
         _themeService = themeService;
         _settingsService = settingsService;
         _redactor = redactor;
@@ -80,9 +87,13 @@ public sealed partial class LibraryViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasStatusMessage))]
+    [NotifyPropertyChangedFor(nameof(ShowStatusLine))]
     private string _statusMessage = string.Empty;
 
     public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
+
+    /// <summary>The thin status line under the header - suppressed while the launch overlay is up, since that already shows the same message.</summary>
+    public bool ShowStatusLine => HasStatusMessage && !IsLaunching;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasNoTables))]
@@ -131,6 +142,99 @@ public sealed partial class LibraryViewModel : ObservableObject
     private async Task RescanAsync() => await ScanAsync().ConfigureAwait(true);
 
     private bool CanRescan() => !IsScanning && _installation?.HasTablesFolder == true;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowStatusLine))]
+    private bool _isLaunching;
+
+    /// <summary>
+    /// How long Nudge keeps itself in the foreground, with the launch overlay showing, before
+    /// deliberately handing focus to Visual Pinball - a fixed cosmetic delay, not a real "table
+    /// finished loading" signal (Visual Pinball exposes no such thing), requested explicitly by the
+    /// maintainer to cover the abrupt jump-cut to Visual Pinball's own blank loading screen.
+    /// </summary>
+    private static readonly TimeSpan LaunchForegroundGracePeriod = TimeSpan.FromSeconds(12);
+
+    /// <summary>
+    /// Launches a table's best desktop-capable executable and waits for Visual Pinball to exit -
+    /// the "click a tile, play, VPX exits, back to the library" core loop from AGENTS.md section 1.
+    /// VR launching is a separate, later capability (Phase 6); this always launches to the desktop.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanLaunch))]
+    private async Task LaunchTableAsync(TableTileViewModel? tile)
+    {
+        if (tile is null || _installation is null || IsLaunching)
+        {
+            return;
+        }
+
+        IsLaunching = true;
+        LaunchTableCommand.NotifyCanExecuteChanged();
+        StatusMessage = $"Launching {tile.DisplayTitle}...";
+
+        // Visual Pinball's own process steals foreground focus - and shows its own blank loading
+        // screen - the instant it's created. Nudge holds focus for itself instead for a fixed grace
+        // period, then explicitly hands off to whichever new Visual Pinball window appeared.
+        IReadOnlyList<string> processNamePrefixes = _installation.BestDesktopExecutable is { } exe
+            ? [System.IO.Path.GetFileNameWithoutExtension(exe.FileName)]
+            : [];
+        IReadOnlySet<int> existingProcessIds = _windowActivation.SnapshotProcessIds(processNamePrefixes);
+        using var foregroundCts = new CancellationTokenSource();
+        Task keepForegroundTask = _windowActivation.KeepForegroundAsync(foregroundCts.Token);
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(LaunchForegroundGracePeriod, foregroundCts.Token).ConfigureAwait(false);
+                _windowActivation.ActivateNewestProcessWindow(existingProcessIds, processNamePrefixes);
+            }
+            catch (TaskCanceledException)
+            {
+                // Visual Pinball already exited (or the launch itself failed) before the grace
+                // period elapsed - nothing to hand focus to.
+            }
+        }, CancellationToken.None);
+
+        try
+        {
+            Result<LaunchOutcome> result = await _launchEngine
+                .LaunchAsync(_installation, tile.Table.Path)
+                .ConfigureAwait(true);
+
+            if (result.IsFailure)
+            {
+                StatusMessage = result.Error;
+                return;
+            }
+
+            StatusMessage = string.Empty;
+            _logger.LogInformation(
+                "Launched {Path} via {Executable}, exit code {ExitCode}, played for {Duration}.",
+                _redactor.Redact(tile.Table.Path),
+                _redactor.Redact(result.Value.ExecutablePath),
+                result.Value.ExitCode,
+                result.Value.Duration);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Launching {Path} failed.", _redactor.Redact(tile.Table.Path));
+            StatusMessage = "Nudge could not launch that table. The log file has the details.";
+        }
+        finally
+        {
+            // Stops the foreground-reassertion loop, and cancels the delayed handoff if Visual
+            // Pinball already exited before the grace period elapsed (a fast crash, say) - otherwise
+            // it would fire afterwards and steal focus back to a process that's no longer there.
+            foregroundCts.Cancel();
+            await keepForegroundTask.ConfigureAwait(true);
+
+            IsLaunching = false;
+            LaunchTableCommand.NotifyCanExecuteChanged();
+        }
+    }
+
+    private bool CanLaunch(TableTileViewModel? tile) => !IsLaunching && _installation is not null;
 
     [RelayCommand]
     private async Task ToggleThemeAsync()

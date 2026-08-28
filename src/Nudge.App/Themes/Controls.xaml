@@ -92,6 +92,17 @@
     </Style.Triggers>
   </Style>
 
+  <!-- Icon-only, square-ish button for an auxiliary action that doesn't need a text label - e.g.
+       the settings placeholder. Reuses Button.Secondary's borderless/shadow treatment. -->
+  <Style x:Key="Button.Icon" TargetType="Button" BasedOn="{StaticResource Button.Secondary}">
+    <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
+    <Setter Property="FontSize" Value="14" />
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="Width" Value="{DynamicResource Size.IconButton}" />
+    <Setter Property="Height" Value="{DynamicResource Size.IconButton}" />
+    <Setter Property="Padding" Value="0" />
+  </Style>
+
   <!-- Low-emphasis inline action, e.g. "show the evidence". -->
   <Style x:Key="Button.Subtle" TargetType="Button" BasedOn="{StaticResource Button.Base}">
     <Setter Property="Background" Value="Transparent" />

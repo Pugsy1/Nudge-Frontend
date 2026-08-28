@@ -69,6 +69,7 @@
   <!-- Fixed dimensions -->
   <system:Double x:Key="Size.Scrollbar">6</system:Double>
   <system:Double x:Key="Size.MinButtonWidth">96</system:Double>
+  <system:Double x:Key="Size.IconButton">36</system:Double>
   <system:Double x:Key="Size.Window.MinWidth">860</system:Double>
   <system:Double x:Key="Size.Window.MinHeight">560</system:Double>
   <system:Double x:Key="Size.Window.Width">1040</system:Double>
@@ -76,7 +77,10 @@
 
   <!-- The library grid -->
   <system:Double x:Key="Size.Tile.Width">180</system:Double>
-  <system:Double x:Key="Size.Tile.Height">256</system:Double>
+  <system:Double x:Key="Size.Tile.Height">272</system:Double>
+  <!-- Two lines of Font.Size.Body, so a long title wraps once instead of truncating after a
+       handful of characters - CharacterEllipsis still trims a title too long even for two lines. -->
+  <system:Double x:Key="Size.Tile.TitleHeight">36</system:Double>
   <system:Double x:Key="Size.SearchBox.Width">240</system:Double>
   <Thickness x:Key="Margin.Tile">6</Thickness>
   <!-- Left inset is wider than the other three sides to leave room for the search icon. -->

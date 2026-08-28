@@ -15,54 +15,89 @@
     <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVisibility" />
 
     <!-- One tile in the grid. Fixed size to match VirtualizingWrapPanel's ItemWidth/ItemHeight,
-         which arranges every child at exactly that size regardless of its content. -->
+         which arranges every child at exactly that size regardless of its content.
+
+         Root is a Button, not a plain Border, so clicking a tile launches that table - the whole
+         card's visual is moved into the Button's own ControlTemplate rather than wrapping a Border
+         around a separate Button, so nothing about the tile's appearance changes, it's just clickable
+         now. Command binds up to LibraryViewModel via the hosting ItemsControl, since a
+         TableTileViewModel itself has no launch capability of its own - that's a UI-only concern. -->
     <DataTemplate x:Key="TableTileTemplate" DataType="{x:Type vm:TableTileViewModel}">
-      <!-- No explicit Width/Height here - the panel arranges every child at exactly
-           (Size.Tile.Width, Size.Tile.Height); with Margin also set, adding an explicit Width/Height
-           on top of that made this element request more space than its arranged slot actually had,
-           which showed up as inconsistent corner rounding and clipped text. Stretch (the default)
-           plus Margin alone fills the slot minus the gutter, with no conflict. -->
-      <Border Margin="{DynamicResource Margin.Tile}"
-              Background="{DynamicResource Brush.Surface.Background}"
-              BorderBrush="{DynamicResource Brush.Surface.EdgeHighlight}"
-              BorderThickness="{DynamicResource BorderThickness.Thin}"
-              CornerRadius="{DynamicResource CornerRadius.M}"
-              Effect="{DynamicResource Effect.Tile.Shadow}"
-              SnapsToDevicePixels="True"
+      <Button Command="{Binding DataContext.LaunchTableCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+              CommandParameter="{Binding}"
+              Cursor="Hand"
+              Focusable="False"
               ToolTip="{Binding DisplayTitle}">
-        <Grid>
-          <Grid.RowDefinitions>
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-          </Grid.RowDefinitions>
+        <Button.Template>
+          <ControlTemplate TargetType="Button">
+            <!-- No explicit Width/Height here - the panel arranges every child at exactly
+                 (Size.Tile.Width, Size.Tile.Height); with Margin also set, adding an explicit
+                 Width/Height on top of that made this element request more space than its arranged
+                 slot actually had, which showed up as inconsistent corner rounding and clipped text.
+                 Stretch (the default) plus Margin alone fills the slot minus the gutter, with no
+                 conflict. -->
+            <Border x:Name="Root"
+                    Margin="{DynamicResource Margin.Tile}"
+                    Background="{DynamicResource Brush.Surface.Background}"
+                    BorderBrush="{DynamicResource Brush.Surface.EdgeHighlight}"
+                    BorderThickness="{DynamicResource BorderThickness.Thin}"
+                    CornerRadius="{DynamicResource CornerRadius.M}"
+                    Effect="{DynamicResource Effect.Tile.Shadow}"
+                    SnapsToDevicePixels="True">
+              <Grid>
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="*" />
+                  <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
 
-          <!-- Placeholder art: Nudge has no artwork pipeline yet (a later phase per AGENTS.md), so a
-               tinted initial-letter swatch stands in for real box art rather than pretending to be one. -->
-          <Border Grid.Row="0"
-                  Background="{DynamicResource Brush.Accent.Subtle}"
-                  CornerRadius="{DynamicResource CornerRadius.Card.Top}">
-            <TextBlock Text="{Binding Initial}"
-                       HorizontalAlignment="Center"
-                       VerticalAlignment="Center"
-                       FontFamily="{DynamicResource Font.Family.Primary}"
-                       FontSize="{DynamicResource Font.Size.Display}"
-                       FontWeight="{DynamicResource Font.Weight.SemiBold}"
-                       Foreground="{DynamicResource Brush.Accent}" />
-          </Border>
+                <!-- Placeholder art: Nudge has no artwork pipeline yet (a later phase per AGENTS.md),
+                     so a tinted initial-letter swatch stands in for real box art rather than
+                     pretending to be one. -->
+                <Border Grid.Row="0"
+                        Background="{DynamicResource Brush.Accent.Subtle}"
+                        CornerRadius="{DynamicResource CornerRadius.Card.Top}">
+                  <TextBlock Text="{Binding Initial}"
+                             HorizontalAlignment="Center"
+                             VerticalAlignment="Center"
+                             FontFamily="{DynamicResource Font.Family.Primary}"
+                             FontSize="{DynamicResource Font.Size.Display}"
+                             FontWeight="{DynamicResource Font.Weight.SemiBold}"
+                             Foreground="{DynamicResource Brush.Accent}" />
+                </Border>
 
-          <StackPanel Grid.Row="1" Margin="{DynamicResource Padding.TableCell}">
-            <TextBlock Style="{StaticResource Text.Body}"
-                       Text="{Binding DisplayTitle}"
-                       TextWrapping="NoWrap"
-                       TextTrimming="CharacterEllipsis" />
-            <TextBlock Style="{StaticResource Text.Caption}"
-                       Text="{Binding Subtitle}"
-                       TextWrapping="NoWrap"
-                       TextTrimming="CharacterEllipsis"
-                       Visibility="{Binding HasSubtitle, Converter={StaticResource BoolToVisibility}}" />
-          </StackPanel>
-        </Grid>
-      </Border>
+                <StackPanel Grid.Row="1" Margin="{DynamicResource Padding.TableCell}">
+                  <TextBlock Style="{StaticResource Text.Body}"
+                             Text="{Binding DisplayTitle}"
+                             Height="{DynamicResource Size.Tile.TitleHeight}"
+                             TextWrapping="Wrap"
+                             TextTrimming="CharacterEllipsis" />
+                  <!-- Always present, even when Subtitle is empty - an empty TextBlock still
+                       reserves a line's height, so the image/text boundary lands at the same place
+                       on every tile whether or not it has a manufacturer/year, instead of tiles
+                       without one having a shorter text area and an uneven bottom edge across the
+                       row. -->
+                  <TextBlock Style="{StaticResource Text.Caption}"
+                             Text="{Binding Subtitle}"
+                             TextWrapping="NoWrap"
+                             TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+              </Grid>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.Control.BackgroundHover}" />
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Root" Property="Effect" Value="{DynamicResource Effect.Button.Shadow.Pressed}" />
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Root" Property="Opacity" Value="0.5" />
+                <Setter Property="Cursor" Value="Arrow" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Button.Template>
+      </Button>
     </DataTemplate>
 
   </UserControl.Resources>
@@ -122,8 +157,17 @@
                 Content="Change folder"
                 Command="{Binding ChangeFolderCommand}" />
         <Button Style="{StaticResource Button.Secondary}"
+                Margin="{DynamicResource Gap.Right.S}"
                 Content="{Binding ThemeToggleLabel}"
                 Command="{Binding ToggleThemeCommand}" />
+
+        <!-- Placeholder for later features (collections, artwork, health checking, etc. - see
+             AGENTS.md's phase table). Disabled rather than wired to nothing, so it reads honestly
+             as "not built yet" instead of a button that silently does nothing when clicked. -->
+        <Button Style="{StaticResource Button.Icon}"
+                Content="&#xE713;"
+                IsEnabled="False"
+                ToolTip="Settings (coming soon)" />
       </StackPanel>
     </Grid>
 
@@ -182,6 +226,22 @@
         </ItemsControl.ItemsPanel>
       </ItemsControl>
     </ScrollViewer>
+
+    <!-- ======================= Launching a table ======================= -->
+    <!-- Visual Pinball itself gives Nudge no "the table finished loading" signal - only "started"
+         and "exited" - so this stays up for the whole play session, not just an initial load. Last
+         in the row, so it paints over the grid. -->
+    <Border Grid.Row="2"
+            Background="{DynamicResource Brush.Overlay.Scrim}"
+            Visibility="{Binding IsLaunching, Converter={StaticResource BoolToVisibility}}">
+      <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+        <ProgressBar Style="{StaticResource Progress.Indeterminate}" Width="220" />
+        <TextBlock Style="{StaticResource Text.BodySecondary}"
+                   Margin="{DynamicResource Gap.Above.M}"
+                   HorizontalAlignment="Center"
+                   Text="{Binding StatusMessage}" />
+      </StackPanel>
+    </Border>
 
   </Grid>
 </UserControl>

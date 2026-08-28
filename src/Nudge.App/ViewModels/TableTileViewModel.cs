@@ -30,8 +30,6 @@ public sealed class TableTileViewModel
         }
     }
 
-    public bool HasSubtitle => !string.IsNullOrEmpty(Subtitle);
-
     /// <summary>
     /// Placeholder art shown in place of real artwork - Nudge has no artwork pipeline yet (that's a
     /// later phase, per AGENTS.md's phase table). Just the title's first letter, so a scanned

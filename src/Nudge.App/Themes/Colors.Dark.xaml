@@ -83,4 +83,8 @@
   <!-- Custom window chrome -->
   <SolidColorBrush x:Key="Brush.TitleBar.Background" Color="#141414" />
 
+  <!-- A dimming scrim over the grid while a table is launching, so the loading spinner reads as
+       "something is happening" without hiding the grid entirely. -->
+  <SolidColorBrush x:Key="Brush.Overlay.Scrim" Color="#CC0E0E0E" />
+
 </ResourceDictionary>
