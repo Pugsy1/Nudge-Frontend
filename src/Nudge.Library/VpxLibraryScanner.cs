@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.IO.Abstractions;
 using Microsoft.Extensions.Logging;
 using Nudge.Core.Abstractions;
@@ -27,6 +28,17 @@ public sealed class VpxLibraryScanner : IVpxLibraryScanner
     private readonly IPathRedactor _redactor;
     private readonly ILogger<VpxLibraryScanner> _logger;
 
+    /// <summary>
+    /// One gate per installation, so two overlapping scans of the *same* installation never write
+    /// to the database at the same time (the known gap flagged in Phase 3 -
+    /// docs/IMPLEMENTATION-STATUS.md: "no concurrent-scan protection... worth guarding against
+    /// before Phase 4 adds a rescan button"). Scans of different installations are unaffected by
+    /// each other's gate. This class is registered as a singleton, so the dictionary's lifetime
+    /// matches the application's.
+    /// </summary>
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _scanGates =
+        new(StringComparer.OrdinalIgnoreCase);
+
     public VpxLibraryScanner(
         IFileSystem fileSystem,
         ITableFileReader tableFileReader,
@@ -41,11 +53,35 @@ public sealed class VpxLibraryScanner : IVpxLibraryScanner
         _logger = logger;
     }
 
+    /// <summary>
+    /// A second call for an installation already being scanned waits for the first to finish, then
+    /// runs its own fresh scan - it is never rejected and never allowed to race the first one's
+    /// database writes.
+    /// </summary>
     public async Task<ScanResult> ScanAsync(
         string installationId,
         string tablesPath,
         IProgress<ScanProgress>? progress = null,
         CancellationToken cancellationToken = default)
+    {
+        SemaphoreSlim gate = _scanGates.GetOrAdd(installationId, static _ => new SemaphoreSlim(1, 1));
+
+        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return await ScanCoreAsync(installationId, tablesPath, progress, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    private async Task<ScanResult> ScanCoreAsync(
+        string installationId,
+        string tablesPath,
+        IProgress<ScanProgress>? progress,
+        CancellationToken cancellationToken)
     {
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 

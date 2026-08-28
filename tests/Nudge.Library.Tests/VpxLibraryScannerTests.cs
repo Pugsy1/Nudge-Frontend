@@ -150,6 +150,34 @@ public sealed class VpxLibraryScannerTests : IDisposable
     }
 
     [Fact]
+    public async Task Concurrent_scans_of_the_same_installation_are_serialized_not_racing()
+    {
+        AddTable("One.vpx", tableName: "One");
+        AddTable("Two.vpx", tableName: "Two");
+        AddTable("Three.vpx", tableName: "Three");
+
+        // Both calls go through the *same* scanner instance (as they would in production, where the
+        // scanner is a singleton) so the gate that serializes overlapping scans of one installation
+        // is actually exercised, rather than each call getting its own gate.
+        VpxLibraryScanner scanner = CreateScanner();
+
+        Task<ScanResult> first = scanner.ScanAsync(InstallationId, TablesPath);
+        Task<ScanResult> second = scanner.ScanAsync(InstallationId, TablesPath);
+
+        ScanResult[] results = await Task.WhenAll(first, second);
+
+        // Without the gate, two scans racing on the same rows could throw (a unique-index
+        // violation, a concurrency exception) or leave duplicate/inconsistent rows behind. Serialized,
+        // exactly one of the two does the real reading and the other finds everything already
+        // recorded and skips it - never both reading, never neither.
+        results.Sum(r => r.Scanned).Should().Be(3, "exactly one of the two scans should have done the actual reading");
+        results.Sum(r => r.Skipped).Should().Be(3, "the other scan should have found everything already recorded");
+
+        IReadOnlyList<VpxTableFile> stored = await GetAllAsync();
+        stored.Should().HaveCount(3, "the database must end up with one row per table, not duplicates from a race");
+    }
+
+    [Fact]
     public async Task Progress_is_reported_for_every_file()
     {
         AddTable("One.vpx", tableName: "One");
@@ -177,11 +205,20 @@ public sealed class VpxLibraryScannerTests : IDisposable
         return path;
     }
 
-    private async Task<ScanResult> ScanAsync(string? tablesPath = null, IProgress<ScanProgress>? progress = null)
+    private async Task<ScanResult> ScanAsync(string? tablesPath = null, IProgress<ScanProgress>? progress = null) =>
+        await CreateScanner().ScanAsync(InstallationId, tablesPath ?? TablesPath, progress);
+
+    /// <summary>
+    /// Builds one scanner wired to this test's real, in-memory SQLite database. Tests that need to
+    /// prove behaviour *across* calls to the same scanner (e.g. the concurrency gate) must reuse one
+    /// instance from this rather than calling <see cref="ScanAsync"/> twice, which builds a fresh
+    /// scanner - and a fresh gate - every time.
+    /// </summary>
+    private VpxLibraryScanner CreateScanner()
     {
         var redactor = new PathRedactor("TestUser");
 
-        using NudgeDbContext dbContext = _database.CreateContext();
+        NudgeDbContext dbContext = _database.CreateContext();
         var repository = new TableRepository(dbContext);
 
         var oleReader = new Nudge.Vpx.TableFiles.OleTableInfoReader(_fileSystem, redactor, NullLogger<Nudge.Vpx.TableFiles.OleTableInfoReader>.Instance);
@@ -189,10 +226,8 @@ public sealed class VpxLibraryScannerTests : IDisposable
         ITableFileReader tableFileReader = new Nudge.Vpx.TableFiles.VpxTableFileReader(
             _fileSystem, oleReader, filenameParser, redactor, NullLogger<Nudge.Vpx.TableFiles.VpxTableFileReader>.Instance);
 
-        var scanner = new VpxLibraryScanner(
+        return new VpxLibraryScanner(
             _fileSystem, tableFileReader, repository, redactor, NullLogger<VpxLibraryScanner>.Instance);
-
-        return await scanner.ScanAsync(InstallationId, tablesPath ?? TablesPath, progress);
     }
 
     private async Task<IReadOnlyList<VpxTableFile>> GetAllAsync()
