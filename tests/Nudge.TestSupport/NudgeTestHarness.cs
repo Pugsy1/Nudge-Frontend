@@ -129,4 +129,13 @@ public sealed class NudgeTestHarness
         FilenameParser,
         Redactor,
         NullLogger<VpxTableFileReader>.Instance);
+
+    public IGameDataScriptReader GameDataScriptReader => new GameDataScriptReader(
+        FileSystem,
+        Redactor,
+        NullLogger<GameDataScriptReader>.Instance);
+
+    public IRomNameParser RomNameParser { get; } = new RomNameParser();
+
+    public IRomNameReader BuildRomNameReader() => new RomNameReader(GameDataScriptReader, RomNameParser);
 }

@@ -306,3 +306,51 @@ Two flavors are excluded outright, not just ranked low:
    cancelling the engine's wait does not kill that process (Nudge does not own the user's play
    session once Visual Pinball is running - AGENTS.md section 6), and confirmed the process could be
    torn down cleanly afterward. This same run is what surfaced the OpenGL/VR finding above.
+
+## PinMAME ROM name extraction (headless; not wired into the scanner)
+
+**Status: functionally complete for its stated scope, verified against real files. Deliberately not
+wired into `IVpxLibraryScanner` or persisted to the database yet** - AGENTS.md section 4.5 frames
+this as a second-pass background operation separate from the fast scan, and running it on every
+scanned file (reading the much larger `GameStg` storage, not just the small `TableInfo` streams)
+is a real performance-budget question deserving its own explicit decision, the same way Phase 4/5's
+scope changes did.
+
+### What's built
+
+- **`Nudge.Vpx.TableFiles.GameDataScriptReader`** extracts a table's VBScript source from
+  `GameStg\GameData`'s `CODE` BIFF record. The binary format is not documented by vpinball itself;
+  it was cross-checked against the open-source `vpin`/`vpxtool` projects and independently verified
+  against four real table files - see docs/RESEARCH-NOTES.md for the full format and sourcing.
+- **`Nudge.Vpx.TableFiles.RomNameParser`** searches that script text for a top-level `cGameName`
+  assignment. Confidence: High for exactly one uncommented assignment, Medium when several
+  different uncommented assignments exist (the first is used), Unknown when nothing is found -
+  including tables that assign the ROM name conditionally at runtime, which Nudge does not attempt
+  to evaluate.
+- **`IRomNameReader`** (`Nudge.Core.Abstractions`) is the public contract combining the two, mirroring
+  how `ITableFileReader` combines `IOleTableInfoReader` and `ITableFilenameParser`.
+
+### A real OpenMcdf gotcha hit while building the tests for this
+
+Writing more than one stream into the same OLE storage using C#'s brace-less `using` *declaration*
+(rather than an explicit `using (...) { }` *block*) silently drops the contents of every stream in
+that storage - they all read back at 0 bytes, no exception thrown. `Nudge.TestSupport.SyntheticVpxFile`
+had exactly this bug the moment a second stream (`GameData`, alongside the existing `Version`) was
+added to its synthetic `GameStg` storage: `Version`'s `using` declaration kept it open until the end
+of the method, so by the time `GameData` was created and written, both ended up empty. Fixed by
+giving each stream its own explicit block so it is disposed - and actually flushed - before the next
+one is created. Existing single-stream-per-storage usage (`TableInfo`'s fields, each written inside
+its own `WriteIfNotNull` method call) was never affected, which is why this was not caught earlier.
+
+### Verified two ways
+
+1. **16 tests** (`GameDataScriptReaderTests`, `RomNameParserTests`, `RomNameReaderTests`) against
+   `MockFileSystem` and a real, parseable synthetic `.vpx` file (`SyntheticVpxFile`, now able to
+   write a real `GameData` BIFF stream) - covering a clean single match, commented-out alternatives
+   correctly ignored, multiple uncommented matches, a conditionally-assigned ROM name correctly
+   reported as not found, missing/malformed records, and a file that isn't a readable `.vpx` at all
+   failing outright. 140 tests pass in `Nudge.Vpx.Tests` overall.
+2. **Directly verified against four real, independently-authored table files** from the maintainer's
+   test collection via a throwaway harness: `Medieval Madness` → `mm_109b` (correctly skipping three
+   commented-out alternatives), `BlackKnight2000` → `bk2k_l4`, `Nudge Test and Calibration` →
+   `dof_test`, and `Twilight Zone` → correctly not found (conditionally assigned, as above).

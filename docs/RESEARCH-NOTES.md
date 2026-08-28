@@ -121,9 +121,29 @@ collection used to validate Phase 2 — mostly images and sound sitting in `Game
   has parentheses that are not a manufacturer/year pair at all. `Nudge.Vpx.TableFiles.TableFilenameParser`
   is built to produce an honest partial or empty result for all three shapes, never a wrong guess.
 - **The PinMAME ROM name is not metadata.** It is a `cGameName` assignment inside the table's
-  VBScript in `GameStg`. Extracting it requires parsing the script. **Not yet implemented** —
-  deliberately deferred past the initial Phase 2 pass as a second-pass background operation, per
-  the plan below.
+  VBScript in `GameStg`. **Implemented** as a deliberately separate, second-pass reader -
+  `Nudge.Vpx.TableFiles.GameDataScriptReader` (extracts the script) plus `RomNameParser` (searches
+  it) - not wired into the fast library scan; see docs/IMPLEMENTATION-STATUS.md for what that means
+  in practice.
+  - `GameStg\GameData` is a sequence of **BIFF-style tagged records**: a 4-byte little-endian
+    length (covering the 4-byte tag plus whatever payload follows), the 4-byte tag itself, then the
+    payload, ending in an `ENDB` record. The script lives in the `CODE` record, whose payload is
+    itself a 4-byte length followed by that many bytes of text (UTF-8 when valid, Latin-1
+    otherwise). **This format is not documented anywhere in vpinball's own repository or shipped
+    docs.** It was cross-checked against the open-source community projects
+    [francisdb/vpin](https://github.com/francisdb/vpin) and
+    [francisdb/vpxtool](https://github.com/francisdb/vpxtool) (which read/write real `.vpx` files
+    this same way), then **independently verified here** by parsing four real, independently-authored
+    table files from the maintainer's test collection and confirming the extracted script text was
+    byte-for-byte sensible VBScript.
+  - The `cGameName` search convention, confirmed against those same four real files: a top-level
+    `Const cGameName = "romname"` (or without `Const`) assignment somewhere in the script. Real
+    tables are messier than that in practice - **Medieval Madness** carries four different
+    `cGameName` lines, three commented out with only one live; `RomNameParser` correctly finds only
+    the live one because commented lines never start with `Const`/`cGameName` at all. **Twilight
+    Zone** assigns `cGameName` conditionally inside a `Select Case` block with no single top-level
+    constant; Nudge does not evaluate script logic, so this correctly reports "not found" rather
+    than guessing a branch.
 - A fast scan should read only the small `TableInfo` streams. Never load a whole file. Phase 2's
   reader does exactly this — confirmed by running it against 33 real files up to 460 MB each
   without reading their `GameStg` storage at all.

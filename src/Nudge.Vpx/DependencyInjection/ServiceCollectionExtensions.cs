@@ -56,6 +56,12 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<ITableFilenameParser, TableFilenameParser>();
         services.TryAddSingleton<ITableFileReader, VpxTableFileReader>();
 
+        // Second-pass, deliberately not part of the fast scan - see AGENTS.md section 4.5 and the
+        // remarks on IRomNameReader.
+        services.TryAddSingleton<IGameDataScriptReader, GameDataScriptReader>();
+        services.TryAddSingleton<IRomNameParser, RomNameParser>();
+        services.TryAddSingleton<IRomNameReader, RomNameReader>();
+
         services.TryAddSingleton<IProcessRunner, ProcessRunner>();
         services.TryAddSingleton<ILaunchEngine, LaunchEngine>();
 

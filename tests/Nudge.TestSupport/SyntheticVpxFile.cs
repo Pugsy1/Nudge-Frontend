@@ -27,7 +27,8 @@ public static class SyntheticVpxFile
         string? tableBlurb = null,
         string? tableDescription = null,
         string? tableRules = null,
-        bool includeGameStg = true)
+        bool includeGameStg = true,
+        string? gameScript = null)
     {
         var stream = new MemoryStream();
 
@@ -51,14 +52,58 @@ public static class SyntheticVpxFile
                 // a real one - a reader that accidentally assumed TableInfo was the only storage
                 // would still pass against a file that only had TableInfo.
                 Storage gameStg = root.CreateStorage("GameStg");
-                using CfbStream version = gameStg.CreateStream("Version");
-                version.Write([1, 0, 8, 0], 0, 4);
+
+                // Each stream is written and disposed inside its own block before the next one is
+                // created - OpenMcdf silently drops the contents of every stream in a storage (they
+                // read back at 0 bytes) if more than one is left open at once, discovered the hard
+                // way when a "using" declaration (no braces) left "Version" open while "GameData"
+                // was created and written.
+                using (CfbStream version = gameStg.CreateStream("Version"))
+                {
+                    version.Write([1, 0, 8, 0], 0, 4);
+                }
+
+                if (gameScript is not null)
+                {
+                    // Real byte-for-byte shape of GameStg\GameData: a sequence of BIFF-style tagged
+                    // records (4-byte little-endian length covering tag+payload, then the 4-byte
+                    // tag, then the payload), ending in an "ENDB" record. The script lives in the
+                    // "CODE" record, whose payload is itself a 4-byte length then that many UTF-8
+                    // bytes. Verified against four real table files - see docs/RESEARCH-NOTES.md and
+                    // Nudge.Vpx.TableFiles.GameDataScriptReader.
+                    using CfbStream gameData = gameStg.CreateStream("GameData");
+                    byte[] biff = BuildGameDataBiff(gameScript);
+                    gameData.Write(biff, 0, biff.Length);
+                }
             }
 
             root.Flush(consolidate: true);
         }
 
         return stream.ToArray();
+    }
+
+    private static byte[] BuildGameDataBiff(string script)
+    {
+        using var biffStream = new MemoryStream();
+        byte[] scriptBytes = Encoding.UTF8.GetBytes(script);
+
+        WriteInt32LittleEndian(biffStream, 4 + 4 + scriptBytes.Length);
+        biffStream.Write("CODE"u8);
+        WriteInt32LittleEndian(biffStream, scriptBytes.Length);
+        biffStream.Write(scriptBytes, 0, scriptBytes.Length);
+
+        WriteInt32LittleEndian(biffStream, 4);
+        biffStream.Write("ENDB"u8);
+
+        return biffStream.ToArray();
+    }
+
+    private static void WriteInt32LittleEndian(Stream stream, int value)
+    {
+        Span<byte> buffer = stackalloc byte[4];
+        System.Buffers.Binary.BinaryPrimitives.WriteInt32LittleEndian(buffer, value);
+        stream.Write(buffer);
     }
 
     /// <summary>A file with no TableInfo storage at all - a valid OLE file, but not a VPX table.</summary>
