@@ -147,6 +147,10 @@ public partial class MainWindow : Window
 
         FullscreenButton.Content = _isFullscreen ? ExitFullscreenGlyph : FullscreenGlyph;
         FullscreenButton.ToolTip = _isFullscreen ? "Exit full screen (F11)" : "Full screen (F11)";
+
+        // The real title bar row is Height 0 while fullscreen, so this corner pair (exit
+        // fullscreen + close) is the only chrome available without reaching for F11/Alt+F4.
+        FullscreenCornerControls.Visibility = _isFullscreen ? Visibility.Visible : Visibility.Collapsed;
     }
 
     /// <summary>Sets Left/Top/Width/Height to exactly cover the current monitor, converting the Win32 device-pixel bounds to WPF's device-independent units so this is correct at any display scaling.</summary>
