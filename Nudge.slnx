@@ -2,9 +2,13 @@
   <Folder Name="/src/">
     <Project Path="src/Nudge.App/Nudge.App.csproj" />
     <Project Path="src/Nudge.Core/Nudge.Core.csproj" />
+    <Project Path="src/Nudge.Data/Nudge.Data.csproj" />
+    <Project Path="src/Nudge.Library/Nudge.Library.csproj" />
     <Project Path="src/Nudge.Vpx/Nudge.Vpx.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Nudge.Data.Tests/Nudge.Data.Tests.csproj" />
+    <Project Path="tests/Nudge.Library.Tests/Nudge.Library.Tests.csproj" />
     <Project Path="tests/Nudge.TestSupport/Nudge.TestSupport.csproj" />
     <Project Path="tests/Nudge.Vpx.Tests/Nudge.Vpx.Tests.csproj" />
   </Folder>

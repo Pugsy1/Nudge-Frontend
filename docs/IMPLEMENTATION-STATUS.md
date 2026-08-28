@@ -156,3 +156,88 @@ pattern Phase 1 established for executable identification, applied here to table
   comparison**, not a fuzzy string match. Two genuinely different titles that happen to share a
   common substring could register as "agreeing" when they shouldn't. Not seen in the 33-file real
   sample, but not proven absent either.
+
+## Phase 3 — Database and library scanner
+
+**Status: functionally complete for its stated scope (schema, EF Core, migrations, repositories,
+scanner), headless. Wired into Nudge.App's startup (database created and migrated automatically),
+but nothing in the UI triggers a scan or displays scanned tables yet - that's Phase 4.**
+
+### What's built
+
+**`Nudge.Data`** - a new project. SQLite via EF Core 10 (the locked decision), with:
+
+- `TableEntity` / `NudgeDbContext`: one `Tables` table, keyed by an auto-increment `Id`, with a
+  unique index on `(InstallationId, FilePath)` and a plain index on `DisplayTitle` (added now,
+  ahead of the grid needing to sort/filter by it in Phase 4, rather than as a follow-up migration).
+- `TableRepository : ITableRepository` (the interface lives in `Nudge.Core`, so nothing outside
+  `Nudge.Data` knows EF Core exists). Converts between the I/O-free `VpxTableFile` and the
+  persisted `TableEntity` - `FilenameHints.Tags` and `DetectionEvidence` are stored as JSON
+  columns, since neither has independent identity worth a related table.
+- **Batched writes**: `UpsertManyAsync` does one query to find every existing row a batch might
+  touch, then one `SaveChangesAsync` for the whole batch - one transaction per few hundred rows,
+  per AGENTS.md's performance budget, not one per row.
+- An `InitialCreate` migration, generated and applied for real (see verification below).
+- A security fix along the way: EF Core 10.0.0 pulls in `SQLitePCLRaw.lib.e_sqlite3` 2.1.11 and
+  `System.Security.Cryptography.Xml` 9.0.0, both with known high-severity CVEs. Pinned both up to
+  patched versions via direct `PackageReference` overrides in `Nudge.Data.csproj` (a direct
+  reference wins over EF Core's transitive one). Worth re-checking next time EF Core itself is
+  upgraded, in case a newer EF Core release fixes this upstream.
+
+**`Nudge.Library`** - a new project, holding `VpxLibraryScanner : IVpxLibraryScanner`:
+
+- Walks a folder recursively for `*.vpx` files.
+- **Incremental scanning**: compares each file's current size and last-write time against what was
+  stored last time (`ITableRepository.GetFingerprintsAsync`); unchanged files are not re-read at
+  all. Confirmed for real (below): a repeat scan of 61 real tables dropped from 2.6s to 49ms.
+- Reads every new-or-changed file through Phase 2's `ITableFileReader`, batches results, and
+  removes database rows for files that vanished since the last scan
+  (`ITableRepository.DeleteMissingAsync`).
+- Reports `IProgress<ScanProgress>` as it works, for a future progress bar.
+- One failed file does not stop the scan - it's counted and its path recorded, and everything else
+  keeps going.
+
+**Verified two ways**, matching the pattern from Phases 1 and 2:
+
+1. **Tests**: 8 in `Nudge.Data.Tests` against a real, in-memory SQLite database (not EF Core's
+   separate InMemory provider, which doesn't enforce real constraints or behave identically to a
+   real relational engine) - round-tripping tables, JSON columns, batch upserts, per-installation
+   scoping, and deletion. 10 in `Nudge.Library.Tests`, with every real production class wired
+   together (the real `VpxTableFileReader` reading real synthetic OLE files through a mock
+   filesystem, the real `TableRepository` against real in-memory SQLite) - covering new/changed/
+   unchanged/deleted files, subfolders, non-`.vpx` files being ignored, and one bad file not
+   stopping the rest of the scan. 129 tests pass across the whole solution.
+2. **A real, on-disk SQLite database**, scanned against the maintainer's actual 61-table folder
+   (grown since Phase 2's 33-file check) via a throwaway harness built from the real production
+   classes: first scan found and stored all 61 with zero failures in 2.6 seconds; a second scan
+   against the same folder correctly skipped all 61 as unchanged, finishing in 49ms. Also verified
+   end-to-end inside the real running app: `nudge.db` is created and migrated automatically on
+   startup, and the redaction rule still holds (`%LocalAppData%` paths in the log show `<user>`,
+   not the real Windows username).
+
+### What's deliberately not built (Phase 3 scope)
+
+- **Nothing in the UI triggers a scan or shows scanned tables.** `AddNudgeData` / `AddNudgeLibrary`
+  are registered in `Nudge.App`'s DI container and the database is migrated at startup, but the
+  setup screen's behaviour is completely unchanged. That wiring is Phase 4's job.
+- **No grouping or duplicate detection** across tables (e.g. the same table appearing under two
+  different filenames). That's `Nudge.Library`'s "grouping" responsibility, not yet built.
+- **No health checking or import.** Also `Nudge.Library`'s job, in later phases.
+- `ITableRepository` and `NudgeDbContext` are registered with EF Core's default Scoped lifetime.
+  Nothing resolves them outside of `MigrateNudgeDatabaseAsync`'s own scope yet - Phase 4's grid
+  view model will need to either be Scoped itself or create its own scope when it starts using
+  the repository.
+
+### Known limitations
+
+- **The scanner's incremental fingerprint is size + last-write time only**, per AGENTS.md's stated
+  approach. It does not hash file contents, so a file rewritten with the exact same size and
+  write-time (vanishingly unlikely in practice, but not impossible with certain backup/sync tools)
+  would be wrongly skipped. Matches the documented design; flagged here so it isn't forgotten.
+- **No concurrent-scan protection.** Two overlapping scans of the same installation would race on
+  the same rows. Not a real risk yet, since nothing triggers a scan automatically, but worth
+  guarding against before Phase 4 adds a "rescan" button.
+- **Migrations have been generated and applied against a real file once**, in the running app and
+  in the throwaway validation harness, but not yet exercised across an upgrade path (an existing
+  `nudge.db` from an older schema version being migrated forward) - there's only ever been one
+  migration so far.

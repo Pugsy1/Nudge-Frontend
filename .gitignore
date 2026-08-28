@@ -54,3 +54,10 @@ $RECYCLE.BIN/
 ## Nudge local runtime data (never committed)
 *.local.json
 logs/
+
+## SQLite databases - the real nudge.db lives under %LocalAppData%, well outside the repo, but this
+## guards against a stray one from a local `dotnet ef database update` run (the design-time factory
+## points at a relative "design-time-only.db" that would otherwise land in the repo folder).
+*.db
+*.db-shm
+*.db-wal

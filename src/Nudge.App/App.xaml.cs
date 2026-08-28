@@ -9,6 +9,8 @@ using Nudge.App.Services;
 using Nudge.App.ViewModels;
 using Nudge.App.Views;
 using Nudge.Core.Diagnostics;
+using Nudge.Data.DependencyInjection;
+using Nudge.Library.DependencyInjection;
 using Nudge.Vpx.DependencyInjection;
 using Nudge.Vpx.Platform;
 using Serilog;
@@ -46,6 +48,10 @@ public partial class App : Application
         {
             _host = BuildHost(environment, redactor);
             await _host.StartAsync().ConfigureAwait(true);
+
+            // Creates the database file and brings its schema up to date. Cheap and safe to run
+            // on every startup - a no-op when there is nothing pending.
+            await _host.Services.MigrateNudgeDatabaseAsync().ConfigureAwait(true);
 
             // Restore the saved theme before anything is shown, so the window never flashes the
             // wrong palette on start.
@@ -104,6 +110,16 @@ public partial class App : Application
         // Everything that touches the filesystem, the registry or Visual Pinball.
         builder.Services.AddNudgeVpx();
 
+        // The database and the folder scanner. Nothing in the UI uses these yet - registered now
+        // so Phase 4's library grid has them ready rather than starting from nothing. ITableRepository
+        // and NudgeDbContext are Scoped (EF Core's default); resolve them through an IServiceScope,
+        // not directly from the root container.
+        string dataDirectory = Vpx.DependencyInjection.ServiceCollectionExtensions.ResolveDataDirectory(environment);
+        Directory.CreateDirectory(dataDirectory);
+        string databasePath = Path.Combine(dataDirectory, Data.DependencyInjection.ServiceCollectionExtensions.DatabaseFileName);
+        builder.Services.AddNudgeData(databasePath);
+        builder.Services.AddNudgeLibrary();
+
         // UI services.
         builder.Services.AddSingleton<IThemeService, ThemeService>();
         builder.Services.AddSingleton<IFolderPickerService, FolderPickerService>();
@@ -116,7 +132,7 @@ public partial class App : Application
 
     private static void ConfigureLogging(IEnvironmentPaths environment, IPathRedactor redactor)
     {
-        string logsDirectory = ServiceCollectionExtensions.ResolveLogsDirectory(environment);
+        string logsDirectory = Vpx.DependencyInjection.ServiceCollectionExtensions.ResolveLogsDirectory(environment);
         string logFilePath = Path.Combine(logsDirectory, "nudge-.log");
 
         LoggerConfiguration configuration = new LoggerConfiguration()

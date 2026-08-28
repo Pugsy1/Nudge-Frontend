@@ -13,9 +13,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- The UI depends on Core for its contracts and on Vpx only to register its services. -->
+    <!-- The UI depends on Core for its contracts, and on Vpx/Data/Library only to register their
+         services - nothing in Nudge.App talks to a file, a database, or the registry directly. -->
     <ProjectReference Include="..\Nudge.Core\Nudge.Core.csproj" />
     <ProjectReference Include="..\Nudge.Vpx\Nudge.Vpx.csproj" />
+    <ProjectReference Include="..\Nudge.Data\Nudge.Data.csproj" />
+    <ProjectReference Include="..\Nudge.Library\Nudge.Library.csproj" />
   </ItemGroup>
 
   <ItemGroup>
