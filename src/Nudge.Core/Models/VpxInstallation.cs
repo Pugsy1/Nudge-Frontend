@@ -94,4 +94,31 @@ public sealed record VpxInstallation
         VpxFlavor.DirectX9 => 0,
         _ => -1
     };
+
+    /// <summary>
+    /// The executable Nudge will launch for "Play in VR": the most capable VR-aware recognised
+    /// build (OpenXR, then OpenVR), preferring x64 over x86. Null when nothing here reports VR
+    /// capability.
+    /// </summary>
+    /// <remarks>
+    /// Unlike <see cref="BestDesktopExecutable"/>, the OpenGL build is not excluded here - it's the
+    /// one being selected for. Per AGENTS.md section 4.3, the OpenGL build autodetects an active
+    /// SteamVR driver and launches straight into VR with no command-line flag or settings file
+    /// involved, when a headset is already on and SteamVR is already running - confirmed against the
+    /// maintainer's own hardware. Nudge does not yet manage its own VR settings/-Ini profile (a
+    /// separate, later capability per AGENTS.md's phase table, for forcing VR on/off rather than
+    /// relying on autodetection) - this only controls which executable launches.
+    /// </remarks>
+    public VpxExecutable? BestVrExecutable => RecognisedExecutables
+        .Where(e => VrFlavorRank(e.VrCapability) >= 0)
+        .OrderByDescending(e => VrFlavorRank(e.VrCapability))
+        .ThenByDescending(e => e.Architecture == ProcessorArchitecture.X64)
+        .FirstOrDefault();
+
+    private static int VrFlavorRank(VrCapability capability) => capability switch
+    {
+        VrCapability.OpenXR => 1,
+        VrCapability.OpenVR => 0,
+        _ => -1
+    };
 }

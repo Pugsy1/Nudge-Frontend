@@ -35,12 +35,6 @@ public sealed class LaunchEngine : ILaunchEngine
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(installation);
-        ArgumentException.ThrowIfNullOrWhiteSpace(tablePath);
-
-        if (!_fileSystem.File.Exists(tablePath))
-        {
-            return Result<LaunchOutcome>.Failure("That table file no longer exists on disk.");
-        }
 
         VpxExecutable? executable = installation.BestDesktopExecutable;
         if (executable is null)
@@ -49,11 +43,28 @@ public sealed class LaunchEngine : ILaunchEngine
                 "Nudge couldn't find a Visual Pinball build in this installation that can play .vpx tables.");
         }
 
+        return await LaunchAsync(executable, tablePath, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<Result<LaunchOutcome>> LaunchAsync(
+        VpxExecutable executable,
+        string tablePath,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(executable);
+        ArgumentException.ThrowIfNullOrWhiteSpace(tablePath);
+
+        if (!_fileSystem.File.Exists(tablePath))
+        {
+            return Result<LaunchOutcome>.Failure("That table file no longer exists on disk.");
+        }
+
         // The complete supported command-line set is documented in AGENTS.md section 4.2. "-Play"
-        // is the launch verb; there is no "-Desktop" flag to pass alongside it - a Desktop session is
-        // simply what you get without an "-Ini" pointing at a VR profile (Phase 6's job).
+        // is the launch verb; there is no "-Desktop" or "-VR" flag to pass alongside it - which mode
+        // you get depends on which executable this is and, for VR, whether a headset/SteamVR is
+        // already active (see VpxInstallation.BestVrExecutable) - not on anything passed here.
         string[] arguments = ["-Play", tablePath];
-        string workingDirectory = _fileSystem.Path.GetDirectoryName(executable.Path) ?? installation.RootPath;
+        string workingDirectory = _fileSystem.Path.GetDirectoryName(executable.Path) ?? string.Empty;
 
         _logger.LogInformation(
             "Launching {Executable} to play {Table}.",

@@ -93,16 +93,66 @@ public sealed class VpxInstallationTests
         installation.BestDesktopExecutable!.FileName.Should().Be("VPinballX.exe");
     }
 
+    [Fact]
+    public void BestVrExecutable_prefers_OpenXR_over_OpenVR()
+    {
+        VpxInstallation installation = BuildInstallation(
+            Executable("VPinballX_GL64.exe", VpxFlavor.OpenGL, vrCapability: VrCapability.OpenVR),
+            Executable("VPinballX_BGFX64.exe", VpxFlavor.Bgfx, vrCapability: VrCapability.OpenXR));
+
+        installation.BestVrExecutable!.FileName.Should().Be("VPinballX_BGFX64.exe");
+    }
+
+    [Fact]
+    public void BestVrExecutable_falls_back_to_OpenVR_when_nothing_offers_OpenXR()
+    {
+        VpxInstallation installation = BuildInstallation(
+            Executable("VPinballX.exe", VpxFlavor.DirectX9, vrCapability: VrCapability.None),
+            Executable("VPinballX_GL64.exe", VpxFlavor.OpenGL, vrCapability: VrCapability.OpenVR));
+
+        installation.BestVrExecutable!.FileName.Should().Be("VPinballX_GL64.exe");
+    }
+
+    [Fact]
+    public void BestVrExecutable_prefers_x64_over_x86_within_the_same_capability()
+    {
+        VpxInstallation installation = BuildInstallation(
+            Executable("VPinballX_GL.exe", VpxFlavor.OpenGL, ProcessorArchitecture.X86, VrCapability.OpenVR),
+            Executable("VPinballX_GL64.exe", VpxFlavor.OpenGL, ProcessorArchitecture.X64, VrCapability.OpenVR));
+
+        installation.BestVrExecutable!.FileName.Should().Be("VPinballX_GL64.exe");
+    }
+
+    [Fact]
+    public void BestVrExecutable_is_null_when_nothing_reports_VR_capability()
+    {
+        VpxInstallation installation = BuildInstallation(
+            Executable("VPinballX.exe", VpxFlavor.DirectX9, vrCapability: VrCapability.None),
+            Executable("VPinball995.exe", VpxFlavor.VP9Legacy, vrCapability: VrCapability.None));
+
+        installation.BestVrExecutable.Should().BeNull();
+    }
+
+    [Fact]
+    public void BestVrExecutable_is_null_when_VR_capability_could_not_be_determined()
+    {
+        VpxInstallation installation = BuildInstallation(
+            Executable("VPinballX_GL64.exe", VpxFlavor.OpenGL, vrCapability: VrCapability.Unknown));
+
+        installation.BestVrExecutable.Should().BeNull();
+    }
+
     private static VpxExecutable Executable(
         string fileName,
         VpxFlavor flavor,
-        ProcessorArchitecture architecture = ProcessorArchitecture.X64) => new()
+        ProcessorArchitecture architecture = ProcessorArchitecture.X64,
+        VrCapability vrCapability = VrCapability.Unknown) => new()
     {
         Path = $@"D:\VPX\{fileName}",
         FileName = fileName,
         Flavor = flavor,
         Architecture = architecture,
-        VrCapability = VrCapability.Unknown,
+        VrCapability = vrCapability,
         Confidence = Confidence.High,
         Evidence = DetectionEvidence.Empty()
     };

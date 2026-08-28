@@ -101,6 +101,66 @@ public sealed class LaunchEngineTests
         result.Error.Should().Contain("VPinballX64.exe");
     }
 
+    [Fact]
+    public async Task Launching_a_specific_executable_directly_ignores_Desktop_selection_entirely()
+    {
+        // This is exactly how "Play in VR" is expected to launch (VpxInstallation.BestVrExecutable),
+        // via the OpenGL build - which BestDesktopExecutable would normally never select. The
+        // two-argument overload must launch whatever executable it is given, no re-ranking.
+        LaunchEngine engine = CreateEngine();
+        var vrExecutable = new VpxExecutable
+        {
+            Path = @"D:\VPX\VPinballX_GL64.exe",
+            FileName = "VPinballX_GL64.exe",
+            Flavor = VpxFlavor.OpenGL,
+            Architecture = ProcessorArchitecture.X64,
+            VrCapability = VrCapability.OpenVR,
+            Confidence = Confidence.High,
+            Evidence = DetectionEvidence.Empty()
+        };
+        _processRunner.NextExitCode = 0;
+
+        Result<LaunchOutcome> result = await engine.LaunchAsync(vrExecutable, TablePath);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.ExecutablePath.Should().Be(vrExecutable.Path);
+        _processRunner.LastFileName.Should().Be(vrExecutable.Path);
+        _processRunner.LastArguments.Should().Equal("-Play", TablePath);
+    }
+
+    [Fact]
+    public async Task The_installation_overload_delegates_to_BestDesktopExecutable()
+    {
+        LaunchEngine engine = CreateEngine();
+        VpxInstallation installation = BuildInstallation(ExecutablePath, VpxFlavor.DirectX9);
+
+        Result<LaunchOutcome> result = await engine.LaunchAsync(installation, TablePath);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.ExecutablePath.Should().Be(ExecutablePath);
+    }
+
+    [Fact]
+    public async Task Launching_a_specific_executable_still_fails_when_the_table_file_is_missing()
+    {
+        LaunchEngine engine = CreateEngine();
+        var executable = new VpxExecutable
+        {
+            Path = ExecutablePath,
+            FileName = Path.GetFileName(ExecutablePath),
+            Flavor = VpxFlavor.DirectX9,
+            Architecture = ProcessorArchitecture.X64,
+            VrCapability = VrCapability.Unknown,
+            Confidence = Confidence.High,
+            Evidence = DetectionEvidence.Empty()
+        };
+
+        Result<LaunchOutcome> result = await engine.LaunchAsync(executable, @"D:\VPX\Tables\Missing.vpx");
+
+        result.IsFailure.Should().BeTrue();
+        _processRunner.WasCalled.Should().BeFalse();
+    }
+
     private LaunchEngine CreateEngine() => new(
         _processRunner,
         _fileSystem,
