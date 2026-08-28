@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows.Data;
+using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
@@ -46,7 +47,6 @@ public sealed partial class LibraryViewModel : ObservableObject
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IVpxLibraryScanner _scanner;
     private readonly ILaunchEngine _launchEngine;
-    private readonly IWindowActivationService _windowActivation;
     private readonly IThemeService _themeService;
     private readonly ISettingsService _settingsService;
     private readonly IPathRedactor _redactor;
@@ -57,11 +57,19 @@ public sealed partial class LibraryViewModel : ObservableObject
     /// <summary>Guards the settings-write path while preferences are being loaded into the UI, so restoring a saved value doesn't immediately re-save it.</summary>
     private bool _isLoadingPreferences;
 
+    /// <summary>
+    /// Debounces the search filter: re-evaluating <see cref="FilterTable"/> across every table is
+    /// O(n) work, and AGENTS.md's performance budget calls for search results under 50ms even at
+    /// 1,000 tables - doing that on every single keystroke while someone is still typing piles up
+    /// wastefully during fast typing. Restarted on each keystroke, so only the one after typing
+    /// actually pauses does the work.
+    /// </summary>
+    private readonly DispatcherTimer _searchDebounceTimer;
+
     public LibraryViewModel(
         IServiceScopeFactory scopeFactory,
         IVpxLibraryScanner scanner,
         ILaunchEngine launchEngine,
-        IWindowActivationService windowActivation,
         SetupViewModel setup,
         IThemeService themeService,
         ISettingsService settingsService,
@@ -71,7 +79,6 @@ public sealed partial class LibraryViewModel : ObservableObject
         _scopeFactory = scopeFactory;
         _scanner = scanner;
         _launchEngine = launchEngine;
-        _windowActivation = windowActivation;
         _themeService = themeService;
         _settingsService = settingsService;
         _redactor = redactor;
@@ -84,6 +91,14 @@ public sealed partial class LibraryViewModel : ObservableObject
         Tables = [];
         TablesView = (ListCollectionView)CollectionViewSource.GetDefaultView(Tables);
         TablesView.Filter = FilterTable;
+
+        _searchDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
+        _searchDebounceTimer.Tick += (_, _) =>
+        {
+            _searchDebounceTimer.Stop();
+            TablesView.Refresh();
+            UpdateVisibleCount();
+        };
 
         // Lets the "Favourites first" sort re-order live the instant a star is clicked, instead of
         // needing a full Refresh() (which would also re-run the filter and jar the scroll position).
@@ -224,8 +239,10 @@ public sealed partial class LibraryViewModel : ObservableObject
 
     partial void OnSearchTextChanged(string value)
     {
-        TablesView.Refresh();
-        UpdateVisibleCount();
+        // Restarting rather than letting it run means a keystroke arriving mid-interval pushes the
+        // actual filter pass back out, so it only ever fires once typing has actually paused.
+        _searchDebounceTimer.Stop();
+        _searchDebounceTimer.Start();
     }
 
     partial void OnSelectedSortChanged(OptionItem<TableSortOrder> value)
@@ -273,7 +290,14 @@ public sealed partial class LibraryViewModel : ObservableObject
     private void SetLaunchMode(string mode) => IsVrMode = mode == "Vr";
 
     [RelayCommand]
-    private void ClearSearch() => SearchText = string.Empty;
+    private void ClearSearch()
+    {
+        // An explicit action, not "still typing" - skips the debounce so the grid updates immediately.
+        _searchDebounceTimer.Stop();
+        SearchText = string.Empty;
+        TablesView.Refresh();
+        UpdateVisibleCount();
+    }
 
     /// <summary>Full paths of every table currently starred, across all installations - the persisted form of every tile's IsFavorite.</summary>
     private HashSet<string> _favoriteTablePaths = new(StringComparer.OrdinalIgnoreCase);
@@ -400,19 +424,22 @@ public sealed partial class LibraryViewModel : ObservableObject
     private bool _isLaunching;
 
     /// <summary>
-    /// How long Nudge keeps itself in the foreground, with the launch overlay showing, before
-    /// deliberately handing focus to Visual Pinball - a fixed cosmetic delay, not a real "table
-    /// finished loading" signal (Visual Pinball exposes no such thing), requested explicitly to
-    /// cover the abrupt jump-cut to Visual Pinball's own blank loading screen.
-    /// </summary>
-    private static readonly TimeSpan LaunchForegroundGracePeriod = TimeSpan.FromSeconds(12);
-
-    /// <summary>
     /// Launches a table and waits for Visual Pinball to exit - the "click a tile, play, VPX exits,
     /// back to the library" core loop from AGENTS.md section 1. Which build runs depends on the
     /// 2D/VR switch: VR mode uses the installation's VR-capable executable, relying on Visual
     /// Pinball's own autodetection of an active headset (AGENTS.md section 4.3).
     /// </summary>
+    /// <remarks>
+    /// This deliberately does not try to hold Nudge in the foreground or hand focus back to Visual
+    /// Pinball once it appears - an earlier version did, with a fixed 12-second delay standing in
+    /// for "the table finished loading" (which Visual Pinball has no way to report). Investigated
+    /// whether any VPX frontend has a real signal for that: none do. PinUP Popper, a mature,
+    /// long-established frontend, has open, years-old bugs and workarounds around this exact
+    /// problem (window-detection timing mismatches, `-Minimized` flag quirks); no frontend
+    /// examined has a clean answer, only guesses of varying quality. Rather than ship another
+    /// guess, Visual Pinball's own process simply takes focus immediately, the same as launching
+    /// any other application - this overlay just stays up behind it for the whole play session.
+    /// </remarks>
     [RelayCommand(CanExecute = nameof(CanLaunch))]
     private async Task LaunchTableAsync(TableTileViewModel? tile)
     {
@@ -429,40 +456,6 @@ public sealed partial class LibraryViewModel : ObservableObject
         StatusMessage = useVr
             ? $"Launching {tile.DisplayTitle} in VR…"
             : $"Launching {tile.DisplayTitle}…";
-
-        // Visual Pinball's own process steals foreground focus - and shows its own blank loading
-        // screen - the instant it's created. Nudge holds focus for itself instead for a fixed grace
-        // period, then explicitly hands off to whichever new Visual Pinball window appeared.
-        VpxExecutable? targetExecutable = vrExecutable ?? _installation.BestDesktopExecutable;
-        IReadOnlyList<string> processNamePrefixes = targetExecutable is { } exe
-            ? [System.IO.Path.GetFileNameWithoutExtension(exe.FileName)]
-            : [];
-        IReadOnlySet<int> existingProcessIds = _windowActivation.SnapshotProcessIds(processNamePrefixes);
-
-        // Two separate tokens, not one shared between the loop and the delay: the reassertion loop
-        // must stop the instant the grace period elapses, before the handoff runs, or it keeps
-        // calling SetForegroundWindow on Nudge every 400ms for the rest of the play session and the
-        // handoff never visibly sticks - that was the actual bug, not the handoff call itself.
-        using var reassertCts = new CancellationTokenSource();
-        using var handoffCts = new CancellationTokenSource();
-        Task keepForegroundTask = _windowActivation.KeepForegroundAsync(reassertCts.Token);
-
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await Task.Delay(LaunchForegroundGracePeriod, handoffCts.Token).ConfigureAwait(false);
-            }
-            catch (TaskCanceledException)
-            {
-                // Visual Pinball already exited (or the launch failed) before the grace period
-                // elapsed - nothing to hand focus to.
-                return;
-            }
-
-            reassertCts.Cancel();
-            _windowActivation.ActivateNewestProcessWindow(existingProcessIds, processNamePrefixes);
-        }, CancellationToken.None);
 
         try
         {
@@ -491,14 +484,6 @@ public sealed partial class LibraryViewModel : ObservableObject
         }
         finally
         {
-            // Stops the foreground-reassertion loop if it's somehow still running, and cancels the
-            // delayed handoff if Visual Pinball already exited before the grace period elapsed (a
-            // fast crash, say) - otherwise it would fire afterwards and steal focus back to a
-            // process that's no longer there.
-            reassertCts.Cancel();
-            handoffCts.Cancel();
-            await keepForegroundTask.ConfigureAwait(true);
-
             IsLaunching = false;
             LaunchTableCommand.NotifyCanExecuteChanged();
         }

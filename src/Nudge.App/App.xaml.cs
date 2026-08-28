@@ -124,7 +124,6 @@ public partial class App : Application
         // UI services.
         builder.Services.AddSingleton<IThemeService, ThemeService>();
         builder.Services.AddSingleton<IFolderPickerService, FolderPickerService>();
-        builder.Services.AddSingleton<IWindowActivationService, WindowActivationService>();
 
         builder.Services.AddSingleton<SetupViewModel>();
         builder.Services.AddSingleton<LibraryViewModel>();

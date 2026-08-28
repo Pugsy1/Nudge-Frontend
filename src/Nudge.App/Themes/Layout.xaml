@@ -91,7 +91,7 @@
   <system:Double x:Key="Scale.Tile.Hover">1.035</system:Double>
 
   <system:Double x:Key="Size.SearchBox.Width">260</system:Double>
-  <Thickness x:Key="Padding.SearchBox">36,8,14,8</Thickness>
+  <Thickness x:Key="Padding.SearchBox">32,8,14,8</Thickness>
 
   <!-- Insets the scrollbar from the content edges so it reads as a short floating pill. -->
   <Thickness x:Key="Margin.Scrollbar">0,16,6,16</Thickness>
