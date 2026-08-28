@@ -65,7 +65,9 @@ public partial class App : Application
             window.Show();
 
             // Discovery runs after the window is up, so the user sees something immediately.
-            await _host.Services.GetRequiredService<SetupViewModel>()
+            // ShellViewModel.InitialiseAsync delegates to SetupViewModel and then, once an
+            // installation is confirmed, switches the window to the library screen itself.
+            await _host.Services.GetRequiredService<ShellViewModel>()
                 .InitialiseAsync()
                 .ConfigureAwait(true);
         }
@@ -110,10 +112,9 @@ public partial class App : Application
         // Everything that touches the filesystem, the registry or Visual Pinball.
         builder.Services.AddNudgeVpx();
 
-        // The database and the folder scanner. Nothing in the UI uses these yet - registered now
-        // so Phase 4's library grid has them ready rather than starting from nothing. ITableRepository
-        // and NudgeDbContext are Scoped (EF Core's default); resolve them through an IServiceScope,
-        // not directly from the root container.
+        // The database and the folder scanner, behind ITableRepository and IVpxLibraryScanner.
+        // ITableRepository and NudgeDbContext are Scoped (EF Core's default); resolve them through
+        // an IServiceScope, not directly from the root container - see LibraryViewModel.
         string dataDirectory = Vpx.DependencyInjection.ServiceCollectionExtensions.ResolveDataDirectory(environment);
         Directory.CreateDirectory(dataDirectory);
         string databasePath = Path.Combine(dataDirectory, Data.DependencyInjection.ServiceCollectionExtensions.DatabaseFileName);
@@ -125,6 +126,8 @@ public partial class App : Application
         builder.Services.AddSingleton<IFolderPickerService, FolderPickerService>();
 
         builder.Services.AddSingleton<SetupViewModel>();
+        builder.Services.AddSingleton<LibraryViewModel>();
+        builder.Services.AddSingleton<ShellViewModel>();
         builder.Services.AddSingleton<MainWindow>();
 
         return builder.Build();

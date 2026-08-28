@@ -16,17 +16,17 @@
   <DropShadowEffect x:Key="Effect.Card.Shadow"
                      Color="{DynamicResource Color.Shadow}"
                      Direction="315"
-                     ShadowDepth="7"
-                     BlurRadius="22"
-                     Opacity="0.30"
+                     ShadowDepth="12"
+                     BlurRadius="34"
+                     Opacity="0.45"
                      RenderingBias="Performance" />
 
   <DropShadowEffect x:Key="Effect.Button.Shadow"
                      Color="{DynamicResource Color.Shadow}"
                      Direction="315"
-                     ShadowDepth="3"
-                     BlurRadius="10"
-                     Opacity="0.28"
+                     ShadowDepth="5"
+                     BlurRadius="16"
+                     Opacity="0.38"
                      RenderingBias="Performance" />
 
   <!-- A smaller, tighter shadow for the pressed state - less depth, so the button reads as pushed in. -->
@@ -34,8 +34,29 @@
                      Color="{DynamicResource Color.Shadow}"
                      Direction="315"
                      ShadowDepth="1"
-                     BlurRadius="4"
-                     Opacity="0.22"
+                     BlurRadius="5"
+                     Opacity="0.30"
+                     RenderingBias="Performance" />
+
+  <!-- The library grid's tile cards: a touch lighter than Effect.Card.Shadow since many tiles are
+       ever on screen at once, but still clearly "raised" rather than flat. -->
+  <DropShadowEffect x:Key="Effect.Tile.Shadow"
+                     Color="{DynamicResource Color.Shadow}"
+                     Direction="315"
+                     ShadowDepth="7"
+                     BlurRadius="20"
+                     Opacity="0.38"
+                     RenderingBias="Performance" />
+
+  <!-- Used on recessed controls (the search box) to read as pressed into the surface rather than
+       sitting flush with it - the same tight, close shadow a button gets on press, applied at rest
+       instead of only on interaction. -->
+  <DropShadowEffect x:Key="Effect.Inset.Shadow"
+                     Color="{DynamicResource Color.Shadow}"
+                     Direction="315"
+                     ShadowDepth="1"
+                     BlurRadius="6"
+                     Opacity="0.32"
                      RenderingBias="Performance" />
 
 </ResourceDictionary>

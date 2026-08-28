@@ -46,9 +46,14 @@
   <Thickness x:Key="BorderThickness.Bottom">0,0,0,1</Thickness>
   <Thickness x:Key="BorderThickness.Left.Accent">3,0,0,0</Thickness>
 
-  <CornerRadius x:Key="CornerRadius.S">6</CornerRadius>
-  <CornerRadius x:Key="CornerRadius.M">10</CornerRadius>
-  <CornerRadius x:Key="CornerRadius.L">18</CornerRadius>
+  <CornerRadius x:Key="CornerRadius.S">8</CornerRadius>
+  <CornerRadius x:Key="CornerRadius.M">14</CornerRadius>
+  <CornerRadius x:Key="CornerRadius.L">22</CornerRadius>
+
+  <!-- Rounds only the top corners, at the same radius as CornerRadius.M, for a tile's artwork area
+       so it reads as one continuous rounded shape with the card around it rather than a separate
+       square-cornered panel sitting inside a rounded one. -->
+  <CornerRadius x:Key="CornerRadius.Card.Top">14,14,0,0</CornerRadius>
 
   <!-- Fixed dimensions -->
   <system:Double x:Key="Size.Scrollbar">10</system:Double>
@@ -57,5 +62,12 @@
   <system:Double x:Key="Size.Window.MinHeight">560</system:Double>
   <system:Double x:Key="Size.Window.Width">1040</system:Double>
   <system:Double x:Key="Size.Window.Height">720</system:Double>
+
+  <!-- The library grid -->
+  <system:Double x:Key="Size.Tile.Width">180</system:Double>
+  <system:Double x:Key="Size.Tile.Height">248</system:Double>
+  <system:Double x:Key="Size.SearchBox.Width">240</system:Double>
+  <Thickness x:Key="Margin.Tile">6</Thickness>
+  <Thickness x:Key="Padding.SearchBox">12,6,12,6</Thickness>
 
 </ResourceDictionary>

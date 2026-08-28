@@ -108,6 +108,43 @@
     </Style.Triggers>
   </Style>
 
+  <!-- ============================ Text input ============================ -->
+
+  <!-- Reads as recessed rather than raised - the same "inset" language Surface.Inset already uses -
+       so a typing field visually differs from the raised cards and buttons around it without a
+       heavier border or a strong contrast change. -->
+  <Style x:Key="TextBox.Search" TargetType="TextBox">
+    <Setter Property="FontFamily" Value="{DynamicResource Font.Family.Primary}" />
+    <Setter Property="FontSize" Value="{DynamicResource Font.Size.Body}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Control.Foreground}" />
+    <Setter Property="CaretBrush" Value="{DynamicResource Brush.Control.Foreground}" />
+    <Setter Property="Background" Value="{DynamicResource Brush.Surface.BackgroundAlt}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Surface.EdgeHighlight}" />
+    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
+    <Setter Property="Padding" Value="{DynamicResource Padding.SearchBox}" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="SnapsToDevicePixels" Value="True" />
+    <Setter Property="Effect" Value="{DynamicResource Effect.Inset.Shadow}" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="TextBox">
+          <Border x:Name="Root"
+                  Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="{DynamicResource CornerRadius.M}">
+            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="Center" />
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsKeyboardFocused" Value="True">
+              <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
   <!-- ============================ Scrollbars ============================ -->
 
   <Style x:Key="ScrollBar.Thumb" TargetType="Thumb">
