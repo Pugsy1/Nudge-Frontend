@@ -148,26 +148,21 @@
         <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
 
-      <!--
-        The logo is recoloured with the theme's own primary text colour via an OpacityMask, rather
-        than shown as its original white/chrome artwork. The source art is white-on-transparent,
-        which reads fine on the dark palette but is nearly invisible against the light one; masking
-        it against Brush.Text.Primary guarantees contrast in both themes from a single asset,
-        instead of needing a second logo file supplied for light mode.
-      -->
-      <Rectangle Grid.Column="0"
-                 Width="90" Height="30"
-                 HorizontalAlignment="Left"
-                 VerticalAlignment="Center"
-                 Fill="{DynamicResource Brush.Text.Primary}"
-                 UseLayoutRounding="True"
-                 SnapsToDevicePixels="True"
-                 RenderOptions.BitmapScalingMode="HighQuality"
-                 RenderOptions.EdgeMode="Unspecified">
-        <Rectangle.OpacityMask>
-          <ImageBrush ImageSource="pack://application:,,,/Assets/nudge-logo.png" Stretch="Uniform" />
-        </Rectangle.OpacityMask>
-      </Rectangle>
+      <!-- The disc mark, shown as its own real chrome artwork rather than recoloured/masked - it
+           already carries its own shading and reads fine on both palettes. -->
+      <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+        <Image Source="pack://application:,,,/Assets/Nudge.png"
+               Width="36" Height="36"
+               Margin="{DynamicResource Gap.Right.S}"
+               RenderOptions.BitmapScalingMode="HighQuality"
+               UseLayoutRounding="True" />
+        <TextBlock Text="Nudge"
+                   VerticalAlignment="Center"
+                   FontFamily="{DynamicResource Font.Family.Primary}"
+                   FontSize="{DynamicResource Font.Size.Subtitle}"
+                   FontWeight="{DynamicResource Font.Weight.SemiBold}"
+                   Foreground="{DynamicResource Brush.Text.Primary}" />
+      </StackPanel>
 
       <Button Grid.Column="1"
               Style="{StaticResource Button.Secondary}"

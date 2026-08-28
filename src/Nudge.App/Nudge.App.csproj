@@ -24,8 +24,8 @@
   <ItemGroup>
     <!-- Also included as a WPF resource so Window.Icon can reference it via pack URI at runtime. -->
     <Resource Include="Assets\nudge.ico" />
-    <!-- The setup screen's wordmark. -->
-    <Resource Include="Assets\nudge-logo.png" />
+    <!-- The disc mark, shown on the setup screen and used to build nudge.ico. -->
+    <Resource Include="Assets\Nudge.png" />
     <!-- The library screen's header wordmark. -->
     <Resource Include="Assets\Library.png" />
   </ItemGroup>
