@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>Nudge.Vpx.Tests</RootNamespace>
+    <AssemblyName>Nudge.Vpx.Tests</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Nudge.Core\Nudge.Core.csproj" />
+    <ProjectReference Include="..\..\src\Nudge.Vpx\Nudge.Vpx.csproj" />
+    <ProjectReference Include="..\Nudge.TestSupport\Nudge.TestSupport.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
+    <!--
+      FluentAssertions is pinned to the 7.x line, which is Apache-2.0. Version 8 moved to a licence
+      that requires a paid key for commercial use; Nudge is MIT and has no need for it.
+    -->
+    <PackageReference Include="FluentAssertions" Version="7.2.0" />
+    <PackageReference Include="NSubstitute" Version="5.3.0" />
+    <PackageReference Include="System.IO.Abstractions.TestingHelpers" Version="22.0.15" />
+  </ItemGroup>
+
+</Project>

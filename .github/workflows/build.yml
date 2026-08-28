@@ -1,0 +1,37 @@
+name: Build and test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    # WPF is Windows-only, so this cannot run on the usual ubuntu-latest.
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up the .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore Nudge.slnx
+
+      - name: Build
+        run: dotnet build Nudge.slnx --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test tests/Nudge.Vpx.Tests/Nudge.Vpx.Tests.csproj --no-build --configuration Release --logger "trx;LogFileName=test-results.trx"
+
+      - name: Publish test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: tests/Nudge.Vpx.Tests/TestResults/test-results.trx

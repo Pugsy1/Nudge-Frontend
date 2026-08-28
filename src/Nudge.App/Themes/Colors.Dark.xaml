@@ -1,0 +1,80 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!--
+    Dark palette.
+
+    Every key defined here must also be defined in Colors.Light.xaml. Views only ever reference
+    these semantic names, never a literal colour, so swapping this file for the light one is the
+    entire theme switch.
+  -->
+
+  <!--
+    Surfaces. Kept close in tone to the window background on purpose - a neumorphic surface reads
+    as "raised" mainly through its soft shadow (see Effects.xaml), not through strong contrast.
+  -->
+  <SolidColorBrush x:Key="Brush.Window.Background" Color="#16161F" />
+  <SolidColorBrush x:Key="Brush.Surface.Background" Color="#1A1A25" />
+  <SolidColorBrush x:Key="Brush.Surface.BackgroundAlt" Color="#20202C" />
+  <SolidColorBrush x:Key="Brush.Surface.Border" Color="#2A2A38" />
+
+  <!-- The soft shadow colour used by every raised surface. Pure, fully opaque black; DropShadowEffect.Opacity does the softening. -->
+  <Color x:Key="Color.Shadow">#000000</Color>
+
+  <!-- A faint top-left rim light, glazed across a raised surface's border to suggest a light source. -->
+  <LinearGradientBrush x:Key="Brush.Surface.EdgeHighlight" StartPoint="0,0" EndPoint="1,1">
+    <GradientStop Color="#3A3A4C" Offset="0" />
+    <GradientStop Color="#22222E" Offset="1" />
+  </LinearGradientBrush>
+
+  <!-- Text -->
+  <SolidColorBrush x:Key="Brush.Text.Primary" Color="#F2F2F7" />
+  <SolidColorBrush x:Key="Brush.Text.Secondary" Color="#B4B4C4" />
+  <SolidColorBrush x:Key="Brush.Text.Muted" Color="#7E7E92" />
+
+  <!-- Accent -->
+  <SolidColorBrush x:Key="Brush.Accent" Color="#E0563C" />
+  <SolidColorBrush x:Key="Brush.Accent.Hover" Color="#EC6A50" />
+  <SolidColorBrush x:Key="Brush.Accent.Pressed" Color="#C4462F" />
+  <SolidColorBrush x:Key="Brush.Accent.Foreground" Color="#FFFFFF" />
+  <SolidColorBrush x:Key="Brush.Accent.Subtle" Color="#2E1F22" />
+
+  <!-- Controls. Close in tone to the surfaces around them - a raised look comes from the shadow, not contrast. -->
+  <SolidColorBrush x:Key="Brush.Control.Background" Color="#20202C" />
+  <SolidColorBrush x:Key="Brush.Control.BackgroundHover" Color="#282836" />
+  <SolidColorBrush x:Key="Brush.Control.BackgroundPressed" Color="#17171F" />
+  <SolidColorBrush x:Key="Brush.Control.Border" Color="#2E2E3C" />
+  <SolidColorBrush x:Key="Brush.Control.BorderHover" Color="#55556A" />
+  <SolidColorBrush x:Key="Brush.Control.Foreground" Color="#F2F2F7" />
+  <SolidColorBrush x:Key="Brush.Control.ForegroundDisabled" Color="#5A5A6E" />
+
+  <!-- Focus -->
+  <SolidColorBrush x:Key="Brush.Focus" Color="#7FA7FF" />
+
+  <!--
+    Confidence. These are the most important colours in Phase 1: they tell the user how much to
+    trust a detection result, so they must stay clearly distinguishable from one another.
+  -->
+  <SolidColorBrush x:Key="Brush.Confidence.High" Color="#4FB477" />
+  <SolidColorBrush x:Key="Brush.Confidence.Medium" Color="#D9A441" />
+  <SolidColorBrush x:Key="Brush.Confidence.Low" Color="#D97742" />
+  <SolidColorBrush x:Key="Brush.Confidence.Unknown" Color="#7E7E92" />
+
+  <SolidColorBrush x:Key="Brush.Confidence.High.Background" Color="#1B2E23" />
+  <SolidColorBrush x:Key="Brush.Confidence.Medium.Background" Color="#302818" />
+  <SolidColorBrush x:Key="Brush.Confidence.Low.Background" Color="#302118" />
+  <SolidColorBrush x:Key="Brush.Confidence.Unknown.Background" Color="#26262F" />
+
+  <!-- Status -->
+  <SolidColorBrush x:Key="Brush.Status.Error" Color="#E5645C" />
+  <SolidColorBrush x:Key="Brush.Status.Error.Background" Color="#2E1C1B" />
+  <SolidColorBrush x:Key="Brush.Status.Error.Border" Color="#5A2E2B" />
+  <SolidColorBrush x:Key="Brush.Status.Info" Color="#6FA8DC" />
+  <SolidColorBrush x:Key="Brush.Status.Info.Background" Color="#182430" />
+
+  <!-- Scrollbars -->
+  <SolidColorBrush x:Key="Brush.Scrollbar.Track" Color="#16161F" />
+  <SolidColorBrush x:Key="Brush.Scrollbar.Thumb" Color="#3C3C4C" />
+  <SolidColorBrush x:Key="Brush.Scrollbar.ThumbHover" Color="#55556A" />
+
+</ResourceDictionary>

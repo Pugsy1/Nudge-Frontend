@@ -1,0 +1,12 @@
+{
+  "$comment": [
+    "Nudge targets .NET 10. This machine also has a .NET 8 SDK at C:\\Program Files\\dotnet, which",
+    "comes first on the system PATH. Pinning the SDK here means that if the wrong dotnet.exe is used,",
+    "the build fails with a clear message instead of quietly compiling against .NET 8.",
+    "Use D:\\dotnet\\dotnet.exe, or put D:\\dotnet ahead of C:\\Program Files\\dotnet on PATH."
+  ],
+  "sdk": {
+    "version": "10.0.400",
+    "rollForward": "latestFeature"
+  }
+}

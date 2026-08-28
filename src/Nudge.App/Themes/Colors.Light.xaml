@@ -1,0 +1,76 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!--
+    Light palette. Defines exactly the same keys as Colors.Dark.xaml.
+
+    If you add a key to one of these files you must add it to the other, or the missing theme will
+    fail to resolve it at runtime.
+  -->
+
+  <!--
+    Surfaces. Kept close in tone to the window background on purpose - a neumorphic surface reads
+    as "raised" mainly through its soft shadow (see Effects.xaml), not through strong contrast.
+  -->
+  <SolidColorBrush x:Key="Brush.Window.Background" Color="#E6E9EF" />
+  <SolidColorBrush x:Key="Brush.Surface.Background" Color="#E6E9EF" />
+  <SolidColorBrush x:Key="Brush.Surface.BackgroundAlt" Color="#DEE1E8" />
+  <SolidColorBrush x:Key="Brush.Surface.Border" Color="#D6D9E0" />
+
+  <!-- The soft shadow colour used by every raised surface. A cool grey-blue reads better than pure black on a light background. -->
+  <Color x:Key="Color.Shadow">#A3ADC2</Color>
+
+  <!-- A faint top-left rim light, glazed across a raised surface's border to suggest a light source. -->
+  <LinearGradientBrush x:Key="Brush.Surface.EdgeHighlight" StartPoint="0,0" EndPoint="1,1">
+    <GradientStop Color="#FFFFFF" Offset="0" />
+    <GradientStop Color="#D8DBE3" Offset="1" />
+  </LinearGradientBrush>
+
+  <!-- Text -->
+  <SolidColorBrush x:Key="Brush.Text.Primary" Color="#1A1A22" />
+  <SolidColorBrush x:Key="Brush.Text.Secondary" Color="#4E4E5E" />
+  <SolidColorBrush x:Key="Brush.Text.Muted" Color="#77778A" />
+
+  <!-- Accent -->
+  <SolidColorBrush x:Key="Brush.Accent" Color="#C4462F" />
+  <SolidColorBrush x:Key="Brush.Accent.Hover" Color="#D8543C" />
+  <SolidColorBrush x:Key="Brush.Accent.Pressed" Color="#A63924" />
+  <SolidColorBrush x:Key="Brush.Accent.Foreground" Color="#FFFFFF" />
+  <SolidColorBrush x:Key="Brush.Accent.Subtle" Color="#FBEDEA" />
+
+  <!-- Controls. Close in tone to the surfaces around them - a raised look comes from the shadow, not contrast. -->
+  <SolidColorBrush x:Key="Brush.Control.Background" Color="#E6E9EF" />
+  <SolidColorBrush x:Key="Brush.Control.BackgroundHover" Color="#EEF0F5" />
+  <SolidColorBrush x:Key="Brush.Control.BackgroundPressed" Color="#D9DCE3" />
+  <SolidColorBrush x:Key="Brush.Control.Border" Color="#D2D5DD" />
+  <SolidColorBrush x:Key="Brush.Control.BorderHover" Color="#A0A0B2" />
+  <SolidColorBrush x:Key="Brush.Control.Foreground" Color="#1A1A22" />
+  <SolidColorBrush x:Key="Brush.Control.ForegroundDisabled" Color="#A8A8B8" />
+
+  <!-- Focus -->
+  <SolidColorBrush x:Key="Brush.Focus" Color="#2F62C4" />
+
+  <!-- Confidence -->
+  <SolidColorBrush x:Key="Brush.Confidence.High" Color="#237A48" />
+  <SolidColorBrush x:Key="Brush.Confidence.Medium" Color="#9A6B10" />
+  <SolidColorBrush x:Key="Brush.Confidence.Low" Color="#A85218" />
+  <SolidColorBrush x:Key="Brush.Confidence.Unknown" Color="#6C6C80" />
+
+  <SolidColorBrush x:Key="Brush.Confidence.High.Background" Color="#E6F4EB" />
+  <SolidColorBrush x:Key="Brush.Confidence.Medium.Background" Color="#FAF0DC" />
+  <SolidColorBrush x:Key="Brush.Confidence.Low.Background" Color="#FBEBDF" />
+  <SolidColorBrush x:Key="Brush.Confidence.Unknown.Background" Color="#EDEDF2" />
+
+  <!-- Status -->
+  <SolidColorBrush x:Key="Brush.Status.Error" Color="#B3261E" />
+  <SolidColorBrush x:Key="Brush.Status.Error.Background" Color="#FBEAE8" />
+  <SolidColorBrush x:Key="Brush.Status.Error.Border" Color="#E8B4AF" />
+  <SolidColorBrush x:Key="Brush.Status.Info" Color="#1F5FA8" />
+  <SolidColorBrush x:Key="Brush.Status.Info.Background" Color="#E8F0FA" />
+
+  <!-- Scrollbars -->
+  <SolidColorBrush x:Key="Brush.Scrollbar.Track" Color="#ECECF1" />
+  <SolidColorBrush x:Key="Brush.Scrollbar.Thumb" Color="#C6C6D2" />
+  <SolidColorBrush x:Key="Brush.Scrollbar.ThumbHover" Color="#A0A0B2" />
+
+</ResourceDictionary>

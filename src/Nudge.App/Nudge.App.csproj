@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>Nudge.App</RootNamespace>
+    <!-- The deliverable is a normal Windows executable called Nudge.exe. -->
+    <AssemblyName>Nudge</AssemblyName>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <!-- Sets the compiled exe's icon (Explorer, taskbar, Alt-Tab). -->
+    <ApplicationIcon>Assets\nudge.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The UI depends on Core for its contracts and on Vpx only to register its services. -->
+    <ProjectReference Include="..\Nudge.Core\Nudge.Core.csproj" />
+    <ProjectReference Include="..\Nudge.Vpx\Nudge.Vpx.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Also included as a WPF resource so Window.Icon can reference it via pack URI at runtime. -->
+    <Resource Include="Assets\nudge.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
+    <PackageReference Include="Serilog" Version="4.2.0" />
+    <PackageReference Include="Serilog.Extensions.Hosting" Version="9.0.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
+  </ItemGroup>
+
+</Project>

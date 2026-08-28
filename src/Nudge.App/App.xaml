@@ -1,0 +1,28 @@
+<Application x:Class="Nudge.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <!--
+          Order matters. Colours, type and spacing are defined first because the control templates
+          in Controls.xaml refer to them.
+
+          The active palette is merged directly here, with no wrapper dictionary in between.
+          ThemeService swaps this entry in Application.Resources.MergedDictionaries at runtime.
+          An earlier version routed the swap through an extra "Colors.xaml" indirection dictionary;
+          WPF's DynamicResource invalidation does not reliably propagate to already-rendered elements
+          when a dictionary nested two levels deep changes its own MergedDictionaries - only elements
+          that re-read the resource fresh saw the new value. Swapping the top-level entry directly
+          does not have that problem.
+        -->
+        <ResourceDictionary Source="pack://application:,,,/Themes/Colors.Dark.xaml" />
+        <ResourceDictionary Source="pack://application:,,,/Themes/Typography.xaml" />
+        <ResourceDictionary Source="pack://application:,,,/Themes/Layout.xaml" />
+        <!-- Depends on Color.Shadow from the palette above, so it must come after it. -->
+        <ResourceDictionary Source="pack://application:,,,/Themes/Effects.xaml" />
+        <ResourceDictionary Source="pack://application:,,,/Themes/Controls.xaml" />
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Application.Resources>
+</Application>

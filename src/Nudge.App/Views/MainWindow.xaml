@@ -1,0 +1,23 @@
+<Window x:Class="Nudge.App.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="clr-namespace:Nudge.App.Views"
+        Title="Nudge - Set up Visual Pinball"
+        Icon="pack://application:,,,/Assets/nudge.ico"
+        Width="{DynamicResource Size.Window.Width}"
+        Height="{DynamicResource Size.Window.Height}"
+        MinWidth="{DynamicResource Size.Window.MinWidth}"
+        MinHeight="{DynamicResource Size.Window.MinHeight}"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource Brush.Window.Background}"
+        TextOptions.TextFormattingMode="Display"
+        UseLayoutRounding="True">
+
+  <!--
+    Standard Windows title bar in Phase 1, by decision. Only the contents are themed.
+    Custom chrome arrives in Phase 4 alongside the library shell.
+  -->
+
+  <views:SetupView />
+
+</Window>

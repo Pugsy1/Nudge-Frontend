@@ -1,0 +1,219 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!--
+    Control templates. WPF's stock controls look dated, so every control Nudge uses is templated
+    here against the named colour, type and spacing resources.
+
+    The window frame itself is deliberately left as standard Windows chrome in Phase 1; custom
+    chrome arrives in Phase 4 with the library shell.
+  -->
+
+  <!-- ============================ Buttons ============================ -->
+
+  <Style x:Key="Button.Base" TargetType="Button">
+    <Setter Property="FontFamily" Value="{DynamicResource Font.Family.Primary}" />
+    <Setter Property="FontSize" Value="{DynamicResource Font.Size.Body}" />
+    <Setter Property="FontWeight" Value="{DynamicResource Font.Weight.Medium}" />
+    <Setter Property="Padding" Value="{DynamicResource Padding.Button}" />
+    <Setter Property="MinWidth" Value="{DynamicResource Size.MinButtonWidth}" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="SnapsToDevicePixels" Value="True" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="Root"
+                  Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="{DynamicResource CornerRadius.M}">
+            <ContentPresenter x:Name="Content"
+                              Margin="{TemplateBinding Padding}"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"
+                              RecognizesAccessKey="True" />
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsKeyboardFocused" Value="True">
+              <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter TargetName="Root" Property="Opacity" Value="0.5" />
+              <Setter Property="Cursor" Value="Arrow" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!--
+    The single most important action on a screen. Kept flat and saturated rather than neumorphic -
+    a primary action should read as the one thing that stands out by colour, not blend into a
+    monochrome shadow-differentiated surface. It still gets the soft shadow, for the same "raised"
+    depth cue as everything else, and a smaller one on press for a "pushed in" feel.
+  -->
+  <Style x:Key="Button.Primary" TargetType="Button" BasedOn="{StaticResource Button.Base}">
+    <Setter Property="Background" Value="{DynamicResource Brush.Accent}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Accent.Foreground}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
+    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
+    <Setter Property="Effect" Value="{DynamicResource Effect.Button.Shadow}" />
+    <Style.Triggers>
+      <Trigger Property="IsMouseOver" Value="True">
+        <Setter Property="Background" Value="{DynamicResource Brush.Accent.Hover}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent.Hover}" />
+      </Trigger>
+      <Trigger Property="IsPressed" Value="True">
+        <Setter Property="Background" Value="{DynamicResource Brush.Accent.Pressed}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent.Pressed}" />
+        <Setter Property="Effect" Value="{DynamicResource Effect.Button.Shadow.Pressed}" />
+      </Trigger>
+    </Style.Triggers>
+  </Style>
+
+  <!-- Close in tone to the surface behind it, differentiated mainly by its soft shadow. -->
+  <Style x:Key="Button.Secondary" TargetType="Button" BasedOn="{StaticResource Button.Base}">
+    <Setter Property="Background" Value="{DynamicResource Brush.Control.Background}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Control.Foreground}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Surface.EdgeHighlight}" />
+    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
+    <Setter Property="Effect" Value="{DynamicResource Effect.Button.Shadow}" />
+    <Style.Triggers>
+      <Trigger Property="IsMouseOver" Value="True">
+        <Setter Property="Background" Value="{DynamicResource Brush.Control.BackgroundHover}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.Control.BorderHover}" />
+      </Trigger>
+      <Trigger Property="IsPressed" Value="True">
+        <Setter Property="Background" Value="{DynamicResource Brush.Control.BackgroundPressed}" />
+        <Setter Property="Effect" Value="{DynamicResource Effect.Button.Shadow.Pressed}" />
+      </Trigger>
+    </Style.Triggers>
+  </Style>
+
+  <!-- Low-emphasis inline action, e.g. "show the evidence". -->
+  <Style x:Key="Button.Subtle" TargetType="Button" BasedOn="{StaticResource Button.Base}">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="FontSize" Value="{DynamicResource Font.Size.Caption}" />
+    <Setter Property="Padding" Value="{DynamicResource Padding.Badge}" />
+    <Style.Triggers>
+      <Trigger Property="IsMouseOver" Value="True">
+        <Setter Property="Background" Value="{DynamicResource Brush.Control.BackgroundHover}" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
+      </Trigger>
+    </Style.Triggers>
+  </Style>
+
+  <!-- ============================ Scrollbars ============================ -->
+
+  <Style x:Key="ScrollBar.Thumb" TargetType="Thumb">
+    <Setter Property="OverridesDefaultStyle" Value="True" />
+    <Setter Property="IsTabStop" Value="False" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Thumb">
+          <Border x:Name="Root"
+                  Background="{DynamicResource Brush.Scrollbar.Thumb}"
+                  CornerRadius="{DynamicResource CornerRadius.S}" />
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Root" Property="Background"
+                      Value="{DynamicResource Brush.Scrollbar.ThumbHover}" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style TargetType="ScrollBar">
+    <Setter Property="Background" Value="{DynamicResource Brush.Scrollbar.Track}" />
+    <Setter Property="Width" Value="{DynamicResource Size.Scrollbar}" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ScrollBar">
+          <Border Background="{TemplateBinding Background}">
+            <Track x:Name="PART_Track" IsDirectionReversed="True">
+              <Track.Thumb>
+                <Thumb Style="{StaticResource ScrollBar.Thumb}" />
+              </Track.Thumb>
+              <!-- Stock repeat buttons are hidden: a plain thumb reads better and behaves the same. -->
+              <Track.IncreaseRepeatButton>
+                <RepeatButton Command="ScrollBar.PageDownCommand" Opacity="0" Focusable="False" />
+              </Track.IncreaseRepeatButton>
+              <Track.DecreaseRepeatButton>
+                <RepeatButton Command="ScrollBar.PageUpCommand" Opacity="0" Focusable="False" />
+              </Track.DecreaseRepeatButton>
+            </Track>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="Orientation" Value="Horizontal">
+              <Setter Property="Width" Value="Auto" />
+              <Setter Property="Height" Value="{DynamicResource Size.Scrollbar}" />
+              <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <Style TargetType="ScrollViewer">
+    <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
+    <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+    <Setter Property="Focusable" Value="False" />
+  </Style>
+
+  <!-- ============================ Surfaces ============================ -->
+
+  <!-- The main raised container. A soft shadow plus a faint top-left rim light do the work that a
+       hard border and strong background contrast would otherwise do in a flatter design. -->
+  <Style x:Key="Surface.Card" TargetType="Border">
+    <Setter Property="Background" Value="{DynamicResource Brush.Surface.Background}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Surface.EdgeHighlight}" />
+    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource CornerRadius.L}" />
+    <Setter Property="Padding" Value="{DynamicResource Padding.Card}" />
+    <Setter Property="SnapsToDevicePixels" Value="True" />
+    <Setter Property="Effect" Value="{DynamicResource Effect.Card.Shadow}" />
+  </Style>
+
+  <Style x:Key="Surface.Inset" TargetType="Border">
+    <Setter Property="Background" Value="{DynamicResource Brush.Surface.BackgroundAlt}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource CornerRadius.M}" />
+    <Setter Property="Padding" Value="{DynamicResource Padding.Card}" />
+    <Setter Property="SnapsToDevicePixels" Value="True" />
+  </Style>
+
+  <Style x:Key="Surface.Error" TargetType="Border">
+    <Setter Property="Background" Value="{DynamicResource Brush.Status.Error.Background}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Status.Error.Border}" />
+    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource CornerRadius.M}" />
+    <Setter Property="Padding" Value="{DynamicResource Padding.Card}" />
+  </Style>
+
+  <!-- A small pill used for flavor, architecture, VR and confidence labels. -->
+  <Style x:Key="Badge" TargetType="Border">
+    <Setter Property="CornerRadius" Value="{DynamicResource CornerRadius.S}" />
+    <Setter Property="Padding" Value="{DynamicResource Padding.Badge}" />
+    <Setter Property="HorizontalAlignment" Value="Left" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="Background" Value="{DynamicResource Brush.Surface.BackgroundAlt}" />
+  </Style>
+
+  <!-- ============================ Progress ============================ -->
+
+  <Style x:Key="Progress.Indeterminate" TargetType="ProgressBar">
+    <Setter Property="Height" Value="{DynamicResource Space.XS}" />
+    <Setter Property="IsIndeterminate" Value="True" />
+    <Setter Property="Background" Value="{DynamicResource Brush.Surface.BackgroundAlt}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Accent}" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+
+</ResourceDictionary>
