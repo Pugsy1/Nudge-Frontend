@@ -6,8 +6,11 @@ namespace Nudge.App.Services;
 /// <summary>
 /// Dark/Light are the two base materials (graphite vs porcelain); Jade/Sapphire/Crimson are the
 /// same dark material with a different accent colour, following the pattern <c>Colors.Dark.xaml</c>
-/// already established (Focus tied to Accent, everything else neutral grey) - see each palette file
-/// for its exact values.
+/// already established (Focus tied to Accent, everything else neutral grey), plus a faint tint of
+/// that colour worked into the ambient background glow and surface bevel so the theme reads as more
+/// than "a couple of icons changed colour". Chrome instead makes the accent a genuine polished-metal
+/// gradient (bright/dark/bright reflection bands) rather than a hue, echoing the app's own disc
+/// logo - see each palette file for its exact values.
 /// </summary>
 public enum AppTheme
 {
@@ -15,7 +18,9 @@ public enum AppTheme
     Light,
     Jade,
     Sapphire,
-    Crimson
+    Crimson,
+    Chrome,
+    Hulk
 }
 
 /// <summary>Switches the application between the available palettes.</summary>
@@ -48,7 +53,9 @@ public sealed class ThemeService : IThemeService
         [AppTheme.Light] = "Colors.Light.xaml",
         [AppTheme.Jade] = "Colors.Jade.xaml",
         [AppTheme.Sapphire] = "Colors.Sapphire.xaml",
-        [AppTheme.Crimson] = "Colors.Crimson.xaml"
+        [AppTheme.Crimson] = "Colors.Crimson.xaml",
+        [AppTheme.Chrome] = "Colors.Chrome.xaml",
+        [AppTheme.Hulk] = "Colors.Hulk.xaml"
     };
 
     public AppTheme Current { get; private set; } = AppTheme.Dark;

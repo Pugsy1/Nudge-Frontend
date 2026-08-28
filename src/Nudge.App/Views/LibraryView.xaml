@@ -111,6 +111,50 @@
                              TextWrapping="NoWrap"
                              TextTrimming="CharacterEllipsis" />
                 </StackPanel>
+
+                <!-- Favourite: a die-cut star outline at rest, filling solid when starred. A
+                     nested Button works fine here, same as the VR badge used to - WPF marks its
+                     Click handled before it can bubble to the tile's own Button underneath. -->
+                <Button Grid.Row="0" Grid.RowSpan="2"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Bottom"
+                        Margin="8"
+                        Width="30" Height="30"
+                        Cursor="Hand"
+                        Focusable="False"
+                        ToolTip="Favourite"
+                        Command="{Binding DataContext.ToggleFavoriteCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                        CommandParameter="{Binding}">
+                  <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                      <Border x:Name="StarRoot"
+                              Background="{DynamicResource Brush.Surface.Glass}"
+                              CornerRadius="{DynamicResource CornerRadius.Pill}">
+                        <Grid>
+                          <TextBlock Text="&#xE734;"
+                                     FontFamily="Segoe MDL2 Assets"
+                                     FontSize="14"
+                                     HorizontalAlignment="Center"
+                                     VerticalAlignment="Center"
+                                     Foreground="{DynamicResource Brush.Text.Secondary}"
+                                     Visibility="{Binding IsFavorite, Converter={StaticResource InverseBoolToVisibility}}" />
+                          <TextBlock Text="&#xE735;"
+                                     FontFamily="Segoe MDL2 Assets"
+                                     FontSize="14"
+                                     HorizontalAlignment="Center"
+                                     VerticalAlignment="Center"
+                                     Foreground="{DynamicResource Brush.Accent}"
+                                     Visibility="{Binding IsFavorite, Converter={StaticResource BoolToVisibility}}" />
+                        </Grid>
+                      </Border>
+                      <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                          <Setter TargetName="StarRoot" Property="Background" Value="{DynamicResource Brush.Control.BackgroundHover}" />
+                        </Trigger>
+                      </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                  </Button.Template>
+                </Button>
               </Grid>
             </Border>
 

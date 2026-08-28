@@ -2,20 +2,19 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
   <!--
-    Jade palette - the same dark material as Colors.Dark.xaml (surfaces, text, structure all
-    identical), with the accent recoloured from warm amber to a muted jade green. See
-    Colors.Dark.xaml for the material language this follows; only the "Accent" section and
-    Confidence.Medium (which reuses the accent, same as the Dark palette does) differ from it.
+    Chrome palette - the same dark material and neutral ambient as Colors.Dark.xaml (a colour cast
+    here would fight the idea of polished metal under white light), but the accent is a genuine
+    multi-band metallic gradient instead of a flat hue - alternating bright/dark reflection bands,
+    the same trick the app's own disc logo uses to read as chrome. An experiment, not a firm
+    design - see each section for what differs from Colors.Dark.xaml.
   -->
 
   <!-- ============================ Ground ============================ -->
 
-  <!-- Tinted toward jade, unlike the neutral-grey Dark palette's ambient glow - a faint colour cast
-       across the whole room, not just the accent itself, so the theme has real presence. -->
   <RadialGradientBrush x:Key="Brush.Window.Background" GradientOrigin="0.5,0.28" Center="0.5,0.28" RadiusX="0.9" RadiusY="0.85">
-    <GradientStop Color="#1B2924" Offset="0" />
-    <GradientStop Color="#141F1A" Offset="0.75" />
-    <GradientStop Color="#101613" Offset="1" />
+    <GradientStop Color="#1E222C" Offset="0" />
+    <GradientStop Color="#161920" Offset="0.75" />
+    <GradientStop Color="#121419" Offset="1" />
   </RadialGradientBrush>
 
   <SolidColorBrush x:Key="Brush.Window.BackgroundFlat" Color="#161920" />
@@ -41,15 +40,17 @@
 
   <SolidColorBrush x:Key="Brush.Surface.Glass" Color="#B32A303E" />
 
+  <!-- The bevel itself is brightened toward the same silver the accent uses, so raised surfaces
+       already hint at the chrome material even before you reach a button. -->
   <LinearGradientBrush x:Key="Brush.Surface.EdgeHighlight" StartPoint="0.1,0" EndPoint="0.9,1">
-    <GradientStop Color="#4A6858" Offset="0" />
-    <GradientStop Color="#33463C" Offset="0.45" />
+    <GradientStop Color="#6C7688" Offset="0" />
+    <GradientStop Color="#3E4658" Offset="0.45" />
     <GradientStop Color="#191D26" Offset="1" />
   </LinearGradientBrush>
 
   <LinearGradientBrush x:Key="Brush.Surface.RimLight" StartPoint="0.1,0" EndPoint="0.9,1">
-    <GradientStop Color="#6B9880" Offset="0" />
-    <GradientStop Color="#3E6050" Offset="0.5" />
+    <GradientStop Color="#9BA3B4" Offset="0" />
+    <GradientStop Color="#5A6478" Offset="0.5" />
     <GradientStop Color="#1E2229" Offset="1" />
   </LinearGradientBrush>
 
@@ -63,16 +64,24 @@
 
   <!-- ============================ Accent ============================ -->
 
-  <!-- Muted jade green - a polished stone, not a neon highlighter. -->
-  <SolidColorBrush x:Key="Brush.Accent" Color="#4FAE86" />
-  <SolidColorBrush x:Key="Brush.Accent.Hover" Color="#63C39A" />
-  <SolidColorBrush x:Key="Brush.Accent.Pressed" Color="#3C9270" />
-  <SolidColorBrush x:Key="Brush.Accent.Foreground" Color="#0C1F17" />
-  <SolidColorBrush x:Key="Brush.Accent.Subtle" Color="#16261F" />
+  <!-- Neutral bright silver rather than a hue - "accent" here means "the polished one", not "the
+       coloured one". -->
+  <SolidColorBrush x:Key="Brush.Accent" Color="#C8CDD6" />
+  <SolidColorBrush x:Key="Brush.Accent.Hover" Color="#DDE1E8" />
+  <SolidColorBrush x:Key="Brush.Accent.Pressed" Color="#A2A8B6" />
+  <SolidColorBrush x:Key="Brush.Accent.Foreground" Color="#14161B" />
+  <SolidColorBrush x:Key="Brush.Accent.Subtle" Color="#22252C" />
 
+  <!-- The actual chrome effect: alternating bright/dark bands down the surface, mimicking a curved
+       polished-metal reflection - the same trick the disc logo uses - instead of every other
+       theme's plain two-stop sheen. -->
   <LinearGradientBrush x:Key="Brush.Accent.Surface" StartPoint="0,0" EndPoint="0,1">
-    <GradientStop Color="#5CC094" Offset="0" />
-    <GradientStop Color="#439878" Offset="1" />
+    <GradientStop Color="#F4F6FA" Offset="0" />
+    <GradientStop Color="#AEB5C2" Offset="0.22" />
+    <GradientStop Color="#EAECF1" Offset="0.42" />
+    <GradientStop Color="#82899A" Offset="0.64" />
+    <GradientStop Color="#D2D6DE" Offset="0.82" />
+    <GradientStop Color="#969CAA" Offset="1" />
   </LinearGradientBrush>
 
   <!-- ============================ Controls ============================ -->
@@ -97,17 +106,17 @@
   <SolidColorBrush x:Key="Brush.Control.Foreground" Color="#EDEFF4" />
   <SolidColorBrush x:Key="Brush.Control.ForegroundDisabled" Color="#5C6474" />
 
-  <SolidColorBrush x:Key="Brush.Focus" Color="#4FAE86" />
+  <SolidColorBrush x:Key="Brush.Focus" Color="#C8CDD6" />
 
   <!-- ============================ Indicator LEDs ============================ -->
 
   <SolidColorBrush x:Key="Brush.Confidence.High" Color="#5FB98A" />
-  <SolidColorBrush x:Key="Brush.Confidence.Medium" Color="#4FAE86" />
+  <SolidColorBrush x:Key="Brush.Confidence.Medium" Color="#C8CDD6" />
   <SolidColorBrush x:Key="Brush.Confidence.Low" Color="#D4794F" />
   <SolidColorBrush x:Key="Brush.Confidence.Unknown" Color="#6E7688" />
 
   <SolidColorBrush x:Key="Brush.Confidence.High.Background" Color="#1A2A22" />
-  <SolidColorBrush x:Key="Brush.Confidence.Medium.Background" Color="#182A22" />
+  <SolidColorBrush x:Key="Brush.Confidence.Medium.Background" Color="#22252C" />
   <SolidColorBrush x:Key="Brush.Confidence.Low.Background" Color="#2A1E18" />
   <SolidColorBrush x:Key="Brush.Confidence.Unknown.Background" Color="#232936" />
 
@@ -122,8 +131,8 @@
   <!-- ============================ Scrollbars ============================ -->
 
   <SolidColorBrush x:Key="Brush.Scrollbar.Track" Color="#00000000" />
-  <SolidColorBrush x:Key="Brush.Scrollbar.Thumb" Color="#3B4354" />
-  <SolidColorBrush x:Key="Brush.Scrollbar.ThumbHover" Color="#5A6479" />
+  <SolidColorBrush x:Key="Brush.Scrollbar.Thumb" Color="#4A505E" />
+  <SolidColorBrush x:Key="Brush.Scrollbar.ThumbHover" Color="#6E7688" />
 
   <!-- ============================ Window chrome ============================ -->
 

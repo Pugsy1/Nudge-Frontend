@@ -1,3 +1,4 @@
+using CommunityToolkit.Mvvm.ComponentModel;
 using Nudge.Core.Models;
 
 namespace Nudge.App.ViewModels;
@@ -6,7 +7,7 @@ namespace Nudge.App.ViewModels;
 /// One tile in the library grid. Wraps a scanned <see cref="VpxTableFile"/> with the small amount
 /// of extra display logic the grid needs.
 /// </summary>
-public sealed class TableTileViewModel
+public sealed partial class TableTileViewModel : ObservableObject
 {
     public TableTileViewModel(VpxTableFile table)
     {
@@ -32,6 +33,15 @@ public sealed class TableTileViewModel
             return Table.DisplayManufacturer ?? Table.DisplayYear?.ToString() ?? string.Empty;
         }
     }
+
+    /// <summary>
+    /// Whether this table is starred. An observable property (not a plain field/getter, unlike the
+    /// rest of this class) because the grid needs to re-sort live when it changes and the star
+    /// button's own fill needs to update immediately on click - see
+    /// LibraryViewModel.TablesView.IsLiveSorting.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isFavorite;
 
     /// <summary>
     /// How confident Nudge is that it identified this table correctly. Surfaced as a small status

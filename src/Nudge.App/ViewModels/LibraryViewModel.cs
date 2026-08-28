@@ -26,18 +26,20 @@ public sealed record OptionItem<T>(string Label, T Value);
 /// operation rather than holding one for the view model's whole lifetime - see AGENTS.md section 5
 /// and the note left in Phase 3's <c>Nudge.App.App.xaml.cs</c>.
 ///
-/// <para><b>Not built here, and why.</b> Several requested features need data that does not exist
-/// yet and cannot be produced from the UI layer:</para>
+/// <para><b>Not built here, and why.</b> Some requested features need data that does not exist yet
+/// and cannot be produced from the UI layer:</para>
 /// <list type="bullet">
 /// <item><b>Sort by date added / last played</b>, and <b>playtime tracking</b>: nothing records
 /// when Nudge first saw a table or when it was last launched. The database row behind a table
 /// stores a size and last-write time for incremental scanning only. This needs new columns and a
 /// migration in <c>Nudge.Data</c>.</item>
-/// <item><b>Favourites</b>: same - there is nowhere to persist a per-table flag.</item>
 /// <item><b>Artwork / media scraping</b>: needs an artwork provider in <c>Nudge.Core</c>
 /// implemented against the network and disk, which <c>Nudge.App</c> must never do itself
 /// (AGENTS.md section 5).</item>
 /// </list>
+/// <para>Favourites turned out not to need any of that: it is a pure UI preference (a starred-item
+/// list), so it persists in the settings file - see <see cref="ISettingsService"/> - the same as
+/// theme/sort/confidence, not a database column.</para>
 /// </remarks>
 public sealed partial class LibraryViewModel : ObservableObject
 {
@@ -83,22 +85,33 @@ public sealed partial class LibraryViewModel : ObservableObject
         TablesView = (ListCollectionView)CollectionViewSource.GetDefaultView(Tables);
         TablesView.Filter = FilterTable;
 
+        // Lets the "Favourites first" sort re-order live the instant a star is clicked, instead of
+        // needing a full Refresh() (which would also re-run the filter and jar the scroll position).
+        TablesView.IsLiveSorting = true;
+        TablesView.LiveSortingProperties.Add(nameof(TableTileViewModel.IsFavorite));
+
         SortOptions =
         [
             new OptionItem<TableSortOrder>("Title  A → Z", TableSortOrder.TitleAscending),
             new OptionItem<TableSortOrder>("Title  Z → A", TableSortOrder.TitleDescending),
             new OptionItem<TableSortOrder>("Year  newest first", TableSortOrder.YearNewest),
-            new OptionItem<TableSortOrder>("Year  oldest first", TableSortOrder.YearOldest)
+            new OptionItem<TableSortOrder>("Year  oldest first", TableSortOrder.YearOldest),
+            new OptionItem<TableSortOrder>("Favourites first", TableSortOrder.FavoritesFirst)
         ];
         _selectedSort = SortOptions[0];
 
+        // "Base — Accent", consistently, for every entry - the previous mix of "Graphite  (dark)"
+        // and bare "Jade" (padded with a double space to fake alignment in one case, nothing in the
+        // other) read as visually uneven in the dropdown.
         ThemeOptions =
         [
-            new OptionItem<AppTheme>("Graphite  (dark)", AppTheme.Dark),
-            new OptionItem<AppTheme>("Porcelain  (light)", AppTheme.Light),
-            new OptionItem<AppTheme>("Jade", AppTheme.Jade),
-            new OptionItem<AppTheme>("Sapphire", AppTheme.Sapphire),
-            new OptionItem<AppTheme>("Crimson", AppTheme.Crimson)
+            new OptionItem<AppTheme>("Dark — Amber", AppTheme.Dark),
+            new OptionItem<AppTheme>("Light — Amber", AppTheme.Light),
+            new OptionItem<AppTheme>("Dark — Jade", AppTheme.Jade),
+            new OptionItem<AppTheme>("Dark — Sapphire", AppTheme.Sapphire),
+            new OptionItem<AppTheme>("Dark — Crimson", AppTheme.Crimson),
+            new OptionItem<AppTheme>("Dark — Chrome", AppTheme.Chrome),
+            new OptionItem<AppTheme>("Dark — Hulk", AppTheme.Hulk)
         ];
         _selectedTheme = ThemeOptions[0];
 
@@ -244,6 +257,7 @@ public sealed partial class LibraryViewModel : ObservableObject
             TableSortOrder.TitleDescending => new TableTitleComparer(ascending: false),
             TableSortOrder.YearNewest => new TableYearComparer(newestFirst: true),
             TableSortOrder.YearOldest => new TableYearComparer(newestFirst: false),
+            TableSortOrder.FavoritesFirst => new TableFavoriteComparer(),
             _ => new TableTitleComparer(ascending: true)
         };
 
@@ -260,6 +274,46 @@ public sealed partial class LibraryViewModel : ObservableObject
 
     [RelayCommand]
     private void ClearSearch() => SearchText = string.Empty;
+
+    /// <summary>Full paths of every table currently starred, across all installations - the persisted form of every tile's IsFavorite.</summary>
+    private HashSet<string> _favoriteTablePaths = new(StringComparer.OrdinalIgnoreCase);
+
+    [RelayCommand]
+    private void ToggleFavorite(TableTileViewModel? tile)
+    {
+        if (tile is null)
+        {
+            return;
+        }
+
+        tile.IsFavorite = !tile.IsFavorite;
+
+        if (tile.IsFavorite)
+        {
+            _favoriteTablePaths.Add(tile.Table.Path);
+        }
+        else
+        {
+            _favoriteTablePaths.Remove(tile.Table.Path);
+        }
+
+        _ = SaveFavoritesAsync();
+    }
+
+    private async Task SaveFavoritesAsync()
+    {
+        try
+        {
+            NudgeSettings settings = await _settingsService.LoadAsync().ConfigureAwait(true);
+            settings.FavoriteTablePaths = _favoriteTablePaths.ToList();
+            await _settingsService.SaveAsync(settings).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            // The star already toggled on screen; failing to remember it isn't worth an error box.
+            _logger.LogWarning(ex, "Could not save favourites.");
+        }
+    }
 
     /// <summary>
     /// Runs once the setup screen confirms an installation. Shows whatever is already in the
@@ -298,6 +352,7 @@ public sealed partial class LibraryViewModel : ObservableObject
             SelectedSort = SortOptions.FirstOrDefault(o => o.Value.ToString() == settings.SortOrder)
                            ?? SortOptions[0];
             ShowConfidence = settings.ShowConfidence;
+            _favoriteTablePaths = new HashSet<string>(settings.FavoriteTablePaths, StringComparer.OrdinalIgnoreCase);
 
             // Only honour a saved VR preference if this installation can actually do VR.
             IsVrMode = settings.PreferVr && HasVr;
@@ -514,7 +569,9 @@ public sealed partial class LibraryViewModel : ObservableObject
 
     private void ApplyTables(IReadOnlyList<VpxTableFile> tables)
     {
-        List<TableTileViewModel> tiles = tables.Select(t => new TableTileViewModel(t)).ToList();
+        List<TableTileViewModel> tiles = tables
+            .Select(t => new TableTileViewModel(t) { IsFavorite = _favoriteTablePaths.Contains(t.Path) })
+            .ToList();
 
         // Cleared and re-added rather than reassigning the collection instance, so the grid's
         // TablesView (bound once in the constructor) keeps working without re-subscribing. Ordering

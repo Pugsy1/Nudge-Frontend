@@ -39,6 +39,14 @@ public sealed class NudgeSettings
     /// </summary>
     public bool PreferVr { get; set; }
 
+    /// <summary>
+    /// Full paths of tables marked as favourites, across all installations. Deliberately stored
+    /// here rather than as a database column: it is a pure UI preference (like ThemeName), and
+    /// piggybacking on the settings file already read/written on every launch avoids needing a
+    /// Nudge.Data migration for what is, functionally, a starred-item list.
+    /// </summary>
+    public List<string> FavoriteTablePaths { get; set; } = [];
+
     /// <summary>Installations the user has confirmed or added manually, newest last.</summary>
     public List<KnownInstallation> KnownInstallations { get; set; } = [];
 }

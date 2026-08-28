@@ -9,10 +9,12 @@
 
   <!-- ============================ Ground ============================ -->
 
+  <!-- Tinted toward sapphire, unlike the neutral-grey Dark palette's ambient glow - a faint colour
+       cast across the whole room, not just the accent itself, so the theme has real presence. -->
   <RadialGradientBrush x:Key="Brush.Window.Background" GradientOrigin="0.5,0.28" Center="0.5,0.28" RadiusX="0.9" RadiusY="0.85">
-    <GradientStop Color="#1E222C" Offset="0" />
-    <GradientStop Color="#161920" Offset="0.75" />
-    <GradientStop Color="#121419" Offset="1" />
+    <GradientStop Color="#1B2333" Offset="0" />
+    <GradientStop Color="#141A24" Offset="0.75" />
+    <GradientStop Color="#10151D" Offset="1" />
   </RadialGradientBrush>
 
   <SolidColorBrush x:Key="Brush.Window.BackgroundFlat" Color="#161920" />
@@ -39,14 +41,14 @@
   <SolidColorBrush x:Key="Brush.Surface.Glass" Color="#B32A303E" />
 
   <LinearGradientBrush x:Key="Brush.Surface.EdgeHighlight" StartPoint="0.1,0" EndPoint="0.9,1">
-    <GradientStop Color="#4A5468" Offset="0" />
-    <GradientStop Color="#333A4A" Offset="0.45" />
+    <GradientStop Color="#4A5C78" Offset="0" />
+    <GradientStop Color="#333F52" Offset="0.45" />
     <GradientStop Color="#191D26" Offset="1" />
   </LinearGradientBrush>
 
   <LinearGradientBrush x:Key="Brush.Surface.RimLight" StartPoint="0.1,0" EndPoint="0.9,1">
-    <GradientStop Color="#6B7589" Offset="0" />
-    <GradientStop Color="#3E4658" Offset="0.5" />
+    <GradientStop Color="#6B85A8" Offset="0" />
+    <GradientStop Color="#3E5270" Offset="0.5" />
     <GradientStop Color="#1E2229" Offset="1" />
   </LinearGradientBrush>
 

@@ -11,14 +11,16 @@ namespace Nudge.App.ViewModels;
 /// the table file itself, and the database row behind it records a size and last-write time for
 /// incremental scanning - not a first-seen timestamp, a play count, or a last-played time. Adding
 /// those needs a schema change in <c>Nudge.Data</c>, which is the backend session's lane. See the
-/// note in <c>LibraryViewModel</c>.
+/// note in <c>LibraryViewModel</c>. Favourites did not need that: it is a pure UI preference (a
+/// starred-item list), so it lives in the settings file instead, the same as ThemeName.
 /// </remarks>
 public enum TableSortOrder
 {
     TitleAscending,
     TitleDescending,
     YearNewest,
-    YearOldest
+    YearOldest,
+    FavoritesFirst
 }
 
 /// <summary>
@@ -82,5 +84,22 @@ public sealed class TableTitleComparer : IComparer
 
         int result = string.Compare(left.DisplayTitle, right.DisplayTitle, StringComparison.OrdinalIgnoreCase);
         return _ascending ? result : -result;
+    }
+}
+
+/// <summary>Favourited tiles first, then title order within each group.</summary>
+public sealed class TableFavoriteComparer : IComparer
+{
+    public int Compare(object? x, object? y)
+    {
+        if (x is not TableTileViewModel left || y is not TableTileViewModel right)
+        {
+            return 0;
+        }
+
+        int byFavorite = right.IsFavorite.CompareTo(left.IsFavorite);
+        return byFavorite != 0
+            ? byFavorite
+            : string.Compare(left.DisplayTitle, right.DisplayTitle, StringComparison.OrdinalIgnoreCase);
     }
 }
