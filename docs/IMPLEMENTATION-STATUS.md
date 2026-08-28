@@ -254,3 +254,55 @@ but nothing in the UI triggers a scan or displays scanned tables yet - that's Ph
   in the throwaway validation harness, but not yet exercised across an upgrade path (an existing
   `nudge.db` from an older schema version being migrated forward) - there's only ever been one
   migration so far.
+
+## Phase 5 — Launch engine (backend only; table detail screen not yet built)
+
+**Status: the launch engine itself is functionally complete and verified against a real
+installation. The UI half of Phase 5 - a table detail screen with a Play button - has not been
+started; this section covers only `Nudge.Vpx`/`Nudge.Core`.**
+
+### What's built
+
+**`ILaunchEngine`** (`Nudge.Vpx.Launching.LaunchEngine`) launches a table and waits for Visual
+Pinball to exit: builds `-Play "<table path>"` via `ProcessStartInfo.ArgumentList` (so a path with
+spaces or quotes can't be misparsed), runs it through `IProcessRunner` (a thin, fake-able wrapper
+over `Process`), and returns the exit code and duration. A non-zero exit code is still a
+*successful* launch - Visual Pinball ran and exited, and interpreting what a crash means is the
+health system's job in a later phase.
+
+**`VpxInstallation.BestDesktopExecutable`** decides which executable to launch: the most modern
+recognised build available, currently BGFX then DirectX 9, preferring x64 over x86 within a flavor.
+Two flavors are excluded outright, not just ranked low:
+- `VpxFlavor.VP9Legacy` plays `.vpt` files, not `.vpx` - launching it against a scanned `.vpx` table
+  would be silently wrong, not a loud failure.
+- `VpxFlavor.OpenGL` - **discovered during this phase's own verification, not anticipated**: a real
+  launch of `VPinballX_GL64.exe` against the maintainer's test installation, with a plain `-Play`
+  and no VR flag of any kind (there is no VR flag), came up in VR anyway. The OpenGL build
+  autodetects a SteamVR install and engages VR with no way for Nudge to know in advance, so it is
+  never chosen for a Desktop launch until Phase 6 gives Nudge its own VR profile / `-Ini` control.
+  See docs/RESEARCH-NOTES.md. An OpenGL-only installation currently reports no Desktop build
+  available at all, rather than risk silently launching VR on the user.
+
+### What's deliberately not built (Phase 5 scope)
+
+- **No UI uses this yet.** No table detail screen, no Play button, no "now playing" state. That's
+  the other half of Phase 5.
+- **No VR launch path.** Deliberately deferred to Phase 6, which is also where the maintainer's
+  stated direction for the eventual UI - default Play to DirectX9, with a separate explicit way to
+  choose VR, exact interaction undecided - is recorded (docs/RESEARCH-NOTES.md).
+- **No crash interpretation.** A non-zero exit code is recorded on `LaunchOutcome` but nothing reads
+  it yet - that's the health system, Phase 7.
+
+### Verified two ways
+
+1. **12 tests** (`VpxInstallationTests`, `LaunchEngineTests`) against a faked `IProcessRunner` and
+   `MockFileSystem` - executable selection across every flavor/architecture combination, argument
+   construction, working directory, a non-zero exit code still counting as success, and launch
+   failures (missing table file, no desktop build available, process failed to start) reported as
+   `Result` failures rather than exceptions. 124 tests pass in `Nudge.Vpx.Tests` overall.
+2. **A real launch against the maintainer's actual test installation** (`D:\Frontend TEST\Visual
+   Pinball`), via a throwaway harness built from the real production classes: confirmed
+   `VPinballX_GL64.exe` actually started as a real OS process with the expected PID, confirmed
+   cancelling the engine's wait does not kill that process (Nudge does not own the user's play
+   session once Visual Pinball is running - AGENTS.md section 6), and confirmed the process could be
+   torn down cleanly afterward. This same run is what surfaced the OpenGL/VR finding above.
