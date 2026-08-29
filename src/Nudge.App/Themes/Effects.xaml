@@ -16,17 +16,17 @@
   <DropShadowEffect x:Key="Effect.Card.Shadow"
                      Color="{DynamicResource Color.Shadow}"
                      Direction="270"
-                     ShadowDepth="10"
-                     BlurRadius="34"
-                     Opacity="0.42"
+                     ShadowDepth="8"
+                     BlurRadius="26"
+                     Opacity="0.32"
                      RenderingBias="Performance" />
 
   <DropShadowEffect x:Key="Effect.Button.Shadow"
                      Color="{DynamicResource Color.Shadow}"
                      Direction="270"
-                     ShadowDepth="3"
-                     BlurRadius="12"
-                     Opacity="0.34"
+                     ShadowDepth="2"
+                     BlurRadius="9"
+                     Opacity="0.26"
                      RenderingBias="Performance" />
 
   <!-- Pressed: the surface sinks toward its base, so the shadow tightens and shortens. -->
@@ -34,26 +34,64 @@
                      Color="{DynamicResource Color.Shadow}"
                      Direction="270"
                      ShadowDepth="1"
-                     BlurRadius="4"
-                     Opacity="0.26"
+                     BlurRadius="3"
+                     Opacity="0.20"
                      RenderingBias="Performance" />
 
-  <!-- Library tiles at rest. Lighter than Effect.Card.Shadow since many are on screen at once. -->
-  <DropShadowEffect x:Key="Effect.Tile.Shadow"
+  <!--
+    Library tiles: a true two-shadow neumorphic emboss, a dark one down-right paired with a light
+    one up-left on a second, identically-shaped layer behind the tile's real content (see the note
+    in LibraryView.xaml's tile template - WPF only allows one Effect per element, so the pair has to
+    live on two overlapping Borders rather than one). Kept modest at rest since dozens of these sit
+    on screen together; deepens and spreads on hover the same way the old single-shadow version did,
+    and tightens back down to near-nothing when pressed, as though the tile sank flush with the page.
+  -->
+  <DropShadowEffect x:Key="Effect.Tile.Shadow.Rest"
                      Color="{DynamicResource Color.Shadow}"
-                     Direction="270"
-                     ShadowDepth="5"
-                     BlurRadius="18"
-                     Opacity="0.36"
+                     Direction="315"
+                     ShadowDepth="3"
+                     BlurRadius="10"
+                     Opacity="0.5"
                      RenderingBias="Performance" />
 
-  <!-- Hover: the tile lifts toward the light, so its shadow deepens and spreads. -->
   <DropShadowEffect x:Key="Effect.Tile.Shadow.Hover"
                      Color="{DynamicResource Color.Shadow}"
-                     Direction="270"
-                     ShadowDepth="12"
-                     BlurRadius="32"
-                     Opacity="0.52"
+                     Direction="315"
+                     ShadowDepth="7"
+                     BlurRadius="20"
+                     Opacity="0.6"
+                     RenderingBias="Performance" />
+
+  <DropShadowEffect x:Key="Effect.Tile.Shadow.Pressed"
+                     Color="{DynamicResource Color.Shadow}"
+                     Direction="315"
+                     ShadowDepth="1"
+                     BlurRadius="4"
+                     Opacity="0.5"
+                     RenderingBias="Performance" />
+
+  <DropShadowEffect x:Key="Effect.Tile.Highlight.Rest"
+                     Color="{DynamicResource Color.Highlight}"
+                     Direction="135"
+                     ShadowDepth="3"
+                     BlurRadius="10"
+                     Opacity="0.4"
+                     RenderingBias="Performance" />
+
+  <DropShadowEffect x:Key="Effect.Tile.Highlight.Hover"
+                     Color="{DynamicResource Color.Highlight}"
+                     Direction="135"
+                     ShadowDepth="7"
+                     BlurRadius="20"
+                     Opacity="0.5"
+                     RenderingBias="Performance" />
+
+  <DropShadowEffect x:Key="Effect.Tile.Highlight.Pressed"
+                     Color="{DynamicResource Color.Highlight}"
+                     Direction="135"
+                     ShadowDepth="1"
+                     BlurRadius="4"
+                     Opacity="0.4"
                      RenderingBias="Performance" />
 
   <!-- Recessed controls (the search slot) - a tight shadow at rest reads as "set into" the panel. -->
@@ -61,17 +99,36 @@
                      Color="{DynamicResource Color.Shadow}"
                      Direction="270"
                      ShadowDepth="1"
-                     BlurRadius="6"
-                     Opacity="0.30"
+                     BlurRadius="5"
+                     Opacity="0.22"
                      RenderingBias="Performance" />
 
   <!-- A floating panel (the settings flyout) sits well above the page, so it casts furthest. -->
   <DropShadowEffect x:Key="Effect.Flyout.Shadow"
                      Color="{DynamicResource Color.Shadow}"
                      Direction="270"
-                     ShadowDepth="14"
-                     BlurRadius="44"
-                     Opacity="0.55"
+                     ShadowDepth="10"
+                     BlurRadius="34"
+                     Opacity="0.40"
+                     RenderingBias="Performance" />
+
+  <!-- The same true two-shadow neumorphic emboss as the library tiles (Effect.Tile.Shadow.Rest/
+       Effect.Tile.Highlight.Rest), sized for a full settings-page card rather than a tile - see the
+       note on Card.Neumorphic in Controls.xaml for the two-Border layering this pairs with. -->
+  <DropShadowEffect x:Key="Effect.Card.Shadow.Rest"
+                     Color="{DynamicResource Color.Shadow}"
+                     Direction="315"
+                     ShadowDepth="5"
+                     BlurRadius="18"
+                     Opacity="0.45"
+                     RenderingBias="Performance" />
+
+  <DropShadowEffect x:Key="Effect.Card.Highlight.Rest"
+                     Color="{DynamicResource Color.Highlight}"
+                     Direction="135"
+                     ShadowDepth="5"
+                     BlurRadius="18"
+                     Opacity="0.35"
                      RenderingBias="Performance" />
 
 </ResourceDictionary>

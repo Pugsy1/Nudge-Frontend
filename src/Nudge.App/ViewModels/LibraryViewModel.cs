@@ -100,10 +100,15 @@ public sealed partial class LibraryViewModel : ObservableObject
             UpdateVisibleCount();
         };
 
-        // Lets the "Favourites first" sort re-order live the instant a star is clicked, instead of
-        // needing a full Refresh() (which would also re-run the filter and jar the scroll position).
+        // Lets the grid react live the instant a star is clicked, instead of needing an explicit
+        // Refresh() call from the toggle command itself: IsLiveSorting re-orders "Favourites first"
+        // immediately, and IsLiveFiltering drops/adds the tile immediately while "Favourites only"
+        // is the active sort (see FilterTable) - unfavoriting the last starred table while looking
+        // at that view makes it vanish on the same click, not the next unrelated Refresh().
         TablesView.IsLiveSorting = true;
         TablesView.LiveSortingProperties.Add(nameof(TableTileViewModel.IsFavorite));
+        TablesView.IsLiveFiltering = true;
+        TablesView.LiveFilteringProperties.Add(nameof(TableTileViewModel.IsFavorite));
 
         SortOptions =
         [
@@ -111,7 +116,7 @@ public sealed partial class LibraryViewModel : ObservableObject
             new OptionItem<TableSortOrder>("Title  Z → A", TableSortOrder.TitleDescending),
             new OptionItem<TableSortOrder>("Year  newest first", TableSortOrder.YearNewest),
             new OptionItem<TableSortOrder>("Year  oldest first", TableSortOrder.YearOldest),
-            new OptionItem<TableSortOrder>("Favourites first", TableSortOrder.FavoritesFirst)
+            new OptionItem<TableSortOrder>("Favourites only", TableSortOrder.FavoritesOnly)
         ];
         _selectedSort = SortOptions[0];
 
@@ -123,10 +128,16 @@ public sealed partial class LibraryViewModel : ObservableObject
             new OptionItem<AppTheme>("Dark — Amber", AppTheme.Dark),
             new OptionItem<AppTheme>("Light — Amber", AppTheme.Light),
             new OptionItem<AppTheme>("Dark — Jade", AppTheme.Jade),
+            new OptionItem<AppTheme>("Light — Jade", AppTheme.JadeLight),
             new OptionItem<AppTheme>("Dark — Sapphire", AppTheme.Sapphire),
+            new OptionItem<AppTheme>("Light — Sapphire", AppTheme.SapphireLight),
             new OptionItem<AppTheme>("Dark — Crimson", AppTheme.Crimson),
+            new OptionItem<AppTheme>("Light — Crimson", AppTheme.CrimsonLight),
             new OptionItem<AppTheme>("Dark — Chrome", AppTheme.Chrome),
-            new OptionItem<AppTheme>("Dark — Hulk", AppTheme.Hulk)
+            new OptionItem<AppTheme>("Light — Chrome", AppTheme.ChromeLight),
+            new OptionItem<AppTheme>("Dark — Hulk", AppTheme.Hulk),
+            new OptionItem<AppTheme>("Light — Hulk", AppTheme.HulkLight),
+            new OptionItem<AppTheme>("OLED — True Black", AppTheme.Oled)
         ];
         _selectedTheme = ThemeOptions[0];
 
@@ -177,6 +188,7 @@ public sealed partial class LibraryViewModel : ObservableObject
     /// <summary>How many tiles survive the current search filter - drives the "nothing matched" empty state.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasNoSearchResults))]
+    [NotifyPropertyChangedFor(nameof(HasNoFavorites))]
     [NotifyPropertyChangedFor(nameof(HasVisibleTables))]
     private int _visibleTableCount;
 
@@ -189,13 +201,20 @@ public sealed partial class LibraryViewModel : ObservableObject
     public bool HasTables => TableCount > 0;
 
     /// <summary>The library has tables, but the current search matched none of them.</summary>
-    public bool HasNoSearchResults => TableCount > 0 && VisibleTableCount == 0 && HasSearchText;
+    public bool HasNoSearchResults => TableCount > 0 && VisibleTableCount == 0 && HasSearchText
+                                       && SelectedSort?.Value != TableSortOrder.FavoritesOnly;
+
+    /// <summary>"Favourites only" is selected and nothing is starred yet - distinct from a search matching nothing.</summary>
+    public bool HasNoFavorites => TableCount > 0 && VisibleTableCount == 0 && !HasSearchText
+                                   && SelectedSort?.Value == TableSortOrder.FavoritesOnly;
 
     public bool HasVisibleTables => VisibleTableCount > 0;
 
     // ---------------------------------------------------------------- Preferences
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasNoSearchResults))]
+    [NotifyPropertyChangedFor(nameof(HasNoFavorites))]
     private OptionItem<TableSortOrder> _selectedSort;
 
     [ObservableProperty]
@@ -229,6 +248,10 @@ public sealed partial class LibraryViewModel : ObservableObject
     /// <summary>True when the confirmed installation has a recognised VR-capable build - enables the 2D/VR switch.</summary>
     [ObservableProperty]
     private bool _hasVr;
+
+    /// <summary>How many tiles fit per row, 3-8. Bound to VirtualizingWrapPanel.Columns - see the note there for how a fixed column count reshapes tile size instead of the usual "as many ItemWidth-sized columns as fit".</summary>
+    [ObservableProperty]
+    private int _tablesPerRow = 8;
 
     [ObservableProperty]
     private bool _isSettingsOpen;
@@ -267,6 +290,8 @@ public sealed partial class LibraryViewModel : ObservableObject
 
     partial void OnIsVrModeChanged(bool value) => _ = SavePreferencesAsync();
 
+    partial void OnTablesPerRowChanged(int value) => _ = SavePreferencesAsync();
+
     private void ApplySort()
     {
         TablesView.CustomSort = SelectedSort?.Value switch
@@ -274,10 +299,14 @@ public sealed partial class LibraryViewModel : ObservableObject
             TableSortOrder.TitleDescending => new TableTitleComparer(ascending: false),
             TableSortOrder.YearNewest => new TableYearComparer(newestFirst: true),
             TableSortOrder.YearOldest => new TableYearComparer(newestFirst: false),
-            TableSortOrder.FavoritesFirst => new TableFavoriteComparer(),
+            TableSortOrder.FavoritesOnly => new TableFavoriteComparer(),
             _ => new TableTitleComparer(ascending: true)
         };
 
+        // FilterTable's result depends on SelectedSort now (FavoritesOnly hides everything else),
+        // not just SearchText - CustomSort alone doesn't re-run the filter, so this needs an
+        // explicit Refresh() whenever the sort changes, unlike a plain re-order would.
+        TablesView.Refresh();
         UpdateVisibleCount();
     }
 
@@ -310,18 +339,27 @@ public sealed partial class LibraryViewModel : ObservableObject
             return;
         }
 
-        tile.IsFavorite = !tile.IsFavorite;
-
-        if (tile.IsFavorite)
+        // Deferred to the next dispatcher pass, not applied inline: while "Favourites only" is
+        // selected, flipping IsFavorite here live-filters the tile's own container out of the grid
+        // immediately (see IsLiveFiltering in the constructor) - but WPF's routed Click event that
+        // got us into this handler is still unwinding through that very Button. Pulling its
+        // container out from under it mid-click is what was throwing. Running the mutation after
+        // Click finishes dispatching sidesteps that without giving up the live update.
+        Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.Input, () =>
         {
-            _favoriteTablePaths.Add(tile.Table.Path);
-        }
-        else
-        {
-            _favoriteTablePaths.Remove(tile.Table.Path);
-        }
+            tile.IsFavorite = !tile.IsFavorite;
 
-        _ = SaveFavoritesAsync();
+            if (tile.IsFavorite)
+            {
+                _favoriteTablePaths.Add(tile.Table.Path);
+            }
+            else
+            {
+                _favoriteTablePaths.Remove(tile.Table.Path);
+            }
+
+            _ = SaveFavoritesAsync();
+        });
     }
 
     private async Task SaveFavoritesAsync()
@@ -377,6 +415,7 @@ public sealed partial class LibraryViewModel : ObservableObject
                            ?? SortOptions[0];
             ShowConfidence = settings.ShowConfidence;
             _favoriteTablePaths = new HashSet<string>(settings.FavoriteTablePaths, StringComparer.OrdinalIgnoreCase);
+            TablesPerRow = Math.Clamp(settings.TablesPerRow, 3, 8);
 
             // Only honour a saved VR preference if this installation can actually do VR.
             IsVrMode = settings.PreferVr && HasVr;
@@ -405,6 +444,7 @@ public sealed partial class LibraryViewModel : ObservableObject
             settings.SortOrder = (SelectedSort?.Value ?? TableSortOrder.TitleAscending).ToString();
             settings.ShowConfidence = ShowConfidence;
             settings.PreferVr = IsVrMode;
+            settings.TablesPerRow = TablesPerRow;
             await _settingsService.SaveAsync(settings).ConfigureAwait(true);
         }
         catch (Exception ex)
@@ -573,13 +613,22 @@ public sealed partial class LibraryViewModel : ObservableObject
 
     private bool FilterTable(object item)
     {
+        if (item is not TableTileViewModel tile)
+        {
+            return false;
+        }
+
+        if (SelectedSort?.Value == TableSortOrder.FavoritesOnly && !tile.IsFavorite)
+        {
+            return false;
+        }
+
         if (!HasSearchText)
         {
             return true;
         }
 
-        return item is TableTileViewModel tile
-               && (tile.DisplayTitle.Contains(SearchText, StringComparison.OrdinalIgnoreCase)
-                   || tile.Subtitle.Contains(SearchText, StringComparison.OrdinalIgnoreCase));
+        return tile.DisplayTitle.Contains(SearchText, StringComparison.OrdinalIgnoreCase)
+               || tile.Subtitle.Contains(SearchText, StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -1,5 +1,8 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:converters="clr-namespace:Nudge.App.Converters">
+
+  <converters:SliderFillWidthConverter x:Key="SliderFillWidthConverter" />
 
   <!--
     Control templates. WPF's stock controls look dated, so every control Nudge uses is templated
@@ -303,7 +306,12 @@
     <Setter Property="FontSize" Value="{DynamicResource Font.Size.Body}" />
     <Setter Property="Foreground" Value="{DynamicResource Brush.Control.Foreground}" />
     <Setter Property="Background" Value="{DynamicResource Brush.Control.Background}" />
-    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Surface.EdgeHighlight}" />
+    <!-- A flat Control.Border rather than the EdgeHighlight bevel gradient every card/tile/button
+         uses: that gradient reads as a lit edge on a large extruded surface, but on a control this
+         small and this close to white (the light palettes), its bright end disappears into the
+         background and only the dark end survives, showing up as a stray partial outline down one
+         side instead of a bevel - most visible on the Settings page's own Theme picker. -->
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Control.Border}" />
     <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
     <Setter Property="Padding" Value="{DynamicResource Padding.Button}" />
     <Setter Property="Cursor" Value="Hand" />
@@ -321,12 +329,13 @@
                           IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
               <ToggleButton.Template>
                 <ControlTemplate TargetType="ToggleButton">
+                  <!-- No Effect at rest - a flat cap reads as a clean control, not a shadow/bloom
+                       sitting under a dropdown. -->
                   <Border x:Name="Cap"
                           Background="{DynamicResource Brush.Control.Background}"
-                          BorderBrush="{DynamicResource Brush.Surface.EdgeHighlight}"
+                          BorderBrush="{DynamicResource Brush.Control.Border}"
                           BorderThickness="{DynamicResource BorderThickness.Thin}"
-                          CornerRadius="{DynamicResource CornerRadius.M}"
-                          Effect="{DynamicResource Effect.Button.Shadow}">
+                          CornerRadius="{DynamicResource CornerRadius.M}">
                     <Grid>
                       <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -347,11 +356,10 @@
                   <ControlTemplate.Triggers>
                     <Trigger Property="IsMouseOver" Value="True">
                       <Setter TargetName="Cap" Property="Background" Value="{DynamicResource Brush.Control.BackgroundHover}" />
-                      <Setter TargetName="Cap" Property="BorderBrush" Value="{DynamicResource Brush.Surface.RimLight}" />
+                      <Setter TargetName="Cap" Property="BorderBrush" Value="{DynamicResource Brush.Control.BorderHover}" />
                     </Trigger>
                     <Trigger Property="IsChecked" Value="True">
                       <Setter TargetName="Cap" Property="Background" Value="{DynamicResource Brush.Control.BackgroundPressed}" />
-                      <Setter TargetName="Cap" Property="Effect" Value="{DynamicResource Effect.Button.Shadow.Pressed}" />
                     </Trigger>
                   </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -377,7 +385,7 @@
               <Border MinWidth="{Binding ActualWidth, ElementName=PART_Toggle}"
                       Margin="10"
                       Background="{DynamicResource Brush.Surface.BackgroundAlt}"
-                      BorderBrush="{DynamicResource Brush.Surface.EdgeHighlight}"
+                      BorderBrush="{DynamicResource Brush.Control.Border}"
                       BorderThickness="{DynamicResource BorderThickness.Thin}"
                       CornerRadius="{DynamicResource CornerRadius.M}"
                       Padding="{DynamicResource Inset.XS}"
@@ -498,6 +506,130 @@
     <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
     <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
     <Setter Property="Focusable" Value="False" />
+  </Style>
+
+  <!-- ============================ Slider ============================ -->
+
+  <!-- The two invisible halves of the track either side of the thumb - clicking one jumps the
+       thumb a step that direction, same as clicking anywhere in a scrollbar's track. -->
+  <Style x:Key="Slider.TrackButton" TargetType="RepeatButton">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Focusable" Value="False" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="RepeatButton">
+          <Rectangle Fill="Transparent" />
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- A recessed groove with a raised accent-coloured knob - the same recessed/raised material
+       pairing as everything else, just laid out horizontally. The thumb grows slightly on hover
+       and eases back on release, the same "fluid" feedback the tile hover lift uses elsewhere,
+       rather than snapping straight between its two sizes. -->
+  <Style x:Key="Slider.Standard" TargetType="Slider">
+    <Setter Property="Height" Value="30" />
+    <Setter Property="IsSnapToTickEnabled" Value="True" />
+    <Setter Property="TickFrequency" Value="1" />
+    <Setter Property="SmallChange" Value="1" />
+    <Setter Property="LargeChange" Value="1" />
+    <Setter Property="Focusable" Value="False" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Slider">
+          <Grid VerticalAlignment="Center">
+            <Border Height="8"
+                    Background="{DynamicResource Brush.Surface.Recessed}"
+                    BorderBrush="{DynamicResource Brush.Surface.Border}"
+                    BorderThickness="{DynamicResource BorderThickness.Thin}"
+                    CornerRadius="4" />
+
+            <!-- The filled portion, left edge to the thumb - reads as "how much" at a glance,
+                 the way a volume slider does, rather than leaving the groove uniformly empty. Width
+                 comes from SliderFillWidthConverter: WPF's Track has no "how far along" property of
+                 its own to bind to directly, so this recomputes the pixel width from Value/Minimum
+                 /Maximum against the track's own rendered ActualWidth on every one of those inputs
+                 changing - drag, click, or keyboard alike. A satin gradient, the same
+                 Brush.Accent.Surface every raised accent surface uses, rather than a flat fill. -->
+            <Border x:Name="Fill"
+                    Height="8"
+                    HorizontalAlignment="Left"
+                    Background="{DynamicResource Brush.Accent.Surface}"
+                    CornerRadius="4">
+              <Border.Width>
+                <MultiBinding Converter="{StaticResource SliderFillWidthConverter}">
+                  <Binding RelativeSource="{RelativeSource TemplatedParent}" Path="Value" />
+                  <Binding RelativeSource="{RelativeSource TemplatedParent}" Path="Minimum" />
+                  <Binding RelativeSource="{RelativeSource TemplatedParent}" Path="Maximum" />
+                  <Binding ElementName="PART_Track" Path="ActualWidth" />
+                </MultiBinding>
+              </Border.Width>
+            </Border>
+
+            <Track x:Name="PART_Track">
+              <Track.DecreaseRepeatButton>
+                <RepeatButton Style="{StaticResource Slider.TrackButton}" Command="Slider.DecreaseLarge" />
+              </Track.DecreaseRepeatButton>
+              <Track.IncreaseRepeatButton>
+                <RepeatButton Style="{StaticResource Slider.TrackButton}" Command="Slider.IncreaseLarge" />
+              </Track.IncreaseRepeatButton>
+              <Track.Thumb>
+                <Thumb x:Name="SliderThumb"
+                       Width="22" Height="22"
+                       Cursor="Hand"
+                       RenderTransformOrigin="0.5,0.5">
+                  <Thumb.RenderTransform>
+                    <ScaleTransform x:Name="ThumbScale" ScaleX="1" ScaleY="1" />
+                  </Thumb.RenderTransform>
+                  <Thumb.Template>
+                    <ControlTemplate TargetType="Thumb">
+                      <Ellipse Fill="{DynamicResource Brush.Accent.Surface}"
+                               Stroke="{DynamicResource Brush.Surface.Background}"
+                               StrokeThickness="3">
+                        <Ellipse.Effect>
+                          <DropShadowEffect Color="{DynamicResource Color.Shadow}"
+                                             Direction="270"
+                                             ShadowDepth="2"
+                                             BlurRadius="8"
+                                             Opacity="0.45"
+                                             RenderingBias="Performance" />
+                        </Ellipse.Effect>
+                      </Ellipse>
+                    </ControlTemplate>
+                  </Thumb.Template>
+                  <Thumb.Triggers>
+                    <EventTrigger RoutedEvent="Thumb.MouseEnter">
+                      <BeginStoryboard>
+                        <Storyboard>
+                          <DoubleAnimation Storyboard.TargetName="ThumbScale" Storyboard.TargetProperty="ScaleX" To="1.2" Duration="{StaticResource Duration.Hover}" />
+                          <DoubleAnimation Storyboard.TargetName="ThumbScale" Storyboard.TargetProperty="ScaleY" To="1.2" Duration="{StaticResource Duration.Hover}" />
+                        </Storyboard>
+                      </BeginStoryboard>
+                    </EventTrigger>
+                    <EventTrigger RoutedEvent="Thumb.MouseLeave">
+                      <BeginStoryboard>
+                        <Storyboard>
+                          <DoubleAnimation Storyboard.TargetName="ThumbScale" Storyboard.TargetProperty="ScaleX" To="1" Duration="{StaticResource Duration.Hover}" />
+                          <DoubleAnimation Storyboard.TargetName="ThumbScale" Storyboard.TargetProperty="ScaleY" To="1" Duration="{StaticResource Duration.Hover}" />
+                        </Storyboard>
+                      </BeginStoryboard>
+                    </EventTrigger>
+                  </Thumb.Triggers>
+                </Thumb>
+              </Track.Thumb>
+            </Track>
+          </Grid>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter Property="Opacity" Value="0.45" />
+              <Setter Property="Cursor" Value="Arrow" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
   </Style>
 
   <!-- ============================ Surfaces ============================ -->

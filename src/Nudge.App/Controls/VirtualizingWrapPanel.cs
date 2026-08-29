@@ -24,6 +24,18 @@ public sealed class VirtualizingWrapPanel : VirtualizingPanel, IScrollInfo
         DependencyProperty.Register(nameof(ItemHeight), typeof(double), typeof(VirtualizingWrapPanel),
             new FrameworkPropertyMetadata(260d, FrameworkPropertyMetadataOptions.AffectsMeasure));
 
+    /// <summary>
+    /// Overrides the column count instead of deriving it from ItemWidth - 0 (the default) keeps the
+    /// original "as many ItemWidth-sized columns as fit" behaviour, matching the density slider's
+    /// "auto" position. Any other value locks the row to exactly that many tiles, computing an
+    /// effective tile width from the available space and scaling ItemHeight to match ItemWidth's
+    /// aspect ratio, so every tile still looks like a tile - just a smaller or larger one - rather
+    /// than distorting.
+    /// </summary>
+    public static readonly DependencyProperty ColumnsProperty =
+        DependencyProperty.Register(nameof(Columns), typeof(int), typeof(VirtualizingWrapPanel),
+            new FrameworkPropertyMetadata(0, FrameworkPropertyMetadataOptions.AffectsMeasure));
+
     /// <summary>Extra rows realized beyond the visible viewport, so a small scroll never has to wait on realization.</summary>
     private const int RowBuffer = 2;
 
@@ -31,6 +43,9 @@ public sealed class VirtualizingWrapPanel : VirtualizingPanel, IScrollInfo
     private Size _viewport;
     private Point _offset;
     private int _columns = 1;
+
+    /// <summary>The tile size actually used for layout this pass - ItemWidth/ItemHeight verbatim when Columns is 0 (auto), otherwise a size fitted to exactly Columns tiles per row at ItemWidth/ItemHeight's aspect ratio.</summary>
+    private Size _effectiveItemSize;
 
     public VirtualizingWrapPanel()
     {
@@ -49,17 +64,36 @@ public sealed class VirtualizingWrapPanel : VirtualizingPanel, IScrollInfo
         set => SetValue(ItemHeightProperty, value);
     }
 
+    public int Columns
+    {
+        get => (int)GetValue(ColumnsProperty);
+        set => SetValue(ColumnsProperty, value);
+    }
+
     protected override Size MeasureOverride(Size availableSize)
     {
         int itemCount = ItemsControl.GetItemsOwner(this)?.Items.Count ?? 0;
 
-        _columns = itemCount == 0 || double.IsInfinity(availableSize.Width)
-            ? Math.Max(1, itemCount)
-            : Math.Max(1, (int)(availableSize.Width / ItemWidth));
+        int requestedColumns = Columns;
+        double aspect = ItemHeight / ItemWidth;
+
+        if (requestedColumns > 0 && !double.IsInfinity(availableSize.Width))
+        {
+            _columns = Math.Max(1, Math.Min(requestedColumns, Math.Max(1, itemCount)));
+            double effectiveWidth = availableSize.Width / requestedColumns;
+            _effectiveItemSize = new Size(effectiveWidth, effectiveWidth * aspect);
+        }
+        else
+        {
+            _columns = itemCount == 0 || double.IsInfinity(availableSize.Width)
+                ? Math.Max(1, itemCount)
+                : Math.Max(1, (int)(availableSize.Width / ItemWidth));
+            _effectiveItemSize = new Size(ItemWidth, ItemHeight);
+        }
 
         int rows = itemCount == 0 ? 0 : (int)Math.Ceiling(itemCount / (double)_columns);
-        double extentWidth = double.IsInfinity(availableSize.Width) ? ItemWidth * itemCount : _columns * ItemWidth;
-        double extentHeight = rows * ItemHeight;
+        double extentWidth = double.IsInfinity(availableSize.Width) ? _effectiveItemSize.Width * itemCount : _columns * _effectiveItemSize.Width;
+        double extentHeight = rows * _effectiveItemSize.Height;
 
         // ScrollContentPresenter measures IScrollInfo content with PositiveInfinity along whichever
         // axis it can scroll (here, height - CanVerticallyScroll is true), precisely so the content
@@ -109,7 +143,7 @@ public sealed class VirtualizingWrapPanel : VirtualizingPanel, IScrollInfo
         // Centers the block of columns horizontally within any leftover width the floor-division
         // column count didn't use, so a partial remainder splits evenly between both edges instead
         // of piling up on the right.
-        double usedWidth = _columns * ItemWidth;
+        double usedWidth = _columns * _effectiveItemSize.Width;
         double columnOffsetX = finalSize.Width > usedWidth ? (finalSize.Width - usedWidth) / 2 : 0;
 
         for (int i = 0; i < InternalChildren.Count; i++)
@@ -124,10 +158,10 @@ public sealed class VirtualizingWrapPanel : VirtualizingPanel, IScrollInfo
             int column = itemIndex % _columns;
             int row = itemIndex / _columns;
 
-            double x = columnOffsetX + (column * ItemWidth) - _offset.X;
-            double y = (row * ItemHeight) - _offset.Y;
+            double x = columnOffsetX + (column * _effectiveItemSize.Width) - _offset.X;
+            double y = (row * _effectiveItemSize.Height) - _offset.Y;
 
-            child.Arrange(new Rect(x, y, ItemWidth, ItemHeight));
+            child.Arrange(new Rect(x, y, _effectiveItemSize.Width, _effectiveItemSize.Height));
         }
 
         return finalSize;
@@ -137,10 +171,19 @@ public sealed class VirtualizingWrapPanel : VirtualizingPanel, IScrollInfo
     {
         base.OnItemsChanged(sender, args);
 
-        // The library refreshes its whole collection at once after a scan rather than mutating it
-        // item by item, so a full re-realization on any change is simple and fast enough - no need
-        // for the extra bookkeeping incremental add/remove handling would need here.
-        CleanupAllContainers();
+        // This override runs from inside the ItemContainerGenerator's own CollectionChanged
+        // handling (OnItemRemoved/OnItemMoved etc. call down into Panel.OnItemsChanged before
+        // they've finished updating the generator's internal state). Calling
+        // ItemContainerGenerator.Remove synchronously from here - whether one bulk range or one
+        // position at a time - re-enters the generator mid-update and throws (confirmed both ways:
+        // a stale InternalChildren.Count made the bulk form throw InvalidOperationException, and
+        // even the per-item form still threw NullReferenceException). A live filter/sort issuing a
+        // single-item Remove (see LibraryViewModel's IsLiveFiltering/IsLiveSorting - unfavoriting a
+        // tile while "Favourites only" is selected does exactly this) hits this path; a full
+        // collection Reset after a rescan doesn't, which is why this went unnoticed until then.
+        // Only invalidating measure here defers all container cleanup to the next layout pass,
+        // where RealizeItems/CleanupContainers run from a clean call stack and can touch the
+        // generator safely.
         InvalidateMeasure();
     }
 
@@ -152,8 +195,8 @@ public sealed class VirtualizingWrapPanel : VirtualizingPanel, IScrollInfo
             return;
         }
 
-        int firstVisibleRow = Math.Max(0, (int)(_offset.Y / ItemHeight) - RowBuffer);
-        int visibleRowSpan = (int)Math.Ceiling(_viewport.Height / ItemHeight) + (RowBuffer * 2) + 1;
+        int firstVisibleRow = Math.Max(0, (int)(_offset.Y / _effectiveItemSize.Height) - RowBuffer);
+        int visibleRowSpan = (int)Math.Ceiling(_viewport.Height / _effectiveItemSize.Height) + (RowBuffer * 2) + 1;
         int lastVisibleRow = Math.Min(totalRows - 1, firstVisibleRow + visibleRowSpan);
 
         int firstIndex = firstVisibleRow * _columns;
@@ -189,7 +232,7 @@ public sealed class VirtualizingWrapPanel : VirtualizingPanel, IScrollInfo
                     generator.PrepareItemContainer(child);
                 }
 
-                child.Measure(new Size(ItemWidth, ItemHeight));
+                child.Measure(_effectiveItemSize);
             }
         }
 
@@ -200,25 +243,31 @@ public sealed class VirtualizingWrapPanel : VirtualizingPanel, IScrollInfo
     {
         for (int i = InternalChildren.Count - 1; i >= 0; i--)
         {
-            int itemIndex = ItemContainerGenerator.IndexFromGeneratorPosition(new GeneratorPosition(i, 0));
-            if (itemIndex < firstIndex || itemIndex > lastIndex)
+            var position = new GeneratorPosition(i, 0);
+            int itemIndex = ItemContainerGenerator.IndexFromGeneratorPosition(position);
+
+            // A negative itemIndex means the generator has already dropped its own mapping for this
+            // slot - its underlying item was removed from the source collection (a live filter or
+            // sort hiding a tile - unfavoriting one while "Favourites only" is selected does exactly
+            // this), and the generator processes that itself before this ever runs. Asking it to
+            // Remove a mapping it no longer has throws NullReferenceException; only the now-stale
+            // visual child needs cleaning up in that case, not the generator's already-gone entry.
+            if (itemIndex < 0)
             {
-                ItemContainerGenerator.Remove(new GeneratorPosition(i, 0), 1);
+                RemoveInternalChildRange(i, 1);
+            }
+            else if (itemIndex < firstIndex || itemIndex > lastIndex)
+            {
+                ItemContainerGenerator.Remove(position, 1);
                 RemoveInternalChildRange(i, 1);
             }
         }
     }
 
-    private void CleanupAllContainers()
-    {
-        if (InternalChildren.Count == 0)
-        {
-            return;
-        }
-
-        ItemContainerGenerator.Remove(new GeneratorPosition(0, 0), InternalChildren.Count);
-        RemoveInternalChildRange(0, InternalChildren.Count);
-    }
+    // An empty valid range: every currently realized container falls outside it, so this reuses
+    // CleanupContainers' per-item logic (including the negative-itemIndex handling above) instead
+    // of a second, separately-maintained sweep.
+    private void CleanupAllContainers() => CleanupContainers(0, -1);
 
     #region IScrollInfo
 
@@ -240,9 +289,9 @@ public sealed class VirtualizingWrapPanel : VirtualizingPanel, IScrollInfo
 
     public ScrollViewer? ScrollOwner { get; set; }
 
-    public void LineUp() => SetVerticalOffset(_offset.Y - (ItemHeight / 3));
+    public void LineUp() => SetVerticalOffset(_offset.Y - (_effectiveItemSize.Height / 3));
 
-    public void LineDown() => SetVerticalOffset(_offset.Y + (ItemHeight / 3));
+    public void LineDown() => SetVerticalOffset(_offset.Y + (_effectiveItemSize.Height / 3));
 
     public void LineLeft()
     {
@@ -264,9 +313,9 @@ public sealed class VirtualizingWrapPanel : VirtualizingPanel, IScrollInfo
     {
     }
 
-    public void MouseWheelUp() => SetVerticalOffset(_offset.Y - (ItemHeight / 2));
+    public void MouseWheelUp() => SetVerticalOffset(_offset.Y - (_effectiveItemSize.Height / 2));
 
-    public void MouseWheelDown() => SetVerticalOffset(_offset.Y + (ItemHeight / 2));
+    public void MouseWheelDown() => SetVerticalOffset(_offset.Y + (_effectiveItemSize.Height / 2));
 
     public void MouseWheelLeft()
     {

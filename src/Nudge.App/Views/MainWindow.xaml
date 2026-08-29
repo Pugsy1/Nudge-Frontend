@@ -129,6 +129,112 @@
               ToolTip="Close"
               Click="OnCloseClick" />
     </StackPanel>
+
+    <!-- Startup splash: the first thing on screen, while Setup/Library are still initialising
+         underneath. Purely visual and time-boxed on its own Loaded trigger - it does not gate
+         ShellViewModel's own Setup/Library switch (that keeps running concurrently beneath it), so
+         whichever screen is ready is already there by the time this fades away, rather than the app
+         waiting on the animation before it can start doing real work. -->
+    <Border x:Name="SplashOverlay"
+            Grid.Row="0" Grid.RowSpan="2"
+            Background="{DynamicResource Brush.Window.Background}"
+            Panel.ZIndex="1500">
+      <Border.Triggers>
+        <EventTrigger RoutedEvent="Border.Loaded">
+          <BeginStoryboard>
+            <Storyboard>
+              <!-- Pop in: a slight overshoot reads as "arriving", not just fading up. -->
+              <DoubleAnimation Storyboard.TargetName="SplashLogoScale" Storyboard.TargetProperty="ScaleX"
+                                From="0.8" To="1" Duration="0:0:0.45">
+                <DoubleAnimation.EasingFunction>
+                  <BackEase EasingMode="EaseOut" Amplitude="0.4" />
+                </DoubleAnimation.EasingFunction>
+              </DoubleAnimation>
+              <DoubleAnimation Storyboard.TargetName="SplashLogoScale" Storyboard.TargetProperty="ScaleY"
+                                From="0.8" To="1" Duration="0:0:0.45">
+                <DoubleAnimation.EasingFunction>
+                  <BackEase EasingMode="EaseOut" Amplitude="0.4" />
+                </DoubleAnimation.EasingFunction>
+              </DoubleAnimation>
+              <DoubleAnimation Storyboard.TargetName="SplashContent" Storyboard.TargetProperty="Opacity"
+                                From="0" To="1" Duration="0:0:0.4" />
+
+              <!-- The loading bar's fill sweeps track-width-and-back, twice, starting once the
+                   wordmark has mostly settled rather than racing it. -->
+              <DoubleAnimation Storyboard.TargetName="LoadingBarFillTransform" Storyboard.TargetProperty="X"
+                                From="-70" To="220" BeginTime="0:0:0.3" Duration="0:0:0.55" RepeatBehavior="2x">
+                <DoubleAnimation.EasingFunction>
+                  <SineEase EasingMode="EaseInOut" />
+                </DoubleAnimation.EasingFunction>
+              </DoubleAnimation>
+
+              <!-- Hold, then dissolve into whichever screen has loaded underneath. -->
+              <DoubleAnimation Storyboard.TargetName="SplashOverlay" Storyboard.TargetProperty="Opacity"
+                                From="1" To="0" Duration="0:0:0.4" BeginTime="0:0:1.15" />
+              <!-- Collapsed only after the fade finishes, not before - Visibility flips instantly,
+                   so doing it any earlier would cut the fade-out short. This alone also drops the
+                   overlay out of hit-testing (a Collapsed element never participates), which an
+                   earlier version tried to do explicitly by animating IsHitTestVisible - WPF doesn't
+                   support animating that property at all and throws AnimationException the moment
+                   the clock reaches it, which took the whole storyboard down and left the splash
+                   stuck on screen forever with no visible error (the exception landed on the render
+                   thread's dispatcher, not something a user watching the window would see). -->
+              <ObjectAnimationUsingKeyFrames Storyboard.TargetName="SplashOverlay" Storyboard.TargetProperty="Visibility" BeginTime="0:0:1.55">
+                <DiscreteObjectKeyFrame KeyTime="0:0:0" Value="{x:Static Visibility.Collapsed}" />
+              </ObjectAnimationUsingKeyFrames>
+            </Storyboard>
+          </BeginStoryboard>
+        </EventTrigger>
+      </Border.Triggers>
+
+      <StackPanel x:Name="SplashContent" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0">
+        <!-- Same recolour-by-mask trick as the library wordmark: the artwork's alpha channel becomes
+             a silhouette, filled with the active theme's accent instead of its own baked-in white
+             gloss, so the splash always matches whatever theme is saved - including on the next
+             launch, since the theme is applied (App.xaml.cs) before this window is even constructed. -->
+        <Rectangle Width="330" Height="110"
+                   HorizontalAlignment="Center"
+                   Fill="{DynamicResource Brush.Accent}"
+                   RenderTransformOrigin="0.5,0.5">
+          <Rectangle.RenderTransform>
+            <ScaleTransform x:Name="SplashLogoScale" ScaleX="0.8" ScaleY="0.8" />
+          </Rectangle.RenderTransform>
+          <Rectangle.OpacityMask>
+            <ImageBrush ImageSource="pack://application:,,,/Assets/Nudge Logo Words.png"
+                        Stretch="Uniform"
+                        RenderOptions.BitmapScalingMode="HighQuality" />
+          </Rectangle.OpacityMask>
+          <Rectangle.Effect>
+            <DropShadowEffect Color="{DynamicResource Color.Shadow}"
+                               Direction="270"
+                               ShadowDepth="6"
+                               BlurRadius="20"
+                               Opacity="0.35"
+                               RenderingBias="Performance" />
+          </Rectangle.Effect>
+        </Rectangle>
+
+        <!-- Loading bar: a recessed track (the same material every recessed slot in the app uses)
+             with a short accent-coloured fill that sweeps back and forth - indeterminate rather than
+             a real percentage, since there's nothing measurable to report yet at this point in
+             startup (AGENTS.md's scan progress only exists once the library screen is already up). -->
+        <Border Width="220" Height="4"
+                Margin="0,24,0,0"
+                HorizontalAlignment="Center"
+                Background="{DynamicResource Brush.Surface.Recessed}"
+                CornerRadius="2">
+          <Border HorizontalAlignment="Left"
+                  Width="70" Height="4"
+                  Background="{DynamicResource Brush.Accent}"
+                  CornerRadius="2"
+                  RenderTransformOrigin="0,0.5">
+            <Border.RenderTransform>
+              <TranslateTransform x:Name="LoadingBarFillTransform" X="-70" />
+            </Border.RenderTransform>
+          </Border>
+        </Border>
+      </StackPanel>
+    </Border>
   </Grid>
 
 </Window>

@@ -28,6 +28,8 @@
     <Resource Include="Assets\Nudge.png" />
     <!-- The library screen's header wordmark. -->
     <Resource Include="Assets\Library.png" />
+    <!-- The startup splash screen's wordmark. -->
+    <Resource Include="Assets\Nudge Logo Words.png" />
   </ItemGroup>
 
   <ItemGroup>

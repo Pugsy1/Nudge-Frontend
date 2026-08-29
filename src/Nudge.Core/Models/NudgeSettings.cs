@@ -47,6 +47,12 @@ public sealed class NudgeSettings
     /// </summary>
     public List<string> FavoriteTablePaths { get; set; } = [];
 
+    /// <summary>
+    /// How many tiles the library grid fits per row, 3-8. Pure UI preference like ThemeName, not
+    /// something the scan or database needs to know about.
+    /// </summary>
+    public int TablesPerRow { get; set; } = 8;
+
     /// <summary>Installations the user has confirmed or added manually, newest last.</summary>
     public List<KnownInstallation> KnownInstallations { get; set; } = [];
 }

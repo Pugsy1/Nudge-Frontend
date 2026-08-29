@@ -61,6 +61,10 @@
 
   <Color x:Key="Color.Shadow">#000000</Color>
 
+  <!-- The soft light-catch a neumorphic surface needs on its raised (top-left) side - see the note
+       in Colors.Dark.xaml. Matches this palette's own RimLight. -->
+  <Color x:Key="Color.Highlight">#7FA888</Color>
+
   <!-- ============================ Text (functional, not part of the 60/30/10 scheme) ============================ -->
 
   <SolidColorBrush x:Key="Brush.Text.Primary" Color="#EDF2EE" />

@@ -55,16 +55,23 @@
   <Thickness x:Key="BorderThickness.Bottom">0,0,0,1</Thickness>
   <Thickness x:Key="BorderThickness.Left.Accent">3,0,0,0</Thickness>
 
-  <CornerRadius x:Key="CornerRadius.S">8</CornerRadius>
-  <CornerRadius x:Key="CornerRadius.M">14</CornerRadius>
-  <CornerRadius x:Key="CornerRadius.L">20</CornerRadius>
+  <!-- A library tile's own outline: thinner top/bottom than left/right, since the top/bottom edges
+       of every tile in a row line up into one continuous horizontal seam across the whole grid,
+       where the same weight as the left/right edges reads as a much heavier line than intended. -->
+  <Thickness x:Key="BorderThickness.Tile">1,0.6,1,0.6</Thickness>
+
+  <!-- Rounder than the original scale, on purpose - soft, pillowy corners are the single biggest
+       ingredient in reading as neumorphic "soft UI" rather than flat material design. -->
+  <CornerRadius x:Key="CornerRadius.S">12</CornerRadius>
+  <CornerRadius x:Key="CornerRadius.M">18</CornerRadius>
+  <CornerRadius x:Key="CornerRadius.L">26</CornerRadius>
 
   <!-- Larger than any control it's used on is tall, so it always renders as a full stadium/pill. -->
   <CornerRadius x:Key="CornerRadius.Pill">22</CornerRadius>
 
   <!-- Rounds only the top corners, matching CornerRadius.M, for a tile's artwork area so it reads
        as one continuous rounded shape with the card around it. -->
-  <CornerRadius x:Key="CornerRadius.Card.Top">14,14,0,0</CornerRadius>
+  <CornerRadius x:Key="CornerRadius.Card.Top">18,18,0,0</CornerRadius>
 
   <!-- Half of Size.Scrollbar, so the thumb's ends are always fully rounded. -->
   <CornerRadius x:Key="CornerRadius.Scrollbar">3</CornerRadius>

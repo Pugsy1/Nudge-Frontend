@@ -51,18 +51,48 @@
               RenderTransformOrigin="0.5,0.5">
         <Button.Template>
           <ControlTemplate TargetType="Button">
-            <Border x:Name="Root"
-                    Margin="{DynamicResource Margin.Tile}"
-                    Background="{DynamicResource Brush.Surface.Background}"
-                    BorderBrush="{DynamicResource Brush.Surface.EdgeHighlight}"
-                    BorderThickness="{DynamicResource BorderThickness.Thin}"
-                    CornerRadius="{DynamicResource CornerRadius.M}"
-                    Effect="{DynamicResource Effect.Tile.Shadow}"
-                    RenderTransformOrigin="0.5,0.5"
-                    SnapsToDevicePixels="True">
-              <Border.RenderTransform>
+            <!--
+              True neumorphic emboss: two DropShadowEffects can't live on one element, so the dark
+              (bottom-right) and light (top-left) shadows are each their own same-shape Border,
+              stacked behind the real content. Both are fully opaque, so with all three Borders the
+              exact same size/position, each shadow layer's own flat body is entirely covered by the
+              one on top of it - only the blur that extends past the shared edges survives, as a
+              soft dark glow peeking out one corner and a soft light glow peeking out the other.
+              Kept subtle at rest (low opacity, tight blur) specifically because dozens of these sit
+              on screen together - the point is individual depth per tile, not a haze across the
+              whole grid.
+            -->
+            <Grid Margin="{DynamicResource Margin.Tile}"
+                  RenderTransformOrigin="0.5,0.5">
+              <Grid.RenderTransform>
                 <ScaleTransform x:Name="Lift" ScaleX="1" ScaleY="1" />
-              </Border.RenderTransform>
+              </Grid.RenderTransform>
+
+              <!-- BitmapCache on both shadow layers: each DropShadowEffect is otherwise recomputed
+                   every frame it's on screen, and with virtualization keeping 30-40 tiles realized
+                   at once during a scroll, two effects per tile is real compositing cost. Caching
+                   rasterizes each layer once and reuses that bitmap - safe here because neither
+                   layer's content ever changes (a static Background fill), only its Effect gets
+                   swapped between the Rest/Hover/Pressed resources, which still invalidates and
+                   re-caches correctly. -->
+              <Border x:Name="ShadowLayer"
+                      Background="{DynamicResource Brush.Surface.Background}"
+                      CornerRadius="{DynamicResource CornerRadius.M}"
+                      Effect="{DynamicResource Effect.Tile.Shadow.Rest}"
+                      CacheMode="BitmapCache" />
+
+              <Border x:Name="HighlightLayer"
+                      Background="{DynamicResource Brush.Surface.Background}"
+                      CornerRadius="{DynamicResource CornerRadius.M}"
+                      Effect="{DynamicResource Effect.Tile.Highlight.Rest}"
+                      CacheMode="BitmapCache" />
+
+              <Border x:Name="Root"
+                      Background="{DynamicResource Brush.Surface.Background}"
+                      BorderBrush="{DynamicResource Brush.Surface.EdgeHighlight}"
+                      BorderThickness="{DynamicResource BorderThickness.Tile}"
+                      CornerRadius="{DynamicResource CornerRadius.M}"
+                      SnapsToDevicePixels="True">
 
               <Grid>
                 <Grid.RowDefinitions>
@@ -156,11 +186,14 @@
                   </Button.Template>
                 </Button>
               </Grid>
-            </Border>
+              </Border>
+            </Grid>
 
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="Root" Property="Effect" Value="{DynamicResource Effect.Tile.Shadow.Hover}" />
+                <!-- Lifted: both shadow layers deepen and spread together. -->
+                <Setter TargetName="ShadowLayer" Property="Effect" Value="{DynamicResource Effect.Tile.Shadow.Hover}" />
+                <Setter TargetName="HighlightLayer" Property="Effect" Value="{DynamicResource Effect.Tile.Highlight.Hover}" />
                 <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Surface.RimLight}" />
                 <Trigger.EnterActions>
                   <BeginStoryboard>
@@ -192,7 +225,10 @@
                 </Trigger.ExitActions>
               </Trigger>
               <Trigger Property="IsPressed" Value="True">
-                <Setter TargetName="Root" Property="Effect" Value="{DynamicResource Effect.Button.Shadow.Pressed}" />
+                <!-- Pressed: both shadows tighten toward nothing, as though the tile sank flush
+                     with the page instead of standing proud of it. -->
+                <Setter TargetName="ShadowLayer" Property="Effect" Value="{DynamicResource Effect.Tile.Shadow.Pressed}" />
+                <Setter TargetName="HighlightLayer" Property="Effect" Value="{DynamicResource Effect.Tile.Highlight.Pressed}" />
               </Trigger>
               <Trigger Property="IsEnabled" Value="False">
                 <Setter TargetName="Root" Property="Opacity" Value="0.45" />
@@ -220,14 +256,23 @@
         <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
 
-      <Image Grid.Column="0"
-             Source="pack://application:,,,/Assets/Library.png"
-             Height="72"
-             HorizontalAlignment="Left"
-             VerticalAlignment="Center"
-             RenderOptions.BitmapScalingMode="HighQuality"
-             UseLayoutRounding="True"
-             ToolTip="{Binding InstallationDisplayName}" />
+      <!-- Recoloured to the active theme's accent rather than shown as the source PNG's own white
+           gloss: an OpacityMask reads the artwork purely as a silhouette (alpha channel), then Fill
+           paints that shape with whatever DynamicResource Brush.Accent currently resolves to, so the
+           wordmark re-tints itself on every theme switch along with everything else. -->
+      <Rectangle Grid.Column="0"
+                 Width="127" Height="72"
+                 HorizontalAlignment="Left"
+                 VerticalAlignment="Center"
+                 UseLayoutRounding="True"
+                 ToolTip="{Binding InstallationDisplayName}"
+                 Fill="{DynamicResource Brush.Accent}">
+        <Rectangle.OpacityMask>
+          <ImageBrush ImageSource="pack://application:,,,/Assets/Library.png"
+                      Stretch="Uniform"
+                      RenderOptions.BitmapScalingMode="HighQuality" />
+        </Rectangle.OpacityMask>
+      </Rectangle>
 
       <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
 
@@ -341,59 +386,43 @@
                   DisplayMemberPath="Label"
                   ToolTip="Sort the library" />
 
+        <!-- Grid density: how many tiles fit per row, 3 (fewest, largest tiles) to 8 (most, smallest
+             tiles). Bound straight through to VirtualizingWrapPanel.Columns via TablesPerRow. -->
+        <StackPanel Orientation="Horizontal" Margin="{DynamicResource Gap.Right.M}" VerticalAlignment="Center" ToolTip="Tiles per row">
+          <TextBlock Text="&#xE80A;"
+                     FontFamily="Segoe MDL2 Assets"
+                     FontSize="14"
+                     Margin="0,0,8,0"
+                     VerticalAlignment="Center"
+                     Foreground="{DynamicResource Brush.Text.Muted}" />
+          <Slider Style="{StaticResource Slider.Standard}"
+                  Width="100"
+                  Minimum="3"
+                  Maximum="8"
+                  Value="{Binding TablesPerRow, Mode=TwoWay}" />
+          <TextBlock Text="{Binding TablesPerRow}"
+                     Style="{StaticResource Text.Caption}"
+                     Margin="8,0,0,0"
+                     Width="14"
+                     VerticalAlignment="Center" />
+        </StackPanel>
+
         <Button Style="{StaticResource Button.Secondary}"
                 Margin="{DynamicResource Gap.Right.M}"
                 Content="Rescan"
                 Command="{Binding RescanCommand}" />
 
-        <!-- Settings. The cog and its flyout are one unit, so the popup stays anchored to it. -->
-        <Grid>
-          <Button x:Name="SettingsButton"
-                  Style="{StaticResource Button.Icon}"
-                  Content="&#xE713;"
-                  ToolTip="Settings"
-                  Command="{Binding ToggleSettingsCommand}" />
-
-          <Popup IsOpen="{Binding IsSettingsOpen, Mode=TwoWay}"
-                 PlacementTarget="{Binding ElementName=SettingsButton}"
-                 Placement="Bottom"
-                 HorizontalOffset="-260"
-                 VerticalOffset="10"
-                 StaysOpen="False"
-                 AllowsTransparency="True"
-                 PopupAnimation="Fade">
-            <Border Style="{StaticResource Surface.Card}"
-                    Width="320"
-                    Margin="16"
-                    Padding="{DynamicResource Padding.Flyout}"
-                    Effect="{DynamicResource Effect.Flyout.Shadow}">
-              <StackPanel>
-                <TextBlock Style="{StaticResource Text.SectionHeading}"
-                           Margin="{DynamicResource Gap.Below.M}"
-                           Text="SETTINGS" />
-
-                <TextBlock Style="{StaticResource Text.BodySecondary}"
-                           Margin="{DynamicResource Gap.Below.XS}"
-                           Text="Theme" />
-                <ComboBox Style="{StaticResource ComboBox.Standard}"
-                          Margin="{DynamicResource Gap.Below.XL}"
-                          HorizontalAlignment="Stretch"
-                          ItemsSource="{Binding ThemeOptions}"
-                          SelectedItem="{Binding SelectedTheme, Mode=TwoWay}"
-                          DisplayMemberPath="Label" />
-
-                <CheckBox Style="{StaticResource Switch}"
-                          Margin="{DynamicResource Gap.Below.S}"
-                          IsChecked="{Binding ShowConfidence, Mode=TwoWay}">
-                  <TextBlock Style="{StaticResource Text.Body}" Text="Show identification confidence" />
-                </CheckBox>
-                <TextBlock Style="{StaticResource Text.Caption}"
-                           TextWrapping="Wrap"
-                           Text="Adds a small status lamp to each table showing how sure Nudge is that it identified it correctly." />
-              </StackPanel>
-            </Border>
-          </Popup>
-        </Grid>
+        <!-- Settings. Just navigates to the full SettingsView (via ShellViewModel watching
+             IsSettingsOpen) - this used to also open a compact Popup flyout anchored right here
+             with a duplicate theme/confidence UI, left over from before the full page existed. Both
+             were driven by the same IsSettingsOpen flag, so clicking the cog opened the popup for a
+             single frame and then yanked it away as the page navigation tore this view down under
+             it - a flash that looked like a random, unexplained popup. -->
+        <Button x:Name="SettingsButton"
+                Style="{StaticResource Button.Icon}"
+                Content="&#xE713;"
+                ToolTip="Settings"
+                Command="{Binding ToggleSettingsCommand}" />
       </StackPanel>
     </Grid>
 
@@ -523,6 +552,49 @@
               Command="{Binding ClearSearchCommand}" />
     </StackPanel>
 
+    <!-- ======================= Empty: "Favourites only" selected, nothing starred yet ======================= -->
+    <StackPanel Grid.Row="2"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                MaxWidth="440"
+                Visibility="{Binding HasNoFavorites, Converter={StaticResource BoolToVisibility}}">
+
+      <!-- The same recessed slot as the other empty states, holding a large outline star instead
+           of a hand-drawn illustration - it's already the exact icon the star button itself uses. -->
+      <Border Width="120" Height="94"
+              HorizontalAlignment="Center"
+              Margin="{DynamicResource Gap.Below.XL}"
+              Background="{DynamicResource Brush.Surface.Recessed}"
+              BorderBrush="{DynamicResource Brush.Surface.Border}"
+              BorderThickness="{DynamicResource BorderThickness.Thin}"
+              CornerRadius="{DynamicResource CornerRadius.M}">
+        <TextBlock Text="&#xE734;"
+                   FontFamily="Segoe MDL2 Assets"
+                   FontSize="36"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   Foreground="{DynamicResource Brush.Text.Muted}" />
+      </Border>
+
+      <TextBlock Style="{StaticResource Text.Subtitle}"
+                 HorizontalAlignment="Center"
+                 TextAlignment="Center"
+                 Text="No favourites yet" />
+      <TextBlock Style="{StaticResource Text.BodySecondary}"
+                 Margin="{DynamicResource Gap.Above.M}"
+                 HorizontalAlignment="Center"
+                 TextAlignment="Center"
+                 TextWrapping="Wrap"
+                 Text="Click the star on a table to add it here." />
+      <ComboBox Style="{StaticResource ComboBox.Standard}"
+                Margin="{DynamicResource Gap.Above.XL}"
+                HorizontalAlignment="Center"
+                Width="188"
+                ItemsSource="{Binding SortOptions}"
+                SelectedItem="{Binding SelectedSort, Mode=TwoWay}"
+                DisplayMemberPath="Label" />
+    </StackPanel>
+
     <!-- ======================= The grid ======================= -->
     <ScrollViewer Grid.Row="2"
                   CanContentScroll="True"
@@ -536,7 +608,8 @@
         <ItemsControl.ItemsPanel>
           <ItemsPanelTemplate>
             <controls:VirtualizingWrapPanel ItemWidth="{DynamicResource Size.Tile.Width}"
-                                            ItemHeight="{DynamicResource Size.Tile.Height}" />
+                                            ItemHeight="{DynamicResource Size.Tile.Height}"
+                                            Columns="{Binding DataContext.TablesPerRow, RelativeSource={RelativeSource AncestorType=ItemsControl}}" />
           </ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
       </ItemsControl>

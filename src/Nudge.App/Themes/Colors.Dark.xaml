@@ -32,51 +32,59 @@
   <!-- ============================ Surfaces ============================ -->
 
   <!--
-    A raised satin panel. The gradient is the material's sheen - light catches the top face and
-    falls away toward the bottom. Kept within a few percent of luminance: a strong gradient reads
-    as "a gradient", a faint one reads as "a surface".
+    Neumorphic "soft UI": a surface is nearly the same colour as the page it sits on - it reads as
+    the page material itself pushed outward, not as a differently-coloured card floating above it.
+    The shape is carried almost entirely by the bevel border and the drop shadow below, not by a
+    background colour jump.
   -->
   <LinearGradientBrush x:Key="Brush.Surface.Background" StartPoint="0,0" EndPoint="0,1">
-    <GradientStop Color="#252A36" Offset="0" />
-    <GradientStop Color="#1E2229" Offset="1" />
+    <GradientStop Color="#1E222C" Offset="0" />
+    <GradientStop Color="#191D25" Offset="1" />
   </LinearGradientBrush>
 
   <LinearGradientBrush x:Key="Brush.Surface.BackgroundAlt" StartPoint="0,0" EndPoint="0,1">
-    <GradientStop Color="#2A303E" Offset="0" />
-    <GradientStop Color="#232936" Offset="1" />
+    <GradientStop Color="#222732" Offset="0" />
+    <GradientStop Color="#1C202A" Offset="1" />
   </LinearGradientBrush>
 
   <!-- A recessed slot - the sheen inverts, darker at the top where the lip casts into it. -->
   <LinearGradientBrush x:Key="Brush.Surface.Recessed" StartPoint="0,0" EndPoint="0,1">
-    <GradientStop Color="#12151C" Offset="0" />
-    <GradientStop Color="#1A1E27" Offset="1" />
+    <GradientStop Color="#13161D" Offset="0" />
+    <GradientStop Color="#181C24" Offset="1" />
   </LinearGradientBrush>
 
   <SolidColorBrush x:Key="Brush.Surface.Border" Color="#2E3545" />
 
   <!-- Frosted glass: a translucent panel letting the ambient glow through behind it. -->
-  <SolidColorBrush x:Key="Brush.Surface.Glass" Color="#B32A303E" />
+  <SolidColorBrush x:Key="Brush.Surface.Glass" Color="#B31E222C" />
 
   <!--
     The bevel. One border brush doing two jobs: a bright top-left edge where light lands, and a
     dark bottom-right edge falling into shadow. Cheaper than stacking two elements per surface,
-    which matters at 1,000 tiles (see AGENTS.md section 8).
+    which matters at 1,000 tiles (see AGENTS.md section 8). Pushed noticeably brighter/darker than
+    the older, subtler version - with the surface itself now barely distinct from the page, this
+    bevel is doing nearly all the work of reading as an embossed, extruded shape.
   -->
-  <LinearGradientBrush x:Key="Brush.Surface.EdgeHighlight" StartPoint="0.1,0" EndPoint="0.9,1">
-    <GradientStop Color="#4A5468" Offset="0" />
-    <GradientStop Color="#333A4A" Offset="0.45" />
-    <GradientStop Color="#191D26" Offset="1" />
+  <LinearGradientBrush x:Key="Brush.Surface.EdgeHighlight" StartPoint="0.15,0" EndPoint="0.85,1">
+    <GradientStop Color="#6B7690" Offset="0" />
+    <GradientStop Color="#333A4A" Offset="0.5" />
+    <GradientStop Color="#0E1015" Offset="1" />
   </LinearGradientBrush>
 
   <!-- A brighter rim light, used on hover so a card feels lifted toward the light. -->
-  <LinearGradientBrush x:Key="Brush.Surface.RimLight" StartPoint="0.1,0" EndPoint="0.9,1">
-    <GradientStop Color="#6B7589" Offset="0" />
-    <GradientStop Color="#3E4658" Offset="0.5" />
-    <GradientStop Color="#1E2229" Offset="1" />
+  <LinearGradientBrush x:Key="Brush.Surface.RimLight" StartPoint="0.15,0" EndPoint="0.85,1">
+    <GradientStop Color="#8994AC" Offset="0" />
+    <GradientStop Color="#454D60" Offset="0.5" />
+    <GradientStop Color="#14171D" Offset="1" />
   </LinearGradientBrush>
 
   <!-- Shadows. Pure black; DropShadowEffect.Opacity does the softening. -->
   <Color x:Key="Color.Shadow">#000000</Color>
+
+  <!-- The soft light-catch a neumorphic surface needs on its raised (top-left) side to read as
+       embossed rather than flat - used as a second, opposite-direction DropShadowEffect paired
+       with Color.Shadow's dark one wherever a control wants the full two-shadow treatment. -->
+  <Color x:Key="Color.Highlight">#4A5568</Color>
 
   <!-- ============================ Text ============================ -->
 

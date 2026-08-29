@@ -22,38 +22,43 @@
 
   <!-- ============================ Surfaces ============================ -->
 
+  <!-- Tightened closer to Window.Background, matching Colors.Dark.xaml's neumorphic pass. -->
   <LinearGradientBrush x:Key="Brush.Surface.Background" StartPoint="0,0" EndPoint="0,1">
-    <GradientStop Color="#252A36" Offset="0" />
-    <GradientStop Color="#1E2229" Offset="1" />
+    <GradientStop Color="#1E222C" Offset="0" />
+    <GradientStop Color="#191D25" Offset="1" />
   </LinearGradientBrush>
 
   <LinearGradientBrush x:Key="Brush.Surface.BackgroundAlt" StartPoint="0,0" EndPoint="0,1">
-    <GradientStop Color="#2A303E" Offset="0" />
-    <GradientStop Color="#232936" Offset="1" />
+    <GradientStop Color="#222732" Offset="0" />
+    <GradientStop Color="#1C202A" Offset="1" />
   </LinearGradientBrush>
 
   <LinearGradientBrush x:Key="Brush.Surface.Recessed" StartPoint="0,0" EndPoint="0,1">
-    <GradientStop Color="#12151C" Offset="0" />
-    <GradientStop Color="#1A1E27" Offset="1" />
+    <GradientStop Color="#13161D" Offset="0" />
+    <GradientStop Color="#181C24" Offset="1" />
   </LinearGradientBrush>
 
   <SolidColorBrush x:Key="Brush.Surface.Border" Color="#2E3545" />
 
-  <SolidColorBrush x:Key="Brush.Surface.Glass" Color="#B32A303E" />
+  <SolidColorBrush x:Key="Brush.Surface.Glass" Color="#B31E222C" />
 
-  <LinearGradientBrush x:Key="Brush.Surface.EdgeHighlight" StartPoint="0.1,0" EndPoint="0.9,1">
-    <GradientStop Color="#4A6858" Offset="0" />
-    <GradientStop Color="#33463C" Offset="0.45" />
-    <GradientStop Color="#191D26" Offset="1" />
+  <LinearGradientBrush x:Key="Brush.Surface.EdgeHighlight" StartPoint="0.15,0" EndPoint="0.85,1">
+    <GradientStop Color="#6A927B" Offset="0" />
+    <GradientStop Color="#33463C" Offset="0.5" />
+    <GradientStop Color="#0E1015" Offset="1" />
   </LinearGradientBrush>
 
-  <LinearGradientBrush x:Key="Brush.Surface.RimLight" StartPoint="0.1,0" EndPoint="0.9,1">
-    <GradientStop Color="#6B9880" Offset="0" />
-    <GradientStop Color="#3E6050" Offset="0.5" />
-    <GradientStop Color="#1E2229" Offset="1" />
+  <LinearGradientBrush x:Key="Brush.Surface.RimLight" StartPoint="0.15,0" EndPoint="0.85,1">
+    <GradientStop Color="#86B99C" Offset="0" />
+    <GradientStop Color="#4A7060" Offset="0.5" />
+    <GradientStop Color="#14171D" Offset="1" />
   </LinearGradientBrush>
 
   <Color x:Key="Color.Shadow">#000000</Color>
+
+  <!-- The soft light-catch a neumorphic surface needs on its raised (top-left) side - see the note
+       in Colors.Dark.xaml. Tinted jade, matching this palette's own RimLight. -->
+  <Color x:Key="Color.Highlight">#6B9880</Color>
 
   <!-- ============================ Text ============================ -->
 

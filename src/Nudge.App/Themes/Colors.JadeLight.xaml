@@ -2,71 +2,61 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
   <!--
-    Light palette - calm, spacious modern skeuomorphism. Defines exactly the same keys as
-    Colors.Dark.xaml.
-
-    Same material logic as the dark palette: a satin panel lit from above, with a bright top-left
-    bevel and a soft shadow below. On a light ground the bevel highlight goes to near-white and the
-    falling edge to a warm grey, rather than the dark palette's slate.
-
-    If you add a key to one of these files you must add it to the other, or the missing theme will
-    fail to resolve it at runtime.
+    Jade Light palette - the same porcelain material as Colors.Light.xaml (surfaces, text,
+    structure all identical), with the accent recoloured from amber to the Jade palette's green,
+    darkened enough to hold contrast on a white surface the same way Colors.Light.xaml darkens
+    Colors.Dark.xaml's amber. See Colors.Jade.xaml for the dark counterpart this pairs with.
   -->
 
   <!-- ============================ Ground ============================ -->
 
+  <!-- Tinted toward jade, unlike the neutral-grey Light palette's ambient glow - the light-mode
+       equivalent of Colors.Jade.xaml's coloured ground. -->
   <RadialGradientBrush x:Key="Brush.Window.Background" GradientOrigin="0.5,0.28" Center="0.5,0.28" RadiusX="0.9" RadiusY="0.85">
-    <GradientStop Color="#F4F5F8" Offset="0" />
-    <GradientStop Color="#E9EBF0" Offset="0.75" />
-    <GradientStop Color="#DFE2E9" Offset="1" />
+    <GradientStop Color="#EEF5F1" Offset="0" />
+    <GradientStop Color="#E4EEE8" Offset="0.75" />
+    <GradientStop Color="#D9E5DF" Offset="1" />
   </RadialGradientBrush>
 
-  <SolidColorBrush x:Key="Brush.Window.BackgroundFlat" Color="#E9EBF0" />
+  <SolidColorBrush x:Key="Brush.Window.BackgroundFlat" Color="#E4EEE8" />
 
   <!-- ============================ Surfaces ============================ -->
 
-  <!-- Neumorphic "soft UI": a surface is nearly the same colour as the page it sits on - see the
-       note in Colors.Dark.xaml. Tightened closer to Window.Background than before for the same
-       reason. -->
   <LinearGradientBrush x:Key="Brush.Surface.Background" StartPoint="0,0" EndPoint="0,1">
-    <GradientStop Color="#F8F9FB" Offset="0" />
-    <GradientStop Color="#EEF0F4" Offset="1" />
+    <GradientStop Color="#FFFFFF" Offset="0" />
+    <GradientStop Color="#F0F2F6" Offset="1" />
   </LinearGradientBrush>
 
   <LinearGradientBrush x:Key="Brush.Surface.BackgroundAlt" StartPoint="0,0" EndPoint="0,1">
-    <GradientStop Color="#F2F3F7" Offset="0" />
-    <GradientStop Color="#E6E8EE" Offset="1" />
+    <GradientStop Color="#F6F7FA" Offset="0" />
+    <GradientStop Color="#E9EBF0" Offset="1" />
   </LinearGradientBrush>
 
-  <!-- A recessed slot - darker at the top where the lip casts into it. -->
   <LinearGradientBrush x:Key="Brush.Surface.Recessed" StartPoint="0,0" EndPoint="0,1">
-    <GradientStop Color="#DADDE5" Offset="0" />
-    <GradientStop Color="#EAECF1" Offset="1" />
+    <GradientStop Color="#DCDFE7" Offset="0" />
+    <GradientStop Color="#EDEFF3" Offset="1" />
   </LinearGradientBrush>
 
   <SolidColorBrush x:Key="Brush.Surface.Border" Color="#D5D9E2" />
 
-  <SolidColorBrush x:Key="Brush.Surface.Glass" Color="#B3F8F9FB" />
+  <SolidColorBrush x:Key="Brush.Surface.Glass" Color="#B3FFFFFF" />
 
-  <!-- Pushed noticeably brighter/darker than the older, subtler version - see the note in
-       Colors.Dark.xaml on why this bevel now carries most of the "embossed" read. -->
-  <LinearGradientBrush x:Key="Brush.Surface.EdgeHighlight" StartPoint="0.15,0" EndPoint="0.85,1">
+  <LinearGradientBrush x:Key="Brush.Surface.EdgeHighlight" StartPoint="0.1,0" EndPoint="0.9,1">
     <GradientStop Color="#FFFFFF" Offset="0" />
-    <GradientStop Color="#DBDFE8" Offset="0.5" />
-    <GradientStop Color="#AFB6C4" Offset="1" />
+    <GradientStop Color="#DDEBE3" Offset="0.45" />
+    <GradientStop Color="#B7CFC2" Offset="1" />
   </LinearGradientBrush>
 
-  <LinearGradientBrush x:Key="Brush.Surface.RimLight" StartPoint="0.15,0" EndPoint="0.85,1">
+  <LinearGradientBrush x:Key="Brush.Surface.RimLight" StartPoint="0.1,0" EndPoint="0.9,1">
     <GradientStop Color="#FFFFFF" Offset="0" />
-    <GradientStop Color="#CBD1DE" Offset="0.5" />
-    <GradientStop Color="#95A0B6" Offset="1" />
+    <GradientStop Color="#CFE6DA" Offset="0.5" />
+    <GradientStop Color="#9BC1AC" Offset="1" />
   </LinearGradientBrush>
 
-  <!-- A warm mid-grey reads better than pure black for shadows on a light ground. -->
   <Color x:Key="Color.Shadow">#96A0B4</Color>
 
   <!-- The soft light-catch a neumorphic surface needs on its raised (top-left) side - see the note
-       in Colors.Dark.xaml. Near-white on a light ground, where the dark palette's is a mid-grey. -->
+       in Colors.Dark.xaml. -->
   <Color x:Key="Color.Highlight">#FFFFFF</Color>
 
   <!-- ============================ Text ============================ -->
@@ -77,16 +67,16 @@
 
   <!-- ============================ Accent ============================ -->
 
-  <!-- Darker amber than the dark palette's, so it holds contrast against a white surface. -->
-  <SolidColorBrush x:Key="Brush.Accent" Color="#B0762A" />
-  <SolidColorBrush x:Key="Brush.Accent.Hover" Color="#C68835" />
-  <SolidColorBrush x:Key="Brush.Accent.Pressed" Color="#946122" />
+  <!-- Darker jade than the dark palette's, so it holds contrast against a white surface. -->
+  <SolidColorBrush x:Key="Brush.Accent" Color="#2E8F68" />
+  <SolidColorBrush x:Key="Brush.Accent.Hover" Color="#3AA378" />
+  <SolidColorBrush x:Key="Brush.Accent.Pressed" Color="#22714F" />
   <SolidColorBrush x:Key="Brush.Accent.Foreground" Color="#FFFFFF" />
-  <SolidColorBrush x:Key="Brush.Accent.Subtle" Color="#FBF2E3" />
+  <SolidColorBrush x:Key="Brush.Accent.Subtle" Color="#E7F5EE" />
 
   <LinearGradientBrush x:Key="Brush.Accent.Surface" StartPoint="0,0" EndPoint="0,1">
-    <GradientStop Color="#C08430" Offset="0" />
-    <GradientStop Color="#A56D25" Offset="1" />
+    <GradientStop Color="#3AA378" Offset="0" />
+    <GradientStop Color="#256F4E" Offset="1" />
   </LinearGradientBrush>
 
   <!-- ============================ Controls ============================ -->
@@ -111,17 +101,17 @@
   <SolidColorBrush x:Key="Brush.Control.Foreground" Color="#1B1F27" />
   <SolidColorBrush x:Key="Brush.Control.ForegroundDisabled" Color="#A8AEBB" />
 
-  <SolidColorBrush x:Key="Brush.Focus" Color="#B0762A" />
+  <SolidColorBrush x:Key="Brush.Focus" Color="#2E8F68" />
 
   <!-- ============================ Indicator LEDs ============================ -->
 
   <SolidColorBrush x:Key="Brush.Confidence.High" Color="#2A7A52" />
-  <SolidColorBrush x:Key="Brush.Confidence.Medium" Color="#96691C" />
+  <SolidColorBrush x:Key="Brush.Confidence.Medium" Color="#2E8F68" />
   <SolidColorBrush x:Key="Brush.Confidence.Low" Color="#A2512A" />
   <SolidColorBrush x:Key="Brush.Confidence.Unknown" Color="#6E7688" />
 
   <SolidColorBrush x:Key="Brush.Confidence.High.Background" Color="#E6F2EA" />
-  <SolidColorBrush x:Key="Brush.Confidence.Medium.Background" Color="#FBF2E3" />
+  <SolidColorBrush x:Key="Brush.Confidence.Medium.Background" Color="#E7F5EE" />
   <SolidColorBrush x:Key="Brush.Confidence.Low.Background" Color="#FAEDE5" />
   <SolidColorBrush x:Key="Brush.Confidence.Unknown.Background" Color="#ECEEF2" />
 
@@ -142,8 +132,8 @@
   <!-- ============================ Window chrome ============================ -->
 
   <LinearGradientBrush x:Key="Brush.TitleBar.Background" StartPoint="0,0" EndPoint="0,1">
-    <GradientStop Color="#F2F4F8" Offset="0" />
-    <GradientStop Color="#E4E7EE" Offset="1" />
+    <GradientStop Color="#F0F6F2" Offset="0" />
+    <GradientStop Color="#E1ECE5" Offset="1" />
   </LinearGradientBrush>
 
   <SolidColorBrush x:Key="Brush.Overlay.Scrim" Color="#D9EDEFF3" />

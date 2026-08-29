@@ -17,10 +17,16 @@ public enum AppTheme
     Dark,
     Light,
     Jade,
+    JadeLight,
     Sapphire,
+    SapphireLight,
     Crimson,
+    CrimsonLight,
     Chrome,
-    Hulk
+    ChromeLight,
+    Hulk,
+    HulkLight,
+    Oled
 }
 
 /// <summary>Switches the application between the available palettes.</summary>
@@ -52,10 +58,16 @@ public sealed class ThemeService : IThemeService
         [AppTheme.Dark] = "Colors.Dark.xaml",
         [AppTheme.Light] = "Colors.Light.xaml",
         [AppTheme.Jade] = "Colors.Jade.xaml",
+        [AppTheme.JadeLight] = "Colors.JadeLight.xaml",
         [AppTheme.Sapphire] = "Colors.Sapphire.xaml",
+        [AppTheme.SapphireLight] = "Colors.SapphireLight.xaml",
         [AppTheme.Crimson] = "Colors.Crimson.xaml",
+        [AppTheme.CrimsonLight] = "Colors.CrimsonLight.xaml",
         [AppTheme.Chrome] = "Colors.Chrome.xaml",
-        [AppTheme.Hulk] = "Colors.Hulk.xaml"
+        [AppTheme.ChromeLight] = "Colors.ChromeLight.xaml",
+        [AppTheme.Hulk] = "Colors.Hulk.xaml",
+        [AppTheme.HulkLight] = "Colors.HulkLight.xaml",
+        [AppTheme.Oled] = "Colors.Oled.xaml"
     };
 
     public AppTheme Current { get; private set; } = AppTheme.Dark;

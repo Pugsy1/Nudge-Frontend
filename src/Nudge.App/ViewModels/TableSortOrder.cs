@@ -20,7 +20,7 @@ public enum TableSortOrder
     TitleDescending,
     YearNewest,
     YearOldest,
-    FavoritesFirst
+    FavoritesOnly
 }
 
 /// <summary>
@@ -87,7 +87,12 @@ public sealed class TableTitleComparer : IComparer
     }
 }
 
-/// <summary>Favourited tiles first, then title order within each group.</summary>
+/// <summary>
+/// Orders by title within the favourited set. FilterTable already excludes everything unfavourited
+/// when TableSortOrder.FavoritesOnly is selected, so the IsFavorite comparison here is only a
+/// defensive tie-breaker, not the primary sort - kept in case an item's favourite state changes
+/// mid-frame before the live filter has caught up.
+/// </summary>
 public sealed class TableFavoriteComparer : IComparer
 {
     public int Compare(object? x, object? y)

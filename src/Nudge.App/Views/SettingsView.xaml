@@ -15,11 +15,16 @@
 
     <!-- Header -->
     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="{DynamicResource Padding.Page}" VerticalAlignment="Center">
+      <!-- Focusable="False": without it, this is the first focusable control in the page, so when
+           the settings cog (itself focused by the click that opened this page) gets removed from
+           the visual tree, WPF's focus manager lands keyboard focus here automatically - which
+           flashes Button.Base's IsKeyboardFocused accent border on a button nobody actually clicked. -->
       <Button Style="{StaticResource Button.Icon}"
               Content="&#xE72B;"
               Margin="{DynamicResource Gap.Right.L}"
               ToolTip="Back to your library"
-              Command="{Binding BackCommand}" />
+              Command="{Binding BackCommand}"
+              Focusable="False" />
       <TextBlock Style="{StaticResource Text.Title}" Text="Settings" VerticalAlignment="Center" />
     </StackPanel>
 
