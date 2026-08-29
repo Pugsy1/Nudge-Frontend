@@ -205,6 +205,73 @@ minimal Baller layout described in early planning:
 This is good validation that the "never guess, report Unknown" rule matters in practice: a real
 install has considerably more noise than the clean four-executable layout used in early planning.
 
+## Artwork: local sources investigated, network source chosen
+
+Researched for `IArtworkProvider` (`Nudge.Core.Abstractions` / `Nudge.Media`). Every local option was
+checked against the maintainer's real installations before deciding none of them were usable as the
+primary source, then a network source was chosen and verified live.
+
+- **A PinballX/PinballY/HyperPin-style media folder** (`Media\<System>\Wheel Images\<Game>.png` etc.,
+  confirmed via [PinballY's own docs](http://mjrnet.org/pinscape/downloads/PinballY/Help/DirectoryInfo.html))
+  does not apply here at all: that folder lives inside a *separate frontend's own install directory*,
+  not inside a VPX installation, and importing from another frontend's media library is already its
+  own later phase - AGENTS.md's phase table, Phase 10 ("Frontend media import"). Checked both real
+  installations on this machine directly: neither has one, and neither has loose image files sitting
+  next to any `.vpx` either.
+- **`GameStg`'s own embedded images, as a last-resort local fallback** - investigated and **rejected**.
+  VPX has a field seemingly built for exactly this (`SSHT`/`screen_shot` in `GameData`, confirmed via
+  [francisdb/vpin](https://github.com/francisdb/vpin)'s source), but it is empty on every real table
+  checked. Without it, there is no reliable way to identify which of a table's dozens of embedded
+  images (Medieval Madness has 76) is "the" cover art rather than a VR floor texture, a color-grade
+  LUT, or a ball decal - one embedded image only looked plausible because its author happened to name
+  their source folder "Backglass". Picking a heuristic (largest image, first image, name contains
+  "wheel"/"backglass") would sometimes silently return a texture as if it were real artwork - exactly
+  the kind of guess this project does not present as fact. Not implemented.
+- **`.directb2s` backglass files** - fully implemented and verified, then **explicitly overridden**:
+  the maintainer asked for network-sourced artwork instead of local files as the metadata/thumbnail
+  source. The format itself (XML, `Images/BackglassImage/@Value` holding base64 PNG bytes with
+  embedded `&#xD;&#xA;` line-break entities that `Convert.FromBase64String` tolerates natively) was
+  confirmed working end-to-end against two real `.directb2s` files, producing correctly-decoded real
+  backglass images. Not wired into `IArtworkProvider` per that instruction, but the finding is
+  recorded here in case local artwork is revisited later.
+- **The network source: [vps-db](https://github.com/VirtualPinballSpreadsheet/vps-db)**, the
+  community VPX metadata/artwork dataset already used by PinUP Popper, PinballX and similar
+  frontends. **Has no license anywhere** - no `LICENSE` file, no README, GitHub's API reports
+  `"license": null` - which under default copyright means no formal reuse permission is granted,
+  despite being the de facto standard for this exact category of tool. The alternatives checked
+  (`vpdb.io`, `opdb.org`) had no clearer terms and no confirmed VPX-specific artwork either. Used
+  anyway on the maintainer's explicit instruction, accepting the same informal-but-widely-used
+  posture every comparable open-source VPX tool already takes toward this source.
+  - Schema (confirmed against the live 7 MB `db/vpsdb.json`, 2,568 entries at the time of checking):
+    a flat JSON array of `{ id, name, manufacturer, year, tableFiles: [...], b2sFiles: [...],
+    wheelArtFiles: [...] }`. `tableFiles[].imgUrl` and `b2sFiles[].imgUrl` are direct, fetchable
+    `https://virtualpinballspreadsheet.github.io/vps-db/img/*.webp` URLs; `wheelArtFiles` almost
+    always link out to a download *page* (vpuniverse.com, vpforums.org) rather than hosting an
+    image directly, so it is not used. `tableFiles` (playfield screenshot) is preferred over
+    `b2sFiles` (backglass) only because it is more consistently present in the real data.
+  - Matching is a simple normalised-equality comparison on title (strip everything but
+    letters/digits, lowercase), disambiguated by manufacturer then year when more than one entry
+    shares a title - not fuzzy/typo-tolerant. An unmatched title is reported as no match, never a
+    best-guess nearest neighbour.
+  - **Verified live, end to end**: downloaded the real index, matched three real tables from the
+    maintainer's collection (Medieval Madness, Black Knight 2000, Twilight Zone) by title,
+    manufacturer and year, downloaded each match's real `.webp` image over the network, decoded and
+    resized each through the real `ImageResizer`, and visually confirmed the Medieval Madness result
+    was a correct, real playfield screenshot.
+  - **WebP decoding**: `System.Drawing.Common`/GDI+ does not reliably decode WebP even on Windows
+    versions with WIC-level WebP support - the codec is often not installed, and GDI+ frequently
+    does not surface it even when it is. Used `SixLabors.ImageSharp` instead (pure managed code, no
+    OS codec dependency, confirmed WebP support in its decoder list at runtime), **pinned to 3.1.12**
+    - the same reasoning as FluentAssertions being pinned to 7.2.0: ImageSharp 4.0.0 introduced the
+    "Six Labors Split License" with a build-time license key requirement for direct dependencies;
+    3.1.x is the last Apache-2.0-only line with no key.
+  - **A real exception-hierarchy gotcha, caught by a test rather than assumed**: ImageSharp's
+    `ImageFormatException` (thrown for a corrupt/unrecognised image) does **not** derive from
+    `InvalidOperationException`, despite looking like it should - it derives directly from
+    `Exception`. A test asserting the wrong exception type caught this before it shipped as a real
+    gap in `VpsDbArtworkProvider`'s error handling (an unhandled exception on a bad network image,
+    rather than the intended graceful "not found").
+
 ## Where sources conflicted
 
 None yet. If a future Visual Pinball release changes something documented here, record the

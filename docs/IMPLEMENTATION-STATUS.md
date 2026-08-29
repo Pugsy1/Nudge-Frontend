@@ -51,10 +51,13 @@ surfaces, rounded corners, a "pressed in" state on click.
 
 **App icon** — a hand-rendered, size-aware chrome disc icon (`Assets/nudge.ico`), rendered natively
 per resolution rather than downscaled from one master, so it stays legible at 16px. The header
-wordmark is currently plain text, pending a supplied logo PNG.
+wordmark now uses the supplied logo PNG (`Assets/Nudge Logo Words.png`), recolored per theme.
 
-**Standard Windows title bar** — by explicit decision, custom window chrome is deferred to Phase 4
-alongside the real library shell.
+**Custom window chrome** — superseded during Phase 4 UI work: `MainWindow.xaml` now uses
+`WindowStyle="None"` with a full custom `WindowChrome` (themed minimize/maximize/close, true
+borderless fullscreen launch). See `docs/UI-SESSION-HANDOFF.md` for details. The line below
+describing Phase 1 as shipping with the standard title bar is accurate for what Phase 1 itself
+built; it was superseded later, not revised retroactively.
 
 ### What's deliberately not built (Phase 1 scope)
 
@@ -354,3 +357,76 @@ its own `WriteIfNotNull` method call) was never affected, which is why this was 
    test collection via a throwaway harness: `Medieval Madness` → `mm_109b` (correctly skipping three
    commented-out alternatives), `BlackKnight2000` → `bk2k_l4`, `Nudge Test and Calibration` →
    `dof_test`, and `Twilight Zone` → correctly not found (conditionally assigned, as above).
+
+## Artwork (headless; UI not wired up yet)
+
+**Status: functionally complete for its stated scope, verified against the real live vps-db dataset.
+No UI displays any of this yet - that's a separate piece of work for the UI session, using the
+interface and setting reported below.**
+
+### What's built
+
+- **`IArtworkProvider`** (`Nudge.Core.Abstractions`) / **`ArtworkImage`** (`Nudge.Core.Models`) - the
+  public contract. `GetArtworkAsync(VpxTableFile, CancellationToken)` returns
+  `Result<ArtworkImage>`; failure (no match, no image, network error, setting off) is always the same
+  ordinary outcome, never an exception.
+- **A new project, `Nudge.Media`**, implementing it against
+  [vps-db](https://github.com/VirtualPinballSpreadsheet/vps-db), the community VPX metadata/artwork
+  dataset - see docs/RESEARCH-NOTES.md for why this was chosen over every local source that was
+  investigated (a PinballX/PinballY-style media folder does not apply to a bare VPX install; VPX's
+  own embedded images have no reliable way to identify which one is cover art; `.directb2s` backglass
+  extraction was fully verified but not used, per explicit instruction to prefer network artwork).
+  - `VpsDbIndex` downloads and caches `db/vpsdb.json` (updated daily upstream, so cached for 24h;
+    falls back to a stale cache rather than nothing when the network fails).
+  - `VpsDbMatcher` matches a table by normalised title, disambiguated by manufacturer then year -
+    simple exact matching, not fuzzy.
+  - `ImageResizer` (`SixLabors.ImageSharp`, pinned to 3.1.12 for the same license reason
+    FluentAssertions is pinned to 7.2.0 - see docs/RESEARCH-NOTES.md) decodes WebP/PNG/JPEG and
+    downscales to at most 480px on the long edge, never upscaling.
+  - `ArtworkCache` permanently caches the resolved, resized PNG per table (keyed by a hash of the
+    table's path) - a table is never fetched from the network twice.
+  - `VpsDbArtworkProvider` ties it together: cache first, then the `FetchArtworkFromInternet`
+    setting, then the index match, then a rate-limited (300ms minimum between requests), timed-out
+    (15s) download.
+- **`NudgeSettings.FetchArtworkFromInternet`** (`Nudge.Core.Models`, default `false`) - the opt-in
+  gate. Off by default because this is the only thing Nudge does that talks to the network at all.
+
+### What's deliberately not built
+
+- **No UI uses this yet.** No image renders anywhere; tiles still show the placeholder initial. The
+  composition root also does not call `AddNudgeMedia()` yet - see "For the UI/composition session"
+  below.
+- **No local artwork source at all** - not `.directb2s` (built and verified, but not wired in), not
+  embedded `GameStg` images (investigated, rejected as unreliable), not a media folder (does not
+  apply). Artwork is 100% network-sourced right now; a table gets nothing if vps-db has no match or
+  the setting is off, by design (per the maintainer: don't chase artwork for tables it doesn't come
+  to naturally - a manual per-table picker is the intended answer for those, not yet built).
+- **No manual "pick your own poster" override.** Mentioned by the maintainer as the intended way to
+  handle tables artwork can't be found for automatically - a `Nudge.Data`/UI feature for later.
+
+### For the UI/composition session
+
+- Call `services.AddNudgeMedia(artworkCacheDirectory)` in the composition root (`App.xaml.cs`) after
+  `AddNudgeVpx()`, the same pattern `AddNudgeData(databasePath)` already uses.
+  `artworkCacheDirectory` should be something like
+  `Path.Combine(ResolveDataDirectory(environment), "artwork")`.
+- Resolve `IArtworkProvider` and call `GetArtworkAsync(table)` per tile; treat `Result.Failure` as
+  "show the placeholder", not an error. Nothing here blocks a calling thread, so this is safe to
+  await per-tile as tiles come into view.
+- The opt-in setting is `NudgeSettings.FetchArtworkFromInternet` (default `false`) - needs a toggle
+  somewhere in Settings.
+
+### Verified two ways
+
+1. **28 tests** (`Nudge.Media.Tests`) against a faked `HttpMessageHandler`, `MockFileSystem`, and
+   real generated images through the real `ImageResizer` - matching/disambiguation, cache-hit
+   short-circuiting, the setting gate, stale-cache fallback on a network failure, download failure
+   handling, and upscale-never/downscale-to-480px resizing. One test caught a real bug before it
+   shipped: ImageSharp's `ImageFormatException` does not derive from `InvalidOperationException`,
+   so the provider's catch clause was silently wrong for a corrupt network image until the test
+   exposed it.
+2. **Verified live against the real vps-db dataset and network**: downloaded the real 2,568-entry
+   index, matched three real tables from the maintainer's test collection by title/manufacturer/year,
+   downloaded each match's real image over the network, decoded and resized each through the real
+   pipeline, and visually confirmed the result was a correct, real Medieval Madness playfield
+   screenshot.

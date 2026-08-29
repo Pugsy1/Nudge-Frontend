@@ -55,6 +55,35 @@ public sealed class NudgeSettings
 
     /// <summary>Installations the user has confirmed or added manually, newest last.</summary>
     public List<KnownInstallation> KnownInstallations { get; set; } = [];
+
+    /// <summary>
+    /// Whether the neumorphic theme draws its soft drop shadows at all. On by default; a pure
+    /// display preference like ThemeName, not something a scan or the database needs to know about.
+    /// </summary>
+    public bool EnableShadows { get; set; } = true;
+
+    /// <summary>
+    /// Scales every shadow's opacity, as a percentage (25-175, 100 = the theme's authored default).
+    /// Deliberately does not touch blur radius or shadow depth - those were sized to fit the space
+    /// each control actually has to render a shadow into without it hard-clipping (see the note in
+    /// Nudge.App's Themes/Effects.xaml), and scaling them here would risk reintroducing that.
+    /// </summary>
+    public int ShadowIntensityPercent { get; set; } = 100;
+
+    /// <summary>
+    /// How the library screen arranges tables - stored as the name of the UI's layout-mode enum
+    /// (see <c>Nudge.App.ViewModels.LibraryLayoutMode</c>), the same pattern <see cref="SortOrder"/>
+    /// already uses, so an unrecognised value falls back to the default instead of failing.
+    /// </summary>
+    public string LayoutMode { get; set; } = "Grid";
+
+    /// <summary>
+    /// Opt-in, off by default: whether Nudge may fetch table artwork from the internet (the
+    /// community vps-db dataset - see <c>IArtworkProvider</c> and docs/RESEARCH-NOTES.md) when a
+    /// table has none locally. Off by default because it is the only thing Nudge does that talks to
+    /// the network at all; a user who never enables it gets a purely offline app.
+    /// </summary>
+    public bool FetchArtworkFromInternet { get; set; }
 }
 
 /// <summary>A remembered installation. Deliberately minimal: paths get re-validated on every start.</summary>

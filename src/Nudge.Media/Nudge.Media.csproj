@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Nudge.Media</RootNamespace>
+    <AssemblyName>Nudge.Media</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Nudge.Core\Nudge.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.IO.Abstractions" Version="22.0.15" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+
+    <!--
+      Pinned to the 3.x line deliberately, the same reasoning as FluentAssertions being pinned to
+      7.2.0: SixLabors.ImageSharp 4.0.0 introduced the "Six Labors Split License" with a
+      build-time license key requirement for direct package dependencies. 3.1.x is the last
+      Apache-2.0-only line with no key and no revenue-based licensing terms. Used here (rather than
+      System.Drawing.Common/WIC) because WebP decoding is not reliably available through GDI+ even
+      on Windows versions that technically have WIC WebP support - see docs/RESEARCH-NOTES.md.
+      ImageSharp decodes WebP natively, in managed code, with no OS codec dependency at all.
+    -->
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Nudge.Media.Tests" />
+  </ItemGroup>
+
+</Project>
