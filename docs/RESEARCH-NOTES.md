@@ -126,16 +126,25 @@ collection used to validate Phase 2 — mostly images and sound sitting in `Game
   it) - not wired into the fast library scan; see docs/IMPLEMENTATION-STATUS.md for what that means
   in practice.
   - `GameStg\GameData` is a sequence of **BIFF-style tagged records**: a 4-byte little-endian
-    length (covering the 4-byte tag plus whatever payload follows), the 4-byte tag itself, then the
-    payload, ending in an `ENDB` record. The script lives in the `CODE` record, whose payload is
-    itself a 4-byte length followed by that many bytes of text (UTF-8 when valid, Latin-1
-    otherwise). **This format is not documented anywhere in vpinball's own repository or shipped
-    docs.** It was cross-checked against the open-source community projects
+    length, the 4-byte tag, then the payload, ending in an `ENDB` record. For an ordinary record
+    that length covers the tag *plus* its payload — e.g. a float record is `8` (4 tag + 4 value).
+  - **The `CODE` record, which holds the script, is framed differently, and this is the one detail
+    worth not rediscovering.** Its record length is only ever `4` — the tag alone — and the script's
+    own 4-byte length follows immediately *after* the tag, outside that record length. (`vpin` calls
+    this shape "tagged string with no size".) The text is UTF-8 when valid, Latin-1 otherwise.
+    **Confirmed against a real file**: Medieval Madness's `CODE` record sits 258 records in, reads
+    `recordLength=4`, and is followed by a 211,629-byte script.
+  - **This format is not documented anywhere in vpinball's own repository or shipped docs.** It was
+    cross-checked against the open-source community projects
     [francisdb/vpin](https://github.com/francisdb/vpin) and
     [francisdb/vpxtool](https://github.com/francisdb/vpxtool) (which read/write real `.vpx` files
-    this same way), then **independently verified here** by parsing four real, independently-authored
-    table files from the maintainer's test collection and confirming the extracted script text was
-    byte-for-byte sensible VBScript.
+    this same way), then verified here against real, independently-authored table files.
+  - **A caution, learned the hard way here.** The first implementation assumed `CODE` was framed
+    like every other record (length covering tag + payload) and the synthetic test fixture was
+    written to match that same assumption. Sixteen unit tests passed against it while the reader
+    found *nothing at all* on all 61 real tables — the fixture and the reader simply agreed with
+    each other. Anything parsing this format must be checked against real files on disk, not only
+    against a fixture this repository generates.
   - The `cGameName` search convention, confirmed against those same four real files: a top-level
     `Const cGameName = "romname"` (or without `Const`) assignment somewhere in the script. Real
     tables are messier than that in practice - **Medieval Madness** carries four different
@@ -147,6 +156,18 @@ collection used to validate Phase 2 — mostly images and sound sitting in `Game
 - A fast scan should read only the small `TableInfo` streams. Never load a whole file. Phase 2's
   reader does exactly this — confirmed by running it against 33 real files up to 460 MB each
   without reading their `GameStg` storage at all.
+- **ROMs are looked up by name in VPinMAME's registered `rompath`**, as `<rompath>\<romname>.zip`
+  (they stay zipped). `Nudge.Vpx.Roms.RomAvailabilityChecker` reads that path from
+  `HKCU\Software\Freeware\Visual PinMame\globals\rompath`, falling back to `HKLM`. Because VPinMAME
+  is registered machine-wide, this resolves to whichever install registered last — on the
+  maintainer's machine that is the real Baller install's `roms` folder, even when the tables being
+  checked come from the separate test install. That is correct: it is the same folder Visual Pinball
+  itself would load ROMs from.
+- **Measured against the maintainer's real 61-table collection**: 36 tables name a ROM that is
+  installed, 19 name a ROM that is **not** installed, and 6 name no ROM at all (originals and
+  test/calibration tables). A cold pass over all 61 took ~2.9s — roughly 47s per 1,000 tables, which
+  is why script/ROM reading is kept as a second pass rather than folded into the fast scan, whose
+  whole budget for 1,000 tables is 60s.
 
 ## Surrounding ecosystem
 

@@ -20,17 +20,18 @@ public interface IGameDataScriptReader
 }
 
 /// <summary>
-/// <c>GameStg\GameData</c> is a sequence of BIFF-style tagged records: a 4-byte little-endian length
-/// (covering the 4-byte tag plus whatever payload follows), then the 4-byte tag itself, then the
-/// payload. The table's script lives in the "CODE" record, whose payload is itself a 4-byte length
-/// followed by that many bytes of text, decoded as UTF-8 when valid and Latin-1 otherwise. A record
-/// tagged "ENDB" marks the end of the stream.
+/// <c>GameStg\GameData</c> is a sequence of BIFF-style tagged records: a 4-byte little-endian
+/// length, then the 4-byte tag, then the payload. For an ordinary record that length covers the tag
+/// plus its payload. The table's script lives in the "CODE" record, which is framed differently -
+/// its length covers only the tag, and the script's own 4-byte length follows the tag outside that
+/// record length (see the comment on the CODE branch below). Script text is decoded as UTF-8 when
+/// valid and Latin-1 otherwise. A record tagged "ENDB" marks the end of the stream.
 ///
 /// This format is not documented in vpinball's own repository or shipped docs. It was cross-checked
 /// against the open-source community projects github.com/francisdb/vpin and
 /// github.com/francisdb/vpxtool (which read and write real <c>.vpx</c> files this same way), then
-/// independently verified here against four real, independently-authored table files from the
-/// maintainer's test collection - see docs/RESEARCH-NOTES.md.
+/// verified here against real, independently-authored table files from the maintainer's collection -
+/// see docs/RESEARCH-NOTES.md.
 /// </summary>
 public sealed class GameDataScriptReader : IGameDataScriptReader
 {
@@ -132,16 +133,24 @@ public sealed class GameDataScriptReader : IGameDataScriptReader
 
             if (tag == CodeTag)
             {
-                int payloadStart = pos + TagLength;
-                int payloadLength = recordLength - TagLength;
+                // The CODE record is framed differently from every other record, and this is the
+                // single most important detail in this file. An ordinary record's 4-byte length
+                // covers its tag *and* its payload (e.g. a float record is 8: 4 tag + 4 value).
+                // CODE's length is only ever 4 - the tag alone - and the script's own 4-byte length
+                // follows immediately after the tag, outside that record length. (vpin writes this
+                // shape via "write_tagged_string_with_encoding_no_size".) Verified directly against
+                // real table files: a real CODE record reads recordLength=4 with a 211,629-byte
+                // script following it. Deriving the payload size from recordLength instead - the
+                // obvious-looking assumption - finds nothing at all on every real table.
+                int lengthFieldStart = pos + TagLength;
 
-                if (payloadLength < LengthPrefixSize)
+                if (lengthFieldStart + LengthPrefixSize > buffer.Length)
                 {
                     break;
                 }
 
-                int innerLength = BitConverter.ToInt32(buffer, payloadStart);
-                int textStart = payloadStart + LengthPrefixSize;
+                int innerLength = BitConverter.ToInt32(buffer, lengthFieldStart);
+                int textStart = lengthFieldStart + LengthPrefixSize;
 
                 if (innerLength < 0 || textStart + innerLength > buffer.Length)
                 {

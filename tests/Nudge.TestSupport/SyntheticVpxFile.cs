@@ -88,7 +88,24 @@ public static class SyntheticVpxFile
         using var biffStream = new MemoryStream();
         byte[] scriptBytes = Encoding.UTF8.GetBytes(script);
 
-        WriteInt32LittleEndian(biffStream, 4 + 4 + scriptBytes.Length);
+        // A couple of ordinary records first, so the synthetic stream exercises the reader's
+        // record-skipping rather than handing it CODE as the very first thing - real tables carry
+        // hundreds of these before the script (a real Medieval Madness has 258).
+        WriteInt32LittleEndian(biffStream, 8);
+        biffStream.Write("LEFT"u8);
+        WriteInt32LittleEndian(biffStream, 0);
+
+        WriteInt32LittleEndian(biffStream, 8);
+        biffStream.Write("TOPX"u8);
+        WriteInt32LittleEndian(biffStream, 0);
+
+        // CODE's record length is 4 - the tag ONLY - with the script's own length following the tag
+        // outside that record length. This is not the same framing as the records above, and getting
+        // it wrong is invisible against a synthetic file that shares the mistake: an earlier version
+        // of this builder wrote "4 + 4 + length" here, matching a reader that expected the same, and
+        // both agreed happily while failing to read every real table on disk. See
+        // Nudge.Vpx.TableFiles.GameDataScriptReader and docs/RESEARCH-NOTES.md.
+        WriteInt32LittleEndian(biffStream, 4);
         biffStream.Write("CODE"u8);
         WriteInt32LittleEndian(biffStream, scriptBytes.Length);
         biffStream.Write(scriptBytes, 0, scriptBytes.Length);

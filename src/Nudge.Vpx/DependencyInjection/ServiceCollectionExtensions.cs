@@ -8,6 +8,7 @@ using Nudge.Vpx.Discovery;
 using Nudge.Vpx.Identification;
 using Nudge.Vpx.Launching;
 using Nudge.Vpx.Platform;
+using Nudge.Vpx.Roms;
 using Nudge.Vpx.Settings;
 using Nudge.Vpx.TableFiles;
 
@@ -64,6 +65,9 @@ public static class ServiceCollectionExtensions
 
         services.TryAddSingleton<IProcessRunner, ProcessRunner>();
         services.TryAddSingleton<ILaunchEngine, LaunchEngine>();
+
+        // Standalone building block for the health system (Phase 7) - not wired into anything yet.
+        services.TryAddSingleton<IRomAvailabilityChecker, RomAvailabilityChecker>();
 
         services.TryAddSingleton<ISettingsService>(provider => new JsonSettingsService(
             provider.GetRequiredService<IFileSystem>(),
