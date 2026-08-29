@@ -378,8 +378,11 @@ interface and setting reported below.**
   extraction was fully verified but not used, per explicit instruction to prefer network artwork).
   - `VpsDbIndex` downloads and caches `db/vpsdb.json` (updated daily upstream, so cached for 24h;
     falls back to a stale cache rather than nothing when the network fails).
-  - `VpsDbMatcher` matches a table by normalised title, disambiguated by manufacturer then year -
-    simple exact matching, not fuzzy.
+  - `VpsDbMatcher` matches a table by **token-set** comparison (camelCase- and digit-aware word
+    splitting, stopwords dropped, one side's words allowed to be wholly contained in the other's when
+    it has 2+ significant words), disambiguated by manufacturer then year - measured at 50/61 (82%)
+    against the maintainer's real collection, up from 37/61 (61%) for plain exact-string matching.
+    See docs/RESEARCH-NOTES.md for the full before/after and the two known remaining edge cases.
   - `ImageResizer` (`SixLabors.ImageSharp`, pinned to 3.1.12 for the same license reason
     FluentAssertions is pinned to 7.2.0 - see docs/RESEARCH-NOTES.md) decodes WebP/PNG/JPEG and
     downscales to at most 480px on the long edge, never upscaling.
@@ -418,15 +421,20 @@ interface and setting reported below.**
 
 ### Verified two ways
 
-1. **28 tests** (`Nudge.Media.Tests`) against a faked `HttpMessageHandler`, `MockFileSystem`, and
-   real generated images through the real `ImageResizer` - matching/disambiguation, cache-hit
-   short-circuiting, the setting gate, stale-cache fallback on a network failure, download failure
-   handling, and upscale-never/downscale-to-480px resizing. One test caught a real bug before it
-   shipped: ImageSharp's `ImageFormatException` does not derive from `InvalidOperationException`,
-   so the provider's catch clause was silently wrong for a corrupt network image until the test
-   exposed it.
-2. **Verified live against the real vps-db dataset and network**: downloaded the real 2,568-entry
-   index, matched three real tables from the maintainer's test collection by title/manufacturer/year,
-   downloaded each match's real image over the network, decoded and resized each through the real
-   pipeline, and visually confirmed the result was a correct, real Medieval Madness playfield
-   screenshot.
+1. **34 tests** (`Nudge.Media.Tests`) against a faked `HttpMessageHandler`, `MockFileSystem`, and
+   real generated images through the real `ImageResizer` - matching/disambiguation (including the
+   token-set rules: camelCase/digit splitting, stopwords, subset matching, the short-title guard),
+   cache-hit short-circuiting, the setting gate, stale-cache fallback on a network failure, download
+   failure handling, and upscale-never/downscale-to-480px resizing. Two tests caught real bugs
+   before they shipped: ImageSharp's `ImageFormatException` does not derive from
+   `InvalidOperationException` (the provider's catch clause was silently wrong for a corrupt network
+   image until the test exposed it), and the first tokenizer pass turned "BlackKnight2000" into
+   "Black" + "Knight2000" rather than "Black"/"Knight"/"2000", silently regressing a match that
+   worked under the old plain-string comparison.
+2. **Verified live against the real vps-db dataset and network, twice**: first end-to-end for three
+   tables (downloaded the real index, matched by title/manufacturer/year, downloaded each match's
+   real image, decoded and resized through the real pipeline, visually confirmed a correct Medieval
+   Madness playfield screenshot); then again at scale, running the real scanner's table reader plus
+   the real matcher against **all 61 real table files** in the maintainer's test collection - measured
+   50/61 (82%) matched against the live index, up from 37/61 (61%) for the original plain
+   exact-string matcher. See docs/RESEARCH-NOTES.md for the categorised misses.

@@ -249,10 +249,46 @@ primary source, then a network source was chosen and verified live.
     always link out to a download *page* (vpuniverse.com, vpforums.org) rather than hosting an
     image directly, so it is not used. `tableFiles` (playfield screenshot) is preferred over
     `b2sFiles` (backglass) only because it is more consistently present in the real data.
-  - Matching is a simple normalised-equality comparison on title (strip everything but
-    letters/digits, lowercase), disambiguated by manufacturer then year when more than one entry
-    shares a title - not fuzzy/typo-tolerant. An unmatched title is reported as no match, never a
-    best-guess nearest neighbour.
+  - **Matching started as simple normalised-equality on title** (strip everything but
+    letters/digits, lowercase), disambiguated by manufacturer then year. **Measured against all 61
+    real tables in the maintainer's test collection, this only matched 37 (61%)** - real table
+    titles are messier than a clean database entry in ways plain string equality can't bridge:
+    - A "VR ROOM"/"VR Room" naming prefix some VR-conversion authors add, not part of the real game
+      title (7 of the 24 original misses): `"VR ROOM Attack from Mars"` vs vps-db's `"Attack from
+      Mars"`.
+    - Edition suffixes: `"Attack from Mars LE"`, `"Game of Thrones LE"`, `"X-Men LE"` vs a base
+      entry with no suffix.
+    - Concatenated, separator-free titles from a filename with no spaces at all:
+      `"BatmanDarkKnight"` vs vps-db's `"Batman: The Dark Knight"`.
+  - **Upgraded to token-set comparison** in `VpsDbMatcher`: split each title into significant words
+    (camelCase-aware - `"BatmanDarkKnight"` splits the same as a spaced title - and digit-aware -
+    `"BlackKnight2000"` splits into `"Black"`/`"Knight"`/`"2000"`, not `"Black"`/`"Knight2000"`),
+    drop stopwords (`the`, `a`, `an`, `of`, `and`, `in`), and treat two titles as matching when their
+    word sets are equal **or** one is wholly contained in the other. This fixes all three patterns
+    above without special-casing any of them - "VR ROOM Attack from Mars" and "Attack from Mars"
+    simply share the token set `{attack, from, mars}` once "VR ROOM" or nothing extra is left over.
+    **A single-word token set only ever counts as an exact match, never as "contained in" something
+    longer** - the deliberate guard that stops a table simply called `"Mars"` from subset-matching
+    into `"Attack from Mars"`. **Re-measured against the same 61 tables: 50 matched (82%)**, using
+    the real production scanner's table reader plus the real matcher, no synthetic shortcuts.
+  - **A regression caught by re-measuring rather than assuming the fix was clean**: the first
+    tokenizer pass added camelCase splitting but not letter/digit splitting, which silently broke a
+    table that matched fine under the *old* plain-string comparison - `"BlackKnight2000"` tokenized
+    to `{black, knight2000}` (the year stayed glued to the word before it) instead of `{black,
+    knight, 2000}`, sharing no token with vps-db's separately-tokenized entry. Fixed by adding an
+    explicit letter/digit boundary rule alongside the camelCase one; a regression test
+    (`Splits_a_trailing_year_glued_directly_onto_a_word_with_no_separator`) pins this down.
+  - **Two remaining misses understood but not chased further**, to avoid loosening the short-title
+    guard on uncertain benefit: `"BatmanDarkKnight"` (Stern, 2008) vs vps-db's real entry, simply
+    `"Batman"` (also Stern, 2008) - manufacturer and year corroborate the match, but the title guard
+    correctly refuses a single-word subset match without that extra step, which was not built; and
+    `"Bride Of Pinbot"` vs vps-db's `"Pin-bot"` (hyphenated) - the hyphen makes vps-db's tokenizer
+    output split into `pin`/`bot` while the unhyphenated form stays one token `pinbot`, so the sets
+    don't align. The rest of the 11 remaining misses are tables not realistically expected to be in
+    vps-db at all (physics test tables, a screen-calibration table, one very new/obscure custom) or a
+    pre-existing Nudge data-quality issue unrelated to matching (a table's internal metadata still
+    claims a stale title from an earlier version of the mod, exactly the kind of staleness
+    docs/RESEARCH-NOTES.md's `TableInfo` notes already describe).
   - **Verified live, end to end**: downloaded the real index, matched three real tables from the
     maintainer's collection (Medieval Madness, Black Knight 2000, Twilight Zone) by title,
     manufacturer and year, downloaded each match's real `.webp` image over the network, decoded and

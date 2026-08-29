@@ -1,3 +1,4 @@
+using System.Text;
 using Nudge.Core.Models;
 
 namespace Nudge.Media.VpsDb;
@@ -8,24 +9,42 @@ namespace Nudge.Media.VpsDb;
 /// separate from <see cref="IVpsDbIndex"/> so the matching rules are testable on their own.
 /// </summary>
 /// <remarks>
-/// This is a simple normalised-equality match (strip everything but letters/digits, lowercase), the
-/// same level of rigour <c>Nudge.Vpx.TableFiles.VpxTableFileReader</c> uses for reconciling OLE
-/// metadata against a filename - not a fuzzy/typo-tolerant matcher. A title that does not normalise
-/// to an exact match against any vps-db entry is reported as no match, never a best-guess nearest
-/// neighbour; see docs/RESEARCH-NOTES.md.
+/// Titles are compared as **token sets**, not as normalised whole strings - measured against the
+/// maintainer's real 61-table collection, plain exact-normalised matching only found 37 (61%).
+/// Splitting into significant words (dropping stopwords, and splitting camelCase runs like
+/// "BatmanDarkKnight" the same way a spaced title would) and allowing one side's word set to be
+/// wholly contained in the other's recovered most of the rest, without special-casing any one
+/// naming pattern:
+/// <list type="bullet">
+/// <item>"VR ROOM Attack from Mars" vs vps-db's "Attack from Mars" - a decorative prefix some VR
+/// conversion authors add, not part of the real game title.</item>
+/// <item>"Attack from Mars LE" / "Game of Thrones LE" / "X-Men LE" vs a base entry with no
+/// "LE" - an edition suffix.</item>
+/// <item>"BatmanDarkKnight" (camelCase, no separators at all) vs "Batman: The Dark Knight" - the
+/// camelCase split plus dropping the stopword "The" makes these the same token set exactly.</item>
+/// </list>
+/// A single-word title is still only ever an exact set match, never treated as "contained in"
+/// something longer - see <see cref="TokensMatch"/> - specifically so a short/generic title (e.g. a
+/// table simply called "Mars") can never subset-match into an unrelated longer one ("Attack from
+/// Mars"). This is still not a typo-tolerant fuzzy matcher: it will not correct a misspelling, and a
+/// title that shares no token-set relationship with any entry is reported as no match, never a
+/// best-guess nearest neighbour. See docs/RESEARCH-NOTES.md for the measured before/after.
 /// </remarks>
 public static class VpsDbMatcher
 {
+    private static readonly HashSet<string> Stopwords =
+        new(StringComparer.OrdinalIgnoreCase) { "the", "a", "an", "of", "and", "in" };
+
     public static VpsDbEntry? FindMatch(VpxTableFile table, IReadOnlyList<VpsDbEntry> entries)
     {
-        string normalisedTitle = Normalise(table.DisplayTitle);
-        if (normalisedTitle.Length == 0)
+        HashSet<string> tableTokens = Tokenize(table.DisplayTitle);
+        if (tableTokens.Count == 0)
         {
             return null;
         }
 
         List<VpsDbEntry> titleMatches = entries
-            .Where(e => Normalise(e.Name) == normalisedTitle)
+            .Where(e => TokensMatch(tableTokens, Tokenize(e.Name)))
             .ToList();
 
         if (titleMatches.Count == 0)
@@ -44,9 +63,9 @@ public static class VpsDbMatcher
         // approach to an unavoidable ambiguity rather than refusing to answer at all.
         if (table.DisplayManufacturer is not null)
         {
-            string normalisedManufacturer = Normalise(table.DisplayManufacturer);
+            HashSet<string> manufacturerTokens = Tokenize(table.DisplayManufacturer);
             List<VpsDbEntry> manufacturerMatches = titleMatches
-                .Where(e => e.Manufacturer is not null && Normalise(e.Manufacturer) == normalisedManufacturer)
+                .Where(e => e.Manufacturer is not null && Tokenize(e.Manufacturer).SetEquals(manufacturerTokens))
                 .ToList();
 
             if (manufacturerMatches.Count > 0)
@@ -93,6 +112,61 @@ public static class VpsDbMatcher
         return null;
     }
 
-    private static string Normalise(string value) =>
-        new string([.. value.Where(char.IsLetterOrDigit)]).ToLowerInvariant();
+    /// <summary>Two token sets match when they are identical, or when the smaller is wholly contained
+    /// in the larger - but only when the smaller side has at least two significant words, so a short
+    /// or generic title is never treated as "contained in" an unrelated longer one.</summary>
+    private static bool TokensMatch(HashSet<string> a, HashSet<string> b)
+    {
+        if (a.Count == 0 || b.Count == 0)
+        {
+            return false;
+        }
+
+        if (a.SetEquals(b))
+        {
+            return true;
+        }
+
+        HashSet<string> smaller = a.Count <= b.Count ? a : b;
+        HashSet<string> larger = a.Count <= b.Count ? b : a;
+
+        return smaller.Count >= 2 && smaller.IsSubsetOf(larger);
+    }
+
+    private static HashSet<string> Tokenize(string value)
+    {
+        // Splits at camelCase boundaries (an upper-case letter following a lower-case one) and at
+        // letter/digit boundaries, so a concatenated title tokenizes the same way a normally spaced
+        // one would: "BatmanDarkKnight" -> "Batman Dark Knight", and - the case that regressed a
+        // real match on first pass, caught by re-measuring against real tables rather than assumed
+        // fixed - "BlackKnight2000" -> "Black Knight 2000", not "Black Knight2000" (which shares no
+        // token with vps-db's separately-tokenized "knight" and "2000"). Every other non-alphanumeric
+        // run is treated as a separator too.
+        var withBoundaries = new StringBuilder(value.Length + 8);
+        for (int i = 0; i < value.Length; i++)
+        {
+            char c = value[i];
+            if (i > 0)
+            {
+                char previous = value[i - 1];
+                bool camelCaseBoundary = char.IsUpper(c) && char.IsLower(previous);
+                bool letterDigitBoundary = char.IsDigit(c) != char.IsDigit(previous)
+                                           && char.IsLetterOrDigit(c) && char.IsLetterOrDigit(previous);
+
+                if (camelCaseBoundary || letterDigitBoundary)
+                {
+                    withBoundaries.Append(' ');
+                }
+            }
+
+            withBoundaries.Append(char.IsLetterOrDigit(c) ? c : ' ');
+        }
+
+        return withBoundaries
+            .ToString()
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Select(w => w.ToLowerInvariant())
+            .Where(w => !Stopwords.Contains(w))
+            .ToHashSet();
+    }
 }
