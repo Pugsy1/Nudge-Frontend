@@ -14,7 +14,7 @@
     </Grid.RowDefinitions>
 
     <!-- Header -->
-    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="{DynamicResource Padding.Page}" VerticalAlignment="Center">
+    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="{DynamicResource Padding.Header}" VerticalAlignment="Center">
       <!-- Focusable="False": without it, this is the first focusable control in the page, so when
            the settings cog (itself focused by the click that opened this page) gets removed from
            the visual tree, WPF's focus manager lands keyboard focus here automatically - which

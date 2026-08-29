@@ -142,7 +142,7 @@
     </Grid.RowDefinitions>
 
     <!-- Header: always visible, whichever stage is showing. -->
-    <Grid Grid.Row="0" Margin="{DynamicResource Padding.Page}">
+    <Grid Grid.Row="0" Margin="{DynamicResource Padding.Header}">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*" />
         <ColumnDefinition Width="Auto" />

@@ -43,6 +43,15 @@
 
   <!-- Component-specific padding. Generous by design - see the note on the scale above. -->
   <Thickness x:Key="Padding.Page">40,32,40,32</Thickness>
+
+  <!-- The header bar itself (logo/title + controls, on Library/Settings/Setup) - same horizontal
+       inset as Padding.Page, but less top/bottom, since that bar reads as thick/heavy with the full
+       page padding: the logo already sets its own visual weight, so the bar around it doesn't need
+       as much breathing room as a full page of content does. Top specifically stays taller than
+       bottom - not fully trimmed to match - because the window always launches in true fullscreen
+       (MainWindow.xaml.cs), where MainWindow.xaml's FullscreenCornerControls float over this exact
+       corner; less clearance than this let the two visibly collide. -->
+  <Thickness x:Key="Padding.Header">40,26,40,16</Thickness>
   <Thickness x:Key="Padding.Grid">32,8,32,32</Thickness>
   <Thickness x:Key="Padding.Card">20</Thickness>
   <Thickness x:Key="Padding.Button">18,9,18,9</Thickness>
@@ -55,10 +64,14 @@
   <Thickness x:Key="BorderThickness.Bottom">0,0,0,1</Thickness>
   <Thickness x:Key="BorderThickness.Left.Accent">3,0,0,0</Thickness>
 
-  <!-- A library tile's own outline: thinner top/bottom than left/right, since the top/bottom edges
-       of every tile in a row line up into one continuous horizontal seam across the whole grid,
-       where the same weight as the left/right edges reads as a much heavier line than intended. -->
-  <Thickness x:Key="BorderThickness.Tile">1,0.6,1,0.6</Thickness>
+  <!-- A library tile's own outline: no top/bottom border at all, only left/right - since the
+       top/bottom edges of every tile in a row line up into one continuous horizontal seam across
+       the whole grid, where even a thin one reads as a much heavier line than intended. A
+       fractional thickness (e.g. 0.6) was tried first, but that's exactly the kind of value that
+       renders inconsistently sub-pixel-to-sub-pixel - and doubly so once the tile's hover
+       ScaleTransform is animating it, which shimmered/glitched as the sub-pixel alignment shifted
+       every frame. 0 has no such ambiguity. -->
+  <Thickness x:Key="BorderThickness.Tile">1,0,1,0</Thickness>
 
   <!-- Rounder than the original scale, on purpose - soft, pillowy corners are the single biggest
        ingredient in reading as neumorphic "soft UI" rather than flat material design. -->
@@ -74,10 +87,10 @@
   <CornerRadius x:Key="CornerRadius.Card.Top">18,18,0,0</CornerRadius>
 
   <!-- Half of Size.Scrollbar, so the thumb's ends are always fully rounded. -->
-  <CornerRadius x:Key="CornerRadius.Scrollbar">3</CornerRadius>
+  <CornerRadius x:Key="CornerRadius.Scrollbar">2</CornerRadius>
 
   <!-- Fixed dimensions -->
-  <system:Double x:Key="Size.Scrollbar">6</system:Double>
+  <system:Double x:Key="Size.Scrollbar">4</system:Double>
   <system:Double x:Key="Size.MinButtonWidth">96</system:Double>
   <system:Double x:Key="Size.IconButton">38</system:Double>
   <system:Double x:Key="Size.Window.MinWidth">940</system:Double>
@@ -100,8 +113,11 @@
   <system:Double x:Key="Size.SearchBox.Width">260</system:Double>
   <Thickness x:Key="Padding.SearchBox">32,8,14,8</Thickness>
 
-  <!-- Insets the scrollbar from the content edges so it reads as a short floating pill. -->
-  <Thickness x:Key="Margin.Scrollbar">0,16,6,16</Thickness>
+  <!-- Insets the scrollbar from the content edges so it reads as a short floating pill. Top is
+       noticeably more than the other three sides so it starts clear of the fullscreen corner
+       controls (MainWindow.xaml) - the top of the grid's ScrollViewer sits close enough to the top
+       of the window that the scrollbar's own top end could otherwise land right underneath them. -->
+  <Thickness x:Key="Margin.Scrollbar">0,36,6,16</Thickness>
 
   <!-- Custom window chrome -->
   <system:Double x:Key="Size.TitleBar.Height">38</system:Double>

@@ -250,7 +250,7 @@
     </Grid.RowDefinitions>
 
     <!-- ======================= Header ======================= -->
-    <Grid Grid.Row="0" Margin="{DynamicResource Padding.Page}">
+    <Grid Grid.Row="0" Margin="{DynamicResource Padding.Header}">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*" />
         <ColumnDefinition Width="Auto" />
@@ -261,7 +261,7 @@
            paints that shape with whatever DynamicResource Brush.Accent currently resolves to, so the
            wordmark re-tints itself on every theme switch along with everything else. -->
       <Rectangle Grid.Column="0"
-                 Width="127" Height="72"
+                 Width="99" Height="56"
                  HorizontalAlignment="Left"
                  VerticalAlignment="Center"
                  UseLayoutRounding="True"
@@ -278,20 +278,25 @@
 
         <!-- 2D / VR launch mode: one fluid pill, not two separate buttons. The whole track is
              clickable - either half sets that mode - and a sliding cap animates to whichever side
-             is active, rather than the state being conveyed only by two static toggle buttons. -->
+             is active, rather than the state being conveyed only by two static toggle buttons.
+             CornerRadius.Pill exceeding half the height clamps to a full stadium on both the track
+             and the cap regardless of exact size - so both edges genuinely are semicircular - but at
+             112 wide against only 30 tall, the track's straight middle run was long enough that the
+             curved ends read as a much smaller share of the shape than the cap's did, so it looked
+             like a rounded rectangle housing a pill rather than a matching one. Narrower and a touch
+             taller closes that gap: proportionally closer to the cap now, so the same curve reads as
+             "the whole thing is a pill" rather than "a pill sitting in a box". -->
         <Border Style="{StaticResource Segment.Track}"
-                Width="112" Height="34"
+                Width="96" Height="32"
                 Margin="{DynamicResource Gap.Right.L}"
                 IsEnabled="{Binding HasVr}"
                 ToolTip="Which Visual Pinball build a table launches on">
           <Grid>
-            <!-- The sliding cap: a raised pill that glides under whichever label is selected. -->
+            <!-- The sliding cap: a raised accent pill that glides under whichever label is selected. -->
             <Border x:Name="SwitchCap"
-                    Width="52" Height="26"
+                    Width="44" Height="24"
                     HorizontalAlignment="Left"
-                    Background="{DynamicResource Brush.Control.Background}"
-                    BorderBrush="{DynamicResource Brush.Surface.EdgeHighlight}"
-                    BorderThickness="{DynamicResource BorderThickness.Thin}"
+                    Background="{DynamicResource Brush.Accent.Surface}"
                     CornerRadius="{DynamicResource CornerRadius.Pill}"
                     Effect="{DynamicResource Effect.Button.Shadow}"
                     RenderTransformOrigin="0.5,0.5">
@@ -306,7 +311,7 @@
                         <BeginStoryboard>
                           <Storyboard>
                             <DoubleAnimation Storyboard.TargetProperty="RenderTransform.X"
-                                             To="52" Duration="{StaticResource Duration.Hover}">
+                                             To="44" Duration="{StaticResource Duration.Hover}">
                               <DoubleAnimation.EasingFunction>
                                 <QuadraticEase EasingMode="EaseOut" />
                               </DoubleAnimation.EasingFunction>
@@ -333,26 +338,47 @@
             </Border>
 
             <!-- Two invisible, full-half click targets layered above the cap - clicking anywhere in
-                 either half sets that mode, not just a small label in the middle of it. -->
+                 either half sets that mode, not just a small label in the middle of it. Whichever
+                 label the cap currently sits under switches to Brush.Accent.Foreground (the same
+                 dark-on-accent pairing Button.Primary uses) so it reads clearly against the accent
+                 cap; the other stays muted. -->
             <Grid>
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="*" />
               </Grid.ColumnDefinitions>
               <Button Grid.Column="0"
-                      Style="{StaticResource Button.Base}"
                       Background="Transparent" BorderThickness="0" MinWidth="0" Padding="0"
                       Content="2D" FontSize="{DynamicResource Font.Size.Caption}"
                       FontWeight="{DynamicResource Font.Weight.SemiBold}"
-                      Foreground="{DynamicResource Brush.Text.Secondary}"
-                      Command="{Binding SetLaunchModeCommand}" CommandParameter="Desktop" />
+                      Command="{Binding SetLaunchModeCommand}" CommandParameter="Desktop">
+                <Button.Style>
+                  <Style TargetType="Button" BasedOn="{StaticResource Button.Base}">
+                    <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Muted}" />
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding IsVrMode}" Value="False">
+                        <Setter Property="Foreground" Value="{DynamicResource Brush.Accent.Foreground}" />
+                      </DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </Button.Style>
+              </Button>
               <Button Grid.Column="1"
-                      Style="{StaticResource Button.Base}"
                       Background="Transparent" BorderThickness="0" MinWidth="0" Padding="0"
                       Content="VR" FontSize="{DynamicResource Font.Size.Caption}"
                       FontWeight="{DynamicResource Font.Weight.SemiBold}"
-                      Foreground="{DynamicResource Brush.Text.Secondary}"
-                      Command="{Binding SetLaunchModeCommand}" CommandParameter="Vr" />
+                      Command="{Binding SetLaunchModeCommand}" CommandParameter="Vr">
+                <Button.Style>
+                  <Style TargetType="Button" BasedOn="{StaticResource Button.Base}">
+                    <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Muted}" />
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding IsVrMode}" Value="True">
+                        <Setter Property="Foreground" Value="{DynamicResource Brush.Accent.Foreground}" />
+                      </DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </Button.Style>
+              </Button>
             </Grid>
           </Grid>
         </Border>

@@ -71,17 +71,21 @@
     </Style.Triggers>
   </Style>
 
-  <!-- A satin panel cap: bevel border, soft shadow, sinks on press. -->
+  <!-- A flat satin cap: same clean, uniform-weight border every other control settled on (the
+       theme dropdown, library tiles) rather than the diagonal bevel gradient - that reads fine on
+       a large surface but looked like a stray, uneven outline on something button-sized. No shadow
+       at rest either, for the same "calm until touched" reason the tiles went shadow-less - it
+       still lifts on hover and sinks on press. -->
   <Style x:Key="Button.Secondary" TargetType="Button" BasedOn="{StaticResource Button.Base}">
     <Setter Property="Background" Value="{DynamicResource Brush.Control.Background}" />
     <Setter Property="Foreground" Value="{DynamicResource Brush.Control.Foreground}" />
-    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Surface.EdgeHighlight}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Control.Border}" />
     <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
-    <Setter Property="Effect" Value="{DynamicResource Effect.Button.Shadow}" />
     <Style.Triggers>
       <Trigger Property="IsMouseOver" Value="True">
         <Setter Property="Background" Value="{DynamicResource Brush.Control.BackgroundHover}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource Brush.Surface.RimLight}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.Control.BorderHover}" />
+        <Setter Property="Effect" Value="{DynamicResource Effect.Button.Shadow}" />
       </Trigger>
       <Trigger Property="IsPressed" Value="True">
         <Setter Property="Background" Value="{DynamicResource Brush.Control.BackgroundPressed}" />
@@ -576,18 +580,24 @@
                 <RepeatButton Style="{StaticResource Slider.TrackButton}" Command="Slider.IncreaseLarge" />
               </Track.IncreaseRepeatButton>
               <Track.Thumb>
-                <Thumb x:Name="SliderThumb"
-                       Width="22" Height="22"
-                       Cursor="Hand"
-                       RenderTransformOrigin="0.5,0.5">
-                  <Thumb.RenderTransform>
-                    <ScaleTransform x:Name="ThumbScale" ScaleX="1" ScaleY="1" />
-                  </Thumb.RenderTransform>
+                <!-- The hover-grow scale transform and its triggers live inside the Thumb's own
+                     ControlTemplate now, not as direct properties on the Thumb - a plain
+                     Thumb.Triggers EventTrigger (as opposed to ControlTemplate.Triggers) can only
+                     resolve Storyboard.TargetName within its own template's NameScope, not a name
+                     declared via a sibling property setter like Thumb.RenderTransform. That
+                     mismatch didn't fail to compile - it threw an InvalidOperationException at
+                     runtime on every single MouseEnter/MouseLeave, confirmed via the Nudge log. -->
+                <Thumb x:Name="SliderThumb" Width="22" Height="22" Cursor="Hand">
                   <Thumb.Template>
                     <ControlTemplate TargetType="Thumb">
-                      <Ellipse Fill="{DynamicResource Brush.Accent.Surface}"
+                      <Ellipse x:Name="Knob"
+                               Fill="{DynamicResource Brush.Accent.Surface}"
                                Stroke="{DynamicResource Brush.Surface.Background}"
-                               StrokeThickness="3">
+                               StrokeThickness="3"
+                               RenderTransformOrigin="0.5,0.5">
+                        <Ellipse.RenderTransform>
+                          <ScaleTransform x:Name="ThumbScale" ScaleX="1" ScaleY="1" />
+                        </Ellipse.RenderTransform>
                         <Ellipse.Effect>
                           <DropShadowEffect Color="{DynamicResource Color.Shadow}"
                                              Direction="270"
@@ -597,26 +607,28 @@
                                              RenderingBias="Performance" />
                         </Ellipse.Effect>
                       </Ellipse>
+                      <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                          <Trigger.EnterActions>
+                            <BeginStoryboard>
+                              <Storyboard>
+                                <DoubleAnimation Storyboard.TargetName="ThumbScale" Storyboard.TargetProperty="ScaleX" To="1.2" Duration="{StaticResource Duration.Hover}" />
+                                <DoubleAnimation Storyboard.TargetName="ThumbScale" Storyboard.TargetProperty="ScaleY" To="1.2" Duration="{StaticResource Duration.Hover}" />
+                              </Storyboard>
+                            </BeginStoryboard>
+                          </Trigger.EnterActions>
+                          <Trigger.ExitActions>
+                            <BeginStoryboard>
+                              <Storyboard>
+                                <DoubleAnimation Storyboard.TargetName="ThumbScale" Storyboard.TargetProperty="ScaleX" To="1" Duration="{StaticResource Duration.Hover}" />
+                                <DoubleAnimation Storyboard.TargetName="ThumbScale" Storyboard.TargetProperty="ScaleY" To="1" Duration="{StaticResource Duration.Hover}" />
+                              </Storyboard>
+                            </BeginStoryboard>
+                          </Trigger.ExitActions>
+                        </Trigger>
+                      </ControlTemplate.Triggers>
                     </ControlTemplate>
                   </Thumb.Template>
-                  <Thumb.Triggers>
-                    <EventTrigger RoutedEvent="Thumb.MouseEnter">
-                      <BeginStoryboard>
-                        <Storyboard>
-                          <DoubleAnimation Storyboard.TargetName="ThumbScale" Storyboard.TargetProperty="ScaleX" To="1.2" Duration="{StaticResource Duration.Hover}" />
-                          <DoubleAnimation Storyboard.TargetName="ThumbScale" Storyboard.TargetProperty="ScaleY" To="1.2" Duration="{StaticResource Duration.Hover}" />
-                        </Storyboard>
-                      </BeginStoryboard>
-                    </EventTrigger>
-                    <EventTrigger RoutedEvent="Thumb.MouseLeave">
-                      <BeginStoryboard>
-                        <Storyboard>
-                          <DoubleAnimation Storyboard.TargetName="ThumbScale" Storyboard.TargetProperty="ScaleX" To="1" Duration="{StaticResource Duration.Hover}" />
-                          <DoubleAnimation Storyboard.TargetName="ThumbScale" Storyboard.TargetProperty="ScaleY" To="1" Duration="{StaticResource Duration.Hover}" />
-                        </Storyboard>
-                      </BeginStoryboard>
-                    </EventTrigger>
-                  </Thumb.Triggers>
                 </Thumb>
               </Track.Thumb>
             </Track>
