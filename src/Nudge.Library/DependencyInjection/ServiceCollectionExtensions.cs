@@ -10,6 +10,7 @@ public static class ServiceCollectionExtensions
     {
         services.TryAddSingleton<IVpxLibraryScanner, VpxLibraryScanner>();
         services.TryAddSingleton<ITableFolderWatcher, TableFolderWatcher>();
+        services.TryAddSingleton<IDuplicateTableFinder, DuplicateTableFinder>();
         return services;
     }
 }

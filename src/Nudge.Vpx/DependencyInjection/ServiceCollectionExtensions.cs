@@ -12,6 +12,7 @@ using Nudge.Vpx.Platform;
 using Nudge.Vpx.Roms;
 using Nudge.Vpx.Settings;
 using Nudge.Vpx.TableFiles;
+using Nudge.Vpx.Windowing;
 
 namespace Nudge.Vpx.DependencyInjection;
 
@@ -69,6 +70,10 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IKeyboardInputSynthesizer, SendInputKeyboardSynthesizer>();
         services.TryAddSingleton<IForegroundWindowService, WindowsForegroundWindowService>();
         services.TryAddSingleton<IControllerInputService, ControllerInputService>();
+        services.TryAddSingleton<IWindowSnapshotProvider, Win32WindowSnapshotProvider>();
+        services.TryAddSingleton<IWindowActivator, Win32WindowActivator>();
+        services.TryAddSingleton<IProcessLivenessChecker, ProcessLivenessChecker>();
+        services.TryAddSingleton<ITableWindowWatcher, TableWindowWatcher>();
         services.TryAddSingleton<ILaunchEngine, LaunchEngine>();
 
         // Standalone building block for the health system (Phase 7) - not wired into anything yet.

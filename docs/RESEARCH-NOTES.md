@@ -463,6 +463,85 @@ be *accepted* by Windows, but a real end-to-end "controller press moves a real f
 running table" pass has not happened. Flagged rather than assumed, the same way the Google Custom
 Search artwork source is flagged pending real credentials.
 
+## Seamless launch: what "the table is ready" can actually mean from outside VPX
+
+Requested by the maintainer: click a table, see a loading screen in Nudge, and land directly in the
+table once it's showing - not watch Visual Pinball's own window boot up. VPX has no IPC or API that
+announces "I have finished loading and am now showing the table" - nothing like that is documented,
+and nothing in the vpin/vpxtool source (already consulted for the BIFF format work above) exposes
+one either. The only externally observable signal is the process's own window: whether it has been
+created, is visible, and has a real (not placeholder) size. That is a weaker signal than "finished
+loading" - a table with a slow-loading script could still show a moment of its own incomplete render
+after Nudge cuts over - but it is the practical ceiling of what's achievable without VPX's
+cooperation, and a large improvement over showing nothing at all during the wait.
+
+Built as `Nudge.Vpx.Windowing.TableWindowWatcher`: poll `EnumWindows`/`GetWindowRect` for a window
+belonging to the launched process of at least 200×200 (filtering out any tiny placeholder/helper
+window), require it to stay like that across polls spanning ~450ms before trusting it (debounced,
+so a fleeting window during startup is never mistaken for the real one), then attempt
+`SetForegroundWindow` on it.
+
+### A real finding from live verification: SetForegroundWindow's own success/failure is a red herring
+
+The first version reported "ready" based on whether `SetForegroundWindow` itself succeeded. Verified
+live (launching a real Notepad process as a stand-in, since spinning up a real VPX instance for every
+verification pass isn't practical) rather than trusting unit tests against fakes alone - and the real
+run immediately surfaced something the fakes couldn't: `SetForegroundWindow` was declined by Windows
+every single time in the verification environment (a console process with no foreground focus of its
+own), even though the target window had been correctly detected and was genuinely stable and visible.
+
+This traces to Windows' own documented anti-focus-stealing rules: a process may only successfully
+call `SetForegroundWindow` under specific conditions (it currently owns the foreground itself, it
+received the most recent input event, etc.) that have nothing to do with whether the *target* window
+is actually ready to be shown. Two things follow from this:
+
+1. **The activation attempt's own success or failure must not gate the "ready" signal.** Detecting a
+   stable, real-sized window is the meaningful fact; whether Windows also grants the foreground steal
+   is a separate, best-effort concern layered on top. Fixed by decoupling the two:
+   `ActivateWhenReadyAsync` now returns `true` from detection alone, still attempts the foreground
+   steal as a side effect (logged at Debug if declined), and never lets a declined steal suppress the
+   result the caller actually needs.
+2. **In the real production scenario this is likely a non-issue anyway.** VPX's window is a window
+   belonging to a process Nudge itself just launched, at a moment Nudge (the thing the user just
+   clicked) most likely already owns the foreground - one of the documented conditions under which a
+   newly created window is allowed to take focus on its own, without any explicit
+   `SetForegroundWindow` call succeeding from the launcher at all. The explicit attempt exists as a
+   best-effort fallback for the case where that natural handoff doesn't happen (e.g. the user
+   alt-tabbed away from Nudge during the wait), not as the primary mechanism.
+
+Re-verified after the fix: the same real Notepad launch correctly reported `true`, and a process that
+exits immediately with no window (a `cmd.exe /c exit`) correctly reported `false` rather than waiting
+out the full internal timeout.
+
+### What wasn't verified
+
+No real VPX instance was launched to confirm this against the real target application - Notepad was
+used as a stand-in window-creating process (see above), which exercises the exact same Win32 APIs
+this watches, but confirming Nudge's own window is what naturally has focus at launch time (the
+premise behind point 2 above) needs Nudge's own UI, which does not call any of this yet.
+
+## Duplicate table detection: why hashing is fine here but not in the routine scan
+
+Pulled forward from Phase 8 after the maintainer reported a table appearing twice in Nudge that they
+believed they had already deleted. Investigated against the maintainer's real, live database and
+Tables folder (see the scanner section above) rather than assumed: both files were confirmed still
+genuinely present on disk (identical size, identical original modification date), so this was never
+a stale-data bug - it's a real, literal duplicate file the scanner is correctly reporting twice.
+
+The routine scanner deliberately never hashes file contents (documented above, under Phase 3's known
+limitations) because paying that cost on every rescan of a large library would violate AGENTS.md's
+performance budget. But confirming two files are *truly* identical - not just coincidentally the same
+size - genuinely requires reading their full contents; there is no reliable shortcut. The resolution
+is not to relax the routine scan's fingerprint, but to make duplicate-finding a separate, on-demand
+operation the user explicitly triggers, where paying that cost is reasonable specifically because it
+only happens when asked for.
+
+The cost is kept proportional by a cheap pre-filter: group the library by the file size already on
+record (free - already in the database from the routine scan), and only hash a file that shares its
+size with at least one other file. On the maintainer's real 61-table installation this meant hashing
+2 files, not 61, to find the one real duplicate pair - full verification (below) took about 6 seconds,
+dominated by actually reading the two ~410MB files, not by any per-file overhead across the library.
+
 ## Where sources conflicted
 
 None yet. If a future Visual Pinball release changes something documented here, record the

@@ -13,9 +13,16 @@ public interface IProcessRunner
     /// child process, since Nudge does not own the user's play session once Visual Pinball is
     /// running (see AGENTS.md section 6, "Execution").
     /// </summary>
+    /// <param name="onProcessStarted">
+    /// Invoked once, synchronously, with the started process's id, right after it starts - before
+    /// this method awaits its exit. Lets a caller (e.g. <c>ILaunchEngine</c>, to watch for the
+    /// table's window becoming ready) act on the running process without needing its own copy of
+    /// the start/wait logic.
+    /// </param>
     Task<int> RunAsync(
         string fileName,
         IReadOnlyList<string> arguments,
         string workingDirectory,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        Action<int>? onProcessStarted = null);
 }

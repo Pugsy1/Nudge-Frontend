@@ -191,11 +191,58 @@ public sealed class LaunchEngineTests
         controllerInput.LastSession!.WasDisposed.Should().BeTrue("the session must not outlive the play session");
     }
 
-    private LaunchEngine CreateEngine(bool enableControllerSupport = false, FakeControllerInputService? controllerInput = null) => new(
+    [Fact]
+    public async Task Requesting_a_table_window_callback_invokes_it_once_the_watcher_says_its_ready()
+    {
+        var watcher = new FakeTableWindowWatcher { ShouldBecomeReady = true };
+        LaunchEngine engine = CreateEngine(tableWindowWatcher: watcher);
+        VpxInstallation installation = BuildInstallation(ExecutablePath, VpxFlavor.DirectX9);
+        _processRunner.NextExitCode = 0;
+        int callbackCount = 0;
+
+        await engine.LaunchAsync(installation, TablePath, onTableWindowReady: () => callbackCount++);
+
+        watcher.WasCalled.Should().BeTrue();
+        watcher.LastProcessId.Should().Be(FakeProcessRunner.FakeProcessId);
+        callbackCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task The_callback_never_fires_if_the_watcher_never_finds_a_ready_window()
+    {
+        var watcher = new FakeTableWindowWatcher { ShouldBecomeReady = false };
+        LaunchEngine engine = CreateEngine(tableWindowWatcher: watcher);
+        VpxInstallation installation = BuildInstallation(ExecutablePath, VpxFlavor.DirectX9);
+        _processRunner.NextExitCode = 0;
+        int callbackCount = 0;
+
+        await engine.LaunchAsync(installation, TablePath, onTableWindowReady: () => callbackCount++);
+
+        callbackCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task No_window_watch_happens_at_all_when_no_callback_was_requested()
+    {
+        var watcher = new FakeTableWindowWatcher();
+        LaunchEngine engine = CreateEngine(tableWindowWatcher: watcher);
+        VpxInstallation installation = BuildInstallation(ExecutablePath, VpxFlavor.DirectX9);
+        _processRunner.NextExitCode = 0;
+
+        await engine.LaunchAsync(installation, TablePath);
+
+        watcher.WasCalled.Should().BeFalse("watching for a window nobody asked about would be wasted work");
+    }
+
+    private LaunchEngine CreateEngine(
+        bool enableControllerSupport = false,
+        FakeControllerInputService? controllerInput = null,
+        FakeTableWindowWatcher? tableWindowWatcher = null) => new(
         _processRunner,
         _fileSystem,
         new PathRedactor("TestUser"),
         controllerInput ?? new FakeControllerInputService(),
+        tableWindowWatcher ?? new FakeTableWindowWatcher(),
         new FakeSettingsService { EnableControllerSupport = enableControllerSupport },
         NullLogger<LaunchEngine>.Instance);
 
@@ -237,20 +284,43 @@ public sealed class LaunchEngineTests
 
         public string? LastWorkingDirectory { get; private set; }
 
+        public const int FakeProcessId = 4242;
+
         public Task<int> RunAsync(
             string fileName,
             IReadOnlyList<string> arguments,
             string workingDirectory,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            Action<int>? onProcessStarted = null)
         {
             WasCalled = true;
             LastFileName = fileName;
             LastArguments = arguments;
             LastWorkingDirectory = workingDirectory;
 
-            return ThrowOnRun is not null
-                ? Task.FromException<int>(ThrowOnRun)
-                : Task.FromResult(NextExitCode);
+            if (ThrowOnRun is not null)
+            {
+                return Task.FromException<int>(ThrowOnRun);
+            }
+
+            onProcessStarted?.Invoke(FakeProcessId);
+            return Task.FromResult(NextExitCode);
+        }
+    }
+
+    private sealed class FakeTableWindowWatcher : ITableWindowWatcher
+    {
+        public bool ShouldBecomeReady { get; set; } = true;
+
+        public bool WasCalled { get; private set; }
+
+        public int? LastProcessId { get; private set; }
+
+        public Task<bool> ActivateWhenReadyAsync(int processId, CancellationToken cancellationToken = default)
+        {
+            WasCalled = true;
+            LastProcessId = processId;
+            return Task.FromResult(ShouldBecomeReady);
         }
     }
 

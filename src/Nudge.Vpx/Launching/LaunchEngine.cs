@@ -16,6 +16,7 @@ public sealed class LaunchEngine : ILaunchEngine
     private readonly IFileSystem _fileSystem;
     private readonly IPathRedactor _redactor;
     private readonly IControllerInputService _controllerInput;
+    private readonly ITableWindowWatcher _tableWindowWatcher;
     private readonly ISettingsService _settingsService;
     private readonly ILogger<LaunchEngine> _logger;
 
@@ -24,6 +25,7 @@ public sealed class LaunchEngine : ILaunchEngine
         IFileSystem fileSystem,
         IPathRedactor redactor,
         IControllerInputService controllerInput,
+        ITableWindowWatcher tableWindowWatcher,
         ISettingsService settingsService,
         ILogger<LaunchEngine> logger)
     {
@@ -31,6 +33,7 @@ public sealed class LaunchEngine : ILaunchEngine
         _fileSystem = fileSystem;
         _redactor = redactor;
         _controllerInput = controllerInput;
+        _tableWindowWatcher = tableWindowWatcher;
         _settingsService = settingsService;
         _logger = logger;
     }
@@ -38,7 +41,8 @@ public sealed class LaunchEngine : ILaunchEngine
     public async Task<Result<LaunchOutcome>> LaunchAsync(
         VpxInstallation installation,
         string tablePath,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Action? onTableWindowReady = null)
     {
         ArgumentNullException.ThrowIfNull(installation);
 
@@ -49,13 +53,14 @@ public sealed class LaunchEngine : ILaunchEngine
                 "Nudge couldn't find a Visual Pinball build in this installation that can play .vpx tables.");
         }
 
-        return await LaunchAsync(executable, tablePath, cancellationToken).ConfigureAwait(false);
+        return await LaunchAsync(executable, tablePath, cancellationToken, onTableWindowReady).ConfigureAwait(false);
     }
 
     public async Task<Result<LaunchOutcome>> LaunchAsync(
         VpxExecutable executable,
         string tablePath,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Action? onTableWindowReady = null)
     {
         ArgumentNullException.ThrowIfNull(executable);
         ArgumentException.ThrowIfNullOrWhiteSpace(tablePath);
@@ -94,7 +99,14 @@ public sealed class LaunchEngine : ILaunchEngine
         try
         {
             exitCode = await _processRunner
-                .RunAsync(executable.Path, arguments, workingDirectory, cancellationToken)
+                .RunAsync(
+                    executable.Path,
+                    arguments,
+                    workingDirectory,
+                    cancellationToken,
+                    onProcessStarted: onTableWindowReady is null
+                        ? null
+                        : processId => _ = WatchForTableWindowAsync(processId, onTableWindowReady, cancellationToken))
                 .ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is Win32Exception or InvalidOperationException)
@@ -118,5 +130,34 @@ public sealed class LaunchEngine : ILaunchEngine
             ExitCode = exitCode,
             Duration = stopwatch.Elapsed
         });
+    }
+
+    /// <summary>
+    /// Runs alongside <see cref="IProcessRunner.RunAsync"/>'s own wait for the process to exit -
+    /// deliberately fire-and-forget from the caller's perspective (the launch itself must never
+    /// fail or slow down because of this), with its own exception handling so nothing here can
+    /// surface as an unobserved task exception.
+    /// </summary>
+    private async Task WatchForTableWindowAsync(int processId, Action onReady, CancellationToken cancellationToken)
+    {
+        try
+        {
+            bool activated = await _tableWindowWatcher
+                .ActivateWhenReadyAsync(processId, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (activated)
+            {
+                onReady();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The launch itself finished (or was cancelled) before the window ever appeared.
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not detect the table window becoming ready.");
+        }
     }
 }

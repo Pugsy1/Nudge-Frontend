@@ -751,3 +751,161 @@ configure anything, the same role tools like JoyToKey/AntiMicroX play for other 
   "press A to launch" belongs in `Nudge.App`, most likely as its own input-handling class rather than
   reusing anything under `Nudge.Vpx.Controller` (that namespace is specifically about faking
   keyboard input *into VPX*, not about focus navigation inside WPF).
+
+## Seamless launch: switching from Nudge to the table only once it's actually showing
+
+**Status: functionally complete, verified against real Windows APIs (including a real bug caught
+and fixed by that verification - see below). No UI uses this yet.**
+
+Requested by the maintainer: clicking a table should show a "Loading table…" screen in Nudge, and
+only cut over to Visual Pinball once the table is actually visible - not show VPX's own boot-up
+(a black window, a moment of nothing) the way a plain process launch does today.
+
+### What's built
+
+- **`ITableWindowWatcher`** (`Nudge.Core.Abstractions`) - `ActivateWhenReadyAsync(processId)`
+  resolves `true` once a real, stably-sized window belonging to that process appears, or `false` if
+  the process exits first or nothing appears within an internal 60s timeout. `Nudge.Vpx.Windowing.
+  TableWindowWatcher` is the real implementation, built from three small, individually swappable
+  Win32 seams - `IWindowSnapshotProvider` (`EnumWindows`/`GetWindowRect`, is there a visible window
+  of at least 200×200 for this process right now?), `IWindowActivator` (`SetForegroundWindow`), and
+  `IProcessLivenessChecker` (has the process already exited?) - so the polling/debounce/timeout
+  logic itself is unit-testable against fakes, with only the three thin OS wrappers left untested by
+  design (and separately smoke-tested against real Windows APIs instead - see below).
+- **Debounced, not instant**: a window must stay visible at real size across polls spanning ~450ms
+  before it's trusted, so a fleeting placeholder window during a process's own startup is never
+  mistaken for the genuine one.
+- **`IProcessRunner.RunAsync` gained an optional `onProcessStarted` callback**, invoked with the new
+  process's id right after it starts (before awaiting its exit) - the hook `LaunchEngine` needed to
+  start watching for the window without restructuring how it waits for the whole play session.
+- **`ILaunchEngine.LaunchAsync` gained an optional `onTableWindowReady` callback** on both overloads,
+  wired through to a fire-and-forget background watch that runs alongside the existing wait-for-exit
+  - the launch itself is entirely unaffected whether or not the window is ever detected; this is a
+  purely additive signal for the caller.
+
+### A real bug this caught: SetForegroundWindow being declined is not "not ready"
+
+The first version returned whether `SetForegroundWindow` itself succeeded. Verified live against a
+real launched process (Notepad, standing in for VPX, plus a fast-exiting process for the failure
+path) rather than trusting the unit tests' fakes alone - and the real run surfaced something the
+fakes couldn't: Windows declined the foreground request every time in that test environment (the
+calling console process didn't itself have focus), even though the window had been correctly
+detected and was genuinely stable. Windows' anti-focus-stealing rules can legitimately refuse
+`SetForegroundWindow` for reasons that have nothing to do with whether the *target* window is ready
+- and in the real production scenario, the target window most likely already has focus on its own
+by the time this runs anyway, since it belongs to a process Nudge itself just launched. Fixed by
+decoupling the two: `ActivateWhenReadyAsync` now reports `true` based on detection alone, still
+*attempts* the foreground steal as a best-effort side effect (logged at Debug if declined), but
+never lets that attempt's own outcome suppress the "ready" signal the caller actually needs.
+
+### What's deliberately not built
+
+- **No UI uses this yet.** No "Loading table…" screen, nothing hides or minimizes Nudge's own
+  window. See below for exactly what's needed.
+- **No visibility into whether VPX has actually finished loading the table's own assets/script** -
+  this can only observe a window becoming visible with a real size, which is the practical ceiling
+  of what's externally observable without VPX's own cooperation. A table with a very slow-loading
+  script could still show a moment of its own incomplete render after the cutover; there is no way
+  to do better than this from outside the process.
+- **Only the first ready window is ever activated.** If a table's script itself opens additional
+  windows (a PUPPack display, a second monitor backglass window), only whichever one first satisfies
+  the 200×200 visible-window check is used - good enough for the common single-window desktop case,
+  not evaluated against a multi-window cabinet setup.
+
+### Verified two ways
+
+1. **6 new tests** (`TableWindowWatcherTests`) against fakes for all three Win32 seams - stability
+   debounce, a flickering window never falsely triggering, timeout with no window ever appearing,
+   early bail-out when the process has already exited, cancellation propagating rather than
+   returning a result, and (after the fix above) a declined foreground steal still reporting ready.
+   Plus 3 new `LaunchEngineTests` cases covering the callback firing/not firing and never watching
+   at all when nobody asked. 186 tests pass in `Nudge.Vpx.Tests` overall (up from 177).
+2. **Directly exercised against real Windows processes and windows**, not just fakes: launched a
+   real Notepad process and confirmed the full watcher (real `EnumWindows`/`GetWindowRect`/
+   `SetForegroundWindow`, not faked) correctly detected its window and returned `true`; launched a
+   process that exits immediately with no window and confirmed it correctly returned `false` rather
+   than waiting out the full timeout. This is what surfaced the `SetForegroundWindow` finding above
+   - caught by real verification, not assumed correct from reading the Win32 docs alone.
+
+### For the UI/composition session
+
+- Pass `onTableWindowReady: () => /* hide or minimize Nudge's own window, dismiss the loading screen */`
+  into `ILaunchEngine.LaunchAsync`. It fires on a background thread (not the UI thread) exactly
+  once, at most - dispatch back to the UI thread before touching any bound property or window state,
+  the same way any other cross-thread callback in WPF must. When it fires, VPX's window should
+  already have (or be about to have) focus on its own; there is nothing further the UI needs to do
+  to bring it forward.
+- A natural flow: on launch, immediately show a "Loading table…" overlay/screen and keep Nudge's
+  window visible; when `onTableWindowReady` fires, hide/minimize Nudge's window and dismiss the
+  overlay. If the callback never fires (a slow table past the internal timeout, or VPX failing to
+  start at all - already reported separately via `LaunchAsync`'s own `Result` failure), the existing
+  `LaunchAsync` awaited result still arrives normally once the process exits either way - nothing
+  about the existing "launch and wait" contract changed, this is purely an additional, optional
+  earlier signal layered on top.
+
+## Duplicate table detection: finding the same table copied to more than one path
+
+**Status: functionally complete, verified against the maintainer's own real duplicate (two literal
+copies of the same Medieval Madness release, one in `Tables\`, one in `Tables\VR\`). No UI triggers
+this yet.**
+
+Pulled forward from Phase 8 ("duplicate detection") after the maintainer reported seeing the same
+table twice and being unable to get Nudge to stop showing a copy they believed they'd deleted -
+investigated live (see the scanner section above) and found to be two files that are still, in
+fact, both genuinely present on disk, not a stale-database bug.
+
+### What's built
+
+- **`IDuplicateTableFinder`** (`Nudge.Core.Abstractions`) - `FindDuplicatesAsync(installationId,
+  progress)` returns every group of two-or-more tables that are byte-for-byte identical.
+  `Nudge.Library.DuplicateTableFinder` is the real implementation.
+- **Cheap pre-filter, expensive check only where it matters**: tables are first grouped by the file
+  size already recorded from the routine scan (free - no disk I/O) and only a table that shares its
+  size with at least one other table is ever actually opened and hashed (SHA-256, streamed rather
+  than loaded fully into memory). On the maintainer's real 61-table installation, this meant hashing
+  exactly 2 files out of 61 to find the one real duplicate pair, in about 6 seconds (dominated by
+  reading the two ~410MB files themselves, not by any per-file overhead).
+- **Deliberately a separate, on-demand operation**, not part of the routine `IVpxLibraryScanner`
+  pass - hashing full file contents is exactly the cost the scanner's incremental size+last-write
+  fingerprint is designed to avoid paying on every routine rescan (see the scanner's own "known
+  limitations" note above). A user explicitly asking "find my duplicates" is a reasonable one-off
+  cost in a way that silently paying it on every scan of a large library would not be.
+- An unreadable file within a size-collision group (moved, locked, deleted since the scan that
+  recorded it) is skipped rather than failing the whole search, matching the same philosophy the
+  routine scanner already follows for one bad file among many.
+
+### What's deliberately not built
+
+- **No UI at all** - no "Find Duplicates" button, no results screen, no way to act on a found group
+  (keep one, hide/delete the others). See below for what a screen would need.
+- **No action taken on a found duplicate automatically.** This only *finds* groups; hiding one
+  (`NudgeSettings.TableCustomizations[path].IsHidden`, already built for a different purpose - see
+  the artwork/customization sections above) or deleting a file are both left entirely to the user,
+  through UI that doesn't exist yet.
+- **Exact byte-for-byte matches only.** A renamed-and-slightly-modified copy, or two different
+  releases/mods of conceptually "the same" table, are not detected - only literal duplicate files.
+
+### Verified two ways
+
+1. **6 new tests** (`DuplicateTableFinderTests`) against `MockFileSystem` and real, in-memory SQLite
+   - two identical files grouped, two same-sized-but-different files correctly *not* grouped (proving
+   size alone is never trusted), a uniquely-sized table never even hashed, no duplicates reporting
+   nothing, an unreadable file being skipped without failing the rest of the search, and three
+   identical files forming one group of three rather than three separate pairs. 22 tests pass in
+   `Nudge.Library.Tests` overall (up from 16).
+2. **Run against the maintainer's real, live database and real Tables folder** via a throwaway
+   harness built from the real production classes: out of 61 real tables, correctly identified only
+   the 2 files sharing a file size (both copies of Medieval Madness), hashed only those two, and
+   correctly reported them as one duplicate group - the same pair independently confirmed by manual
+   inspection (identical size, identical original modification date) while diagnosing the
+   maintainer's report.
+
+### For the UI/composition session
+
+- `services.AddNudgeLibrary()` already registers `IDuplicateTableFinder` - no composition-root
+  change needed.
+- A natural entry point: a "Find Duplicates" action (Settings, or a library toolbar button) that
+  calls `FindDuplicatesAsync(installation.Id, progress)`, shows the (usually short, usually fast)
+  progress via the same `IProgress<T>` pattern `IVpxLibraryScanner` already uses, then presents each
+  `DuplicateTableGroup` for the user to resolve - most simply, letting them pick which one(s) to hide
+  via the existing `TableCustomization.IsHidden` mechanism, with no new settings field required.

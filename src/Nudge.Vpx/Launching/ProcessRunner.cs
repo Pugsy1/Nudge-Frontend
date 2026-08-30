@@ -9,7 +9,8 @@ public sealed class ProcessRunner : IProcessRunner
         string fileName,
         IReadOnlyList<string> arguments,
         string workingDirectory,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Action<int>? onProcessStarted = null)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -32,6 +33,8 @@ public sealed class ProcessRunner : IProcessRunner
         {
             throw new InvalidOperationException($"'{fileName}' did not start.");
         }
+
+        onProcessStarted?.Invoke(process.Id);
 
         await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
 
