@@ -115,6 +115,31 @@ public sealed class NudgeSettings
     /// fallback order instead. Only tables the user has explicitly overridden appear here.
     /// </summary>
     public Dictionary<string, string> TableArtworkSourceOverrides { get; set; } = [];
+
+    /// <summary>
+    /// Opt-in, off by default: whether Nudge translates an Xbox-style controller's input into
+    /// synthesized key presses while a launched table has focus (see
+    /// <c>IControllerInputService</c> and docs/RESEARCH-NOTES.md). Off by default so a controller
+    /// plugged in for something else entirely is never silently intercepted.
+    /// </summary>
+    public bool EnableControllerSupport { get; set; }
+
+    /// <summary>
+    /// Per-button remaps layered over <c>ControllerMapping.Default</c> (which already mirrors
+    /// Visual Pinball's own out-of-the-box keybindings), keyed by <c>ControllerButton</c> name with
+    /// a <c>VirtualKey</c> name as the value. Empty means every button uses the default mapping -
+    /// only needed if the user has also remapped keys inside VPX itself.
+    /// </summary>
+    public Dictionary<string, string> ControllerButtonOverrides { get; set; } = [];
+
+    /// <summary>
+    /// API key for the optional YouTube trailer lookup (<c>ITrailerProvider</c> - see
+    /// docs/RESEARCH-NOTES.md). Null/empty means that feature is not configured and is skipped
+    /// entirely - Nudge never downloads or scrapes video, only looks up a video id via YouTube's own
+    /// official Data API v3 for the UI to embed, using the user's own key from their own Google
+    /// Cloud project.
+    /// </summary>
+    public string? YouTubeApiKey { get; set; }
 }
 
 /// <summary>A remembered installation. Deliberately minimal: paths get re-validated on every start.</summary>

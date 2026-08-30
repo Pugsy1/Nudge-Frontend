@@ -389,6 +389,80 @@ Both concrete providers implement a small internal `IArtworkCandidateSource` int
 it never searches or resolves anything itself. No UI exists yet - see
 docs/IMPLEMENTATION-STATUS.md for what a picker screen would need.
 
+## Controller support: default keybindings and the Windows APIs used to fake them
+
+Requested by the maintainer as "trick the computer into thinking the trigger is Right Shift" - a
+controller plugged in for table play should work with an unmodified Visual Pinball install, the
+same role tools like JoyToKey/AntiMicroX play for other games. This is not a ToS or scraping
+question like the artwork sources above - it is entirely local, entirely within what the user's own
+machine and their own peripherals are allowed to do to each other, so there was no legal/ethical
+gate to work through here, only a technical one.
+
+### Visual Pinball's default keybindings
+
+VPX ships with default keyboard bindings, user-remappable inside VPX itself (Keys tab of its own
+options). Cited from the community's documented default keymap (VPForums community reference
+thread - the same kind of unofficial-but-authoritative community source vps-db itself is):
+
+| Action | Default key |
+| --- | --- |
+| Left flipper | Left Shift |
+| Right flipper | Right Shift |
+| Plunger | Enter |
+| Start game | 1 |
+| Insert coin | 5 |
+| Nudge forward | Space |
+| Nudge left | Z |
+| Nudge right | / |
+| Left magnasave | Left Ctrl |
+| Right magnasave | Right Ctrl |
+| Tilt | T |
+| Menu | Esc |
+
+`Nudge.Core.Models.ControllerMapping.Default` mirrors this table so a controller works out of the
+box against a Visual Pinball install nobody has customized; `NudgeSettings.ControllerButtonOverrides`
+exists for the minority of users who *have* remapped VPX itself.
+
+### Two Windows APIs, and one real gotcha in each
+
+**Reading a pad**: XInput (`xinput1_4.dll`, Windows 8+), falling back to `xinput9_1_0.dll` (present
+since Vista) if the modern one can't be loaded - so this works on any supported Windows version
+without the caller needing to know which is present. `XInputGetState`'s `wButtons` bitmask covers
+the face/shoulder/D-pad/thumbstick-click buttons directly; the analog triggers (0-255) and
+thumbsticks (-32767..32767) need an explicit dead zone before counting as "pressed" or they'd read
+resting noise as input - Microsoft's own published XInput dead-zone constants were used (30/255 for
+triggers, 7849/32767 for thumbsticks) rather than inventing new ones.
+
+**Faking a key press**: Win32 `SendInput`, using hardware **scan codes**
+(`KEYEVENTF_SCANCODE` + `MapVirtualKey(vk, MAPVK_VK_TO_VSC)`) rather than virtual-key codes. This
+matters specifically for a game like Visual Pinball: an application reading the keyboard through
+DirectInput sees scan codes, not the higher-level virtual-key events a plain `keybd_event`-style VK
+press produces, so a naive VK-based synthesizer can be invisible to exactly the kind of application
+this feature targets. This is the same technique AutoHotkey and JoyToKey use for game input.
+
+**The gotcha**: `SendInput`'s marshaled `INPUT` struct is a union of `MOUSEINPUT`/`KEYBDINPUT`/
+`HARDWAREINPUT`. On x64, `MOUSEINPUT` is the largest of the three at 32 bytes, making the real
+`sizeof(INPUT)` 40 bytes - but a naive C# translation that only declares the `KEYBDINPUT` branch of
+the union (since that's the only one ever used) makes `Marshal.SizeOf<INPUT>()` report a smaller,
+wrong size. `SendInput`'s own `cbSize` parameter is supposed to equal Windows' real `sizeof(INPUT)`,
+and when it doesn't, **Windows silently rejects the entire call - returns 0, sends nothing, no
+exception, no visible error of any kind.** This is a well-known trap when hand-rolling this P/Invoke
+(the same one many `SendInput`-on-x64 Stack Overflow questions turn out to be). Fixed by explicitly
+sizing the union struct to 32 bytes (`[StructLayout(LayoutKind.Explicit, Size = 32)]`) even though
+only the keyboard branch is ever populated. Verified directly, not just reasoned through from the
+docs: an independent re-implementation of the same call in a throwaway harness confirmed
+`Marshal.SizeOf<INPUT>()` reports 40 bytes and `SendInput` itself returns 1 (accepted) rather than 0
+(silently rejected) once the fix was in place.
+
+### What wasn't verified
+
+No physical controller was plugged in at verification time, and no real VPX instance was launched
+with controller support enabled - `XInputControllerReader` was confirmed to report "not connected"
+correctly for all four controller slots (no exception, no crash), and `SendInput` was confirmed to
+be *accepted* by Windows, but a real end-to-end "controller press moves a real flipper in a real
+running table" pass has not happened. Flagged rather than assumed, the same way the Google Custom
+Search artwork source is flagged pending real credentials.
+
 ## Where sources conflicted
 
 None yet. If a future Visual Pinball release changes something documented here, record the

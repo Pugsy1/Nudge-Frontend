@@ -1,6 +1,7 @@
 using System.IO.Abstractions.TestingHelpers;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using Nudge.Core.Abstractions;
 using Nudge.Core.Diagnostics;
 using Nudge.Core.Models;
 using Nudge.Core.Results;
@@ -161,10 +162,41 @@ public sealed class LaunchEngineTests
         _processRunner.WasCalled.Should().BeFalse();
     }
 
-    private LaunchEngine CreateEngine() => new(
+    [Fact]
+    public async Task Controller_translation_is_never_started_when_the_setting_is_off()
+    {
+        var controllerInput = new FakeControllerInputService();
+        LaunchEngine engine = CreateEngine(enableControllerSupport: false, controllerInput);
+        VpxInstallation installation = BuildInstallation(ExecutablePath, VpxFlavor.DirectX9);
+        _processRunner.NextExitCode = 0;
+
+        await engine.LaunchAsync(installation, TablePath);
+
+        controllerInput.WasStarted.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Controller_translation_starts_for_this_executable_and_stops_once_it_exits()
+    {
+        var controllerInput = new FakeControllerInputService();
+        LaunchEngine engine = CreateEngine(enableControllerSupport: true, controllerInput);
+        VpxInstallation installation = BuildInstallation(ExecutablePath, VpxFlavor.DirectX9);
+        _processRunner.NextExitCode = 0;
+
+        await engine.LaunchAsync(installation, TablePath);
+
+        controllerInput.WasStarted.Should().BeTrue();
+        controllerInput.LastTargetProcessName.Should().Be("VPinballX64", "the extension is stripped to match Process.ProcessName");
+        controllerInput.LastSession.Should().NotBeNull();
+        controllerInput.LastSession!.WasDisposed.Should().BeTrue("the session must not outlive the play session");
+    }
+
+    private LaunchEngine CreateEngine(bool enableControllerSupport = false, FakeControllerInputService? controllerInput = null) => new(
         _processRunner,
         _fileSystem,
         new PathRedactor("TestUser"),
+        controllerInput ?? new FakeControllerInputService(),
+        new FakeSettingsService { EnableControllerSupport = enableControllerSupport },
         NullLogger<LaunchEngine>.Instance);
 
     private static VpxInstallation BuildInstallation(string executablePath, VpxFlavor flavor) => new()
@@ -219,6 +251,48 @@ public sealed class LaunchEngineTests
             return ThrowOnRun is not null
                 ? Task.FromException<int>(ThrowOnRun)
                 : Task.FromResult(NextExitCode);
+        }
+    }
+
+    private sealed class FakeSettingsService : ISettingsService
+    {
+        public bool EnableControllerSupport { get; set; }
+
+        public string SettingsFilePath => @"D:\Nudge\settings.json";
+
+        public Task<NudgeSettings> LoadAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(new NudgeSettings { EnableControllerSupport = EnableControllerSupport });
+
+        public Task SaveAsync(NudgeSettings settings, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task MutateAsync(Action<NudgeSettings> mutate, CancellationToken cancellationToken = default)
+        {
+            mutate(new NudgeSettings { EnableControllerSupport = EnableControllerSupport });
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeControllerInputService : IControllerInputService
+    {
+        public bool WasStarted { get; private set; }
+
+        public string? LastTargetProcessName { get; private set; }
+
+        public FakeSession? LastSession { get; private set; }
+
+        public IDisposable StartTranslating(string targetProcessName, ControllerMapping mapping)
+        {
+            WasStarted = true;
+            LastTargetProcessName = targetProcessName;
+            return LastSession = new FakeSession();
+        }
+
+        public sealed class FakeSession : IDisposable
+        {
+            public bool WasDisposed { get; private set; }
+
+            public void Dispose() => WasDisposed = true;
         }
     }
 }

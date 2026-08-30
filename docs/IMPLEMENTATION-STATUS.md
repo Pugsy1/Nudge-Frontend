@@ -644,3 +644,110 @@ rationale.
 - **63 tests pass in `Nudge.Media.Tests` overall** (up from 48), and the rest of the backend
   (`Nudge.Core`, `Nudge.Vpx`) still builds and passes unchanged, since nothing about this feature
   touched either of those projects.
+
+## Controller support: an Xbox-style pad translated into keyboard input during play
+
+**Status: functionally complete for the gameplay-input half, verified against real Windows APIs.
+Nothing in the UI exposes a toggle or a remapping screen yet. Does not cover controller navigation
+of Nudge's own library UI - that's a separate, UI-side piece of work (see below).**
+
+Requested by the maintainer as "trick the computer into thinking the trigger is Right Shift" - a
+controller plugged in for table play should work without VPX itself, or the maintainer, needing to
+configure anything, the same role tools like JoyToKey/AntiMicroX play for other games.
+
+### What's built
+
+- **`IControllerInputService`** (`Nudge.Core.Abstractions`) - `StartTranslating(targetProcessName,
+  mapping)` returns an `IDisposable`; disposing it stops translating and releases any key it was
+  still holding down. `Nudge.Vpx.Controller.ControllerInputService` is the real implementation,
+  registered in `AddNudgeVpx`.
+- **`LaunchEngine` starts a session right before running the executable and disposes it the moment
+  the process exits** (`using IDisposable? controllerSession = ...`), gated on the new
+  `NudgeSettings.EnableControllerSupport` (off by default). The target process name is the
+  executable's filename with its extension stripped (`Process.ProcessName` never includes one).
+- **Foreground-gated**: `Nudge.Vpx.Controller.ControllerInputSession` polls at ~60Hz
+  (`PeriodicTimer`) and only translates input while the target process actually owns the foreground
+  window (`IForegroundWindowService` / `WindowsForegroundWindowService`, via
+  `GetForegroundWindow`/`GetWindowThreadProcessId`) - a controller plugged in for table play never
+  leaks input into Nudge's own UI or whatever else the user alt-tabs to mid-session. Losing focus,
+  or the controller disconnecting, while a button is held forces that key to release rather than
+  leaving it stuck down.
+- **Edge-triggered, not level-triggered**: `Nudge.Vpx.Controller.ControllerTranslator` (pure, no
+  I/O) diffs the previous poll's button state against the current one, so a button held across many
+  polls produces exactly one key-down (when first pressed) and exactly one key-up (when released) -
+  never a key-down repeated every single poll a button stays held.
+- **`Nudge.Vpx.Controller.XInputControllerReader`** reads a real pad via XInput (`xinput1_4.dll`,
+  falling back to the universally-present `xinput9_1_0.dll` if the modern one isn't found), with
+  dead zones on both triggers and thumbsticks so resting analog noise never reads as "pressed".
+- **`Nudge.Vpx.Controller.SendInputKeyboardSynthesizer`** presses keys via Win32 `SendInput` using
+  hardware **scan codes** (`KEYEVENTF_SCANCODE`), not virtual-key codes - the technique tools like
+  AutoHotkey/JoyToKey use, and the reliable one for games (including Visual Pinball) that read the
+  keyboard through DirectInput, which sees scan codes rather than higher-level VK events. Caught and
+  fixed a real, well-known x64 `SendInput` gotcha along the way: the marshaled `INPUT` union must be
+  explicitly sized to 32 bytes (matching the real `MOUSEINPUT` branch, the largest of the three) even
+  though only the keyboard branch is ever populated - leaving it at its smaller natural size makes
+  `Marshal.SizeOf<INPUT>()` disagree with Windows' own `sizeof(INPUT)` (40 bytes on x64), and
+  `SendInput` silently rejects the *entire* call (returns 0, sends nothing, no visible error) when
+  that mismatches. Verified directly (below), not just "should be right per the docs".
+- **`ControllerMapping`** (`Nudge.Core.Models`) - `Default` mirrors Visual Pinball's own
+  out-of-the-box keybindings (left/right shoulder → left/right Shift for the flippers, A → Enter for
+  the plunger, Start → "1", Back → "5", both triggers → both Ctrl for magnasave, D-pad → Space/Z//
+  for nudge, Y → Escape for the menu - cross-referenced against the community's documented default
+  keymap, see docs/RESEARCH-NOTES.md). `FromOverrides` layers `NudgeSettings.ControllerButtonOverrides`
+  (button name → key name, empty by default) on top for a maintainer who has remapped VPX itself -
+  an override naming an unrecognised button or key is skipped rather than failing the whole mapping.
+
+### What's deliberately not built
+
+- **No UI.** No toggle for `EnableControllerSupport`, no remapping screen, no "controller detected"
+  indicator. `AddNudgeVpx` already registers everything needed; flipping the setting on today would
+  require hand-editing `settings.json`.
+- **Controller navigation of Nudge's own library UI (selecting/launching tables with a pad) is not
+  part of this at all** - the maintainer asked for both in the same request, but that half is
+  WPF input-handling work that belongs to the UI session, not `Nudge.Core`/`Nudge.Vpx`. This backend
+  piece only covers input *during a running table*, via `LaunchEngine`.
+- **Only the first connected controller (index 0) is read.** Multi-controller support (e.g. two
+  players nudging independently) was not requested and was not built.
+- **Thumbsticks are read by `XInputControllerReader` but nothing in `ControllerMapping.Default` uses
+  them** - the D-pad covers nudge directions instead, since it maps to discrete presses more
+  naturally than an analog stick does. Nothing stops a future mapping from using them; the
+  dead-zone-thresholded boolean state is already there in `ControllerButton` (`LeftThumb`/
+  `RightThumb` cover the stick-click buttons, not stick direction, at least - directional thumbstick
+  buttons were not added as a `ControllerButton` kind, since D-pad already covers that role).
+
+### Verified two ways
+
+1. **18 new tests** (`ControllerMappingTests`, `ControllerTranslatorTests`,
+   `ControllerInputSessionTests`, plus 2 new `LaunchEngineTests` cases) - `Default`'s bindings match
+   VPX's documented keymap, override layering (including the malformed-override-is-skipped and
+   case-insensitivity cases), edge-triggered press/release/held-across-polls behaviour, focus-loss
+   and controller-disconnect both forcing a stuck key to release, and `LaunchEngine` starting a
+   session only when the setting is on and always disposing it once the process exits. Session tests
+   drive `ControllerInputSession.Tick()` directly (internal, exposed to tests via
+   `InternalsVisibleTo`) rather than racing its real 60Hz background timer. 177 tests pass in
+   `Nudge.Vpx.Tests` overall (up from 153).
+2. **Directly exercised against the real Windows APIs**, not just faked in tests, via a throwaway
+   harness built from the real production classes: `XInputControllerReader` correctly reported "not
+   connected" for all four controller slots on the maintainer's machine (no controller was plugged in
+   at verification time) with no exception; `SendInputKeyboardSynthesizer` ran without throwing; and,
+   most importantly, an independent re-implementation of the exact same `SendInput` call confirmed
+   `Marshal.SizeOf<INPUT>()` reports 40 bytes (matching real x64 `sizeof(INPUT)`) and `SendInput`
+   itself returns 1 (accepted) rather than 0 (silently rejected) - the struct-size fix above is
+   confirmed correct, not just theoretically reasoned through. **Not yet verified with a real
+   controller physically plugged in or against a real running VPX instance** - flagged rather than
+   assumed, the same way the Google Custom Search source was flagged pending real credentials.
+
+### For the UI/composition session
+
+- A toggle for `NudgeSettings.EnableControllerSupport` (bool, default `false`) is all that's needed
+  to turn this on with the default mapping - no other wiring required, since `LaunchEngine` already
+  starts/stops translation around every play session automatically.
+- If a remapping screen is ever wanted: `NudgeSettings.ControllerButtonOverrides` is a
+  `Dictionary<string, string>` (`ControllerButton` name → `VirtualKey` name), empty by default.
+  `ControllerMapping.Default`'s bindings (listed above) are what an unmodified dictionary falls back
+  to per button.
+- Controller navigation of the library grid itself (the other half of the maintainer's request) is
+  unstarted and is UI-side work - reading a pad's D-pad/face buttons to move focus between tiles and
+  "press A to launch" belongs in `Nudge.App`, most likely as its own input-handling class rather than
+  reusing anything under `Nudge.Vpx.Controller` (that namespace is specifically about faking
+  keyboard input *into VPX*, not about focus navigation inside WPF).

@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Nudge.Core.Abstractions;
 using Nudge.Core.Diagnostics;
+using Nudge.Vpx.Controller;
 using Nudge.Vpx.Discovery;
 using Nudge.Vpx.Identification;
 using Nudge.Vpx.Launching;
@@ -64,6 +65,10 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IRomNameReader, RomNameReader>();
 
         services.TryAddSingleton<IProcessRunner, ProcessRunner>();
+        services.TryAddSingleton<IControllerReader, XInputControllerReader>();
+        services.TryAddSingleton<IKeyboardInputSynthesizer, SendInputKeyboardSynthesizer>();
+        services.TryAddSingleton<IForegroundWindowService, WindowsForegroundWindowService>();
+        services.TryAddSingleton<IControllerInputService, ControllerInputService>();
         services.TryAddSingleton<ILaunchEngine, LaunchEngine>();
 
         // Standalone building block for the health system (Phase 7) - not wired into anything yet.

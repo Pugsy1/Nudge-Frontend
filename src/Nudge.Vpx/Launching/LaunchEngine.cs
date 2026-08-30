@@ -15,17 +15,23 @@ public sealed class LaunchEngine : ILaunchEngine
     private readonly IProcessRunner _processRunner;
     private readonly IFileSystem _fileSystem;
     private readonly IPathRedactor _redactor;
+    private readonly IControllerInputService _controllerInput;
+    private readonly ISettingsService _settingsService;
     private readonly ILogger<LaunchEngine> _logger;
 
     public LaunchEngine(
         IProcessRunner processRunner,
         IFileSystem fileSystem,
         IPathRedactor redactor,
+        IControllerInputService controllerInput,
+        ISettingsService settingsService,
         ILogger<LaunchEngine> logger)
     {
         _processRunner = processRunner;
         _fileSystem = fileSystem;
         _redactor = redactor;
+        _controllerInput = controllerInput;
+        _settingsService = settingsService;
         _logger = logger;
     }
 
@@ -70,6 +76,18 @@ public sealed class LaunchEngine : ILaunchEngine
             "Launching {Executable} to play {Table}.",
             executable.FileName,
             _redactor.Redact(tablePath));
+
+        NudgeSettings settings = await _settingsService.LoadAsync(cancellationToken).ConfigureAwait(false);
+
+        // Translating controller input to key presses only matters while Visual Pinball itself has
+        // focus (see IControllerInputService's remarks) - started right before the process runs and
+        // disposed the moment it exits, so a controller is never left translating into whatever
+        // regains focus afterward (Nudge's own UI, most likely).
+        using IDisposable? controllerSession = settings.EnableControllerSupport
+            ? _controllerInput.StartTranslating(
+                _fileSystem.Path.GetFileNameWithoutExtension(executable.FileName),
+                ControllerMapping.FromOverrides(settings.ControllerButtonOverrides))
+            : null;
 
         var stopwatch = Stopwatch.StartNew();
         int exitCode;
