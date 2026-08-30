@@ -415,9 +415,81 @@ interface and setting reported below.**
   `Path.Combine(ResolveDataDirectory(environment), "artwork")`.
 - Resolve `IArtworkProvider` and call `GetArtworkAsync(table)` per tile; treat `Result.Failure` as
   "show the placeholder", not an error. Nothing here blocks a calling thread, so this is safe to
-  await per-tile as tiles come into view.
+  await per-tile as tiles come into view. (This already appears to be wired up in
+  `TableTileViewModel` - the above is what it's calling into.)
 - The opt-in setting is `NudgeSettings.FetchArtworkFromInternet` (default `false`) - needs a toggle
   somewhere in Settings.
+- **New, for the second source below**: `NudgeSettings.GoogleCustomSearchApiKey` /
+  `GoogleCustomSearchEngineId` (both null until the user supplies them - see the setup steps below),
+  `DefaultArtworkSourceName` (default `"vps-db"`), and `TableArtworkSourceOverrides` (a
+  `Dictionary<string,string>` keyed by table file path, empty by default). None of these have UI yet
+  - a settings screen would need: two text fields for the Google key/cx, a dropdown for the default
+    source (populated from each registered `IArtworkProvider.Name`, currently `"vps-db"` and
+    `"Google Images"`), and - if a per-table picker is wanted - a way to write one entry into
+    `TableArtworkSourceOverrides` per table, keyed by `VpxTableFile.Path`.
+
+## A second artwork source: Google Custom Search (official API, opt-in, needs the user's own key)
+
+**Status: built and unit-tested against Google's documented API contract. NOT verified against a
+real live call - see docs/RESEARCH-NOTES.md for why, and treat it as unverified until it is.**
+
+Requested as "scrape from Google" for posters; Google's Terms of Service explicitly prohibit
+automated access to Search, and an alternative (IPDB) was checked and found to actively block
+scrapers via `robots.txt`. Built against Google's own sanctioned Custom Search JSON API instead -
+see docs/RESEARCH-NOTES.md for the full reasoning.
+
+### What's built
+
+- **`Nudge.Media.GoogleImages.GoogleCustomSearchArtworkProvider`** - a second `IArtworkProvider`.
+  Disabled (reports "not configured", the same ordinary outcome as no match) until both
+  `NudgeSettings.GoogleCustomSearchApiKey` and `GoogleCustomSearchEngineId` are set. Same
+  cache-first, rate-limited, resize-and-cache shape as `VpsDbArtworkProvider` - both now share a
+  small extracted `RateLimiter` instead of duplicating that logic.
+- **`Nudge.Media.CompositeArtworkProvider`** - the only thing actually registered as
+  `IArtworkProvider` now; `VpsDbArtworkProvider` and `GoogleCustomSearchArtworkProvider` are
+  registered under their own concrete types and only ever resolved through it. Implements the
+  maintainer's "choice per table" request: an entry in `NudgeSettings.TableArtworkSourceOverrides`
+  pins a table to exactly one named source (no fallback - an explicit choice is honoured, not
+  second-guessed); otherwise `DefaultArtworkSourceName` is tried first and every other source
+  follows automatically, maximising how many tables end up with real artwork.
+- **`IArtworkCache` is now keyed by (source name, table path)**, not table path alone - otherwise
+  switching a table between sources would keep silently serving the old source's cached image.
+
+### Setup steps for the user (nothing here can be provisioned by Nudge or by an AI session)
+
+1. Create a Google Cloud project and enable the "Custom Search API": https://console.cloud.google.com/
+2. Create an API key under that project (APIs & Services -> Credentials).
+3. Create a Programmable Search Engine at https://programmablesearchengine.google.com/, configured
+   to search the entire web (or images specifically) - this gives you the "Search engine ID" (`cx`).
+4. Put both values into `NudgeSettings.GoogleCustomSearchApiKey` / `GoogleCustomSearchEngineId`
+   (currently only settable by hand-editing `settings.json`, since no UI exists yet).
+5. Free tier is 100 queries/day at the time this was written - Google's own published limit, not
+   something Nudge tries to work around or exceed quietly.
+
+### What's deliberately not built
+
+- **No UI** for either the Google key/cx fields, the default-source dropdown, or a per-table picker
+  - see the composition-session note above for what a settings screen would need.
+- **Not verified live.** Every other network integration in this project (vps-db, the ROM/launch
+  work) was checked against real data before being called done; this one cannot be without
+  credentials Nudge's development environment does not have. Flagged rather than assumed correct -
+  test it once a real key exists, the same way you'd want any first real run of new code checked.
+
+### Verified two ways (as far as possible without real credentials)
+
+1. **14 new tests** (`GoogleCustomSearchArtworkProviderTests`, `CompositeArtworkProviderTests`,
+   plus an added `ArtworkCacheTests` case) against a faked `HttpMessageHandler` routed by URL (one
+   fake response for the search call, another for the image download) and real generated images
+   through the real `ImageResizer` - the missing-credentials failure path, a successful
+   search-then-download-then-cache round trip, an empty search result, a failed search request, the
+   manufacturer appearing in the built query, cache-hit short-circuiting, and every
+   `CompositeArtworkProvider` ordering rule (default-first, fallback, exclusive per-table override,
+   an override naming an unregistered source falling back, every source failing, no sources
+   registered at all). 48 tests pass in `Nudge.Media.Tests` overall (up from 34).
+2. **Everything except the live Google call itself was re-verified**: the whole solution still
+   builds, and all 153 `Nudge.Vpx.Tests` plus every other backend suite still pass unchanged after
+   `IArtworkProvider` gained its new `Name` member and `NudgeSettings` gained four new fields - the
+   kind of "did this ripple break anything else" check worth doing after touching a shared interface.
 
 ### Verified two ways
 

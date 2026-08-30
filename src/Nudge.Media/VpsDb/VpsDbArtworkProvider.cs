@@ -25,8 +25,7 @@ public sealed class VpsDbArtworkProvider : IArtworkProvider
     private readonly IPathRedactor _redactor;
     private readonly ILogger<VpsDbArtworkProvider> _logger;
 
-    private readonly SemaphoreSlim _rateLimitGate = new(1, 1);
-    private DateTimeOffset _lastRequestAt = DateTimeOffset.MinValue;
+    private readonly RateLimiter _rateLimiter = new(MinimumRequestInterval);
 
     public VpsDbArtworkProvider(
         IVpsDbIndex index,
@@ -44,11 +43,13 @@ public sealed class VpsDbArtworkProvider : IArtworkProvider
         _logger = logger;
     }
 
+    public string Name => "vps-db";
+
     public async Task<Result<ArtworkImage>> GetArtworkAsync(VpxTableFile table, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(table);
 
-        ArtworkImage? cached = await _cache.TryGetAsync(table.Path, cancellationToken).ConfigureAwait(false);
+        ArtworkImage? cached = await _cache.TryGetAsync(Name, table.Path, cancellationToken).ConfigureAwait(false);
         if (cached is not null)
         {
             return Result<ArtworkImage>.Success(cached);
@@ -86,7 +87,7 @@ public sealed class VpsDbArtworkProvider : IArtworkProvider
     {
         try
         {
-            await WaitForRateLimitAsync(cancellationToken).ConfigureAwait(false);
+            await _rateLimiter.WaitAsync(cancellationToken).ConfigureAwait(false);
 
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(TimeSpan.FromSeconds(15));
@@ -102,7 +103,7 @@ public sealed class VpsDbArtworkProvider : IArtworkProvider
                 Source = sourceDescription
             };
 
-            await _cache.SaveAsync(tablePath, image, cancellationToken).ConfigureAwait(false);
+            await _cache.SaveAsync(Name, tablePath, image, cancellationToken).ConfigureAwait(false);
             return Result<ArtworkImage>.Success(image);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException
@@ -118,22 +119,4 @@ public sealed class VpsDbArtworkProvider : IArtworkProvider
         }
     }
 
-    private async Task WaitForRateLimitAsync(CancellationToken cancellationToken)
-    {
-        await _rateLimitGate.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            TimeSpan sinceLastRequest = DateTimeOffset.UtcNow - _lastRequestAt;
-            if (sinceLastRequest < MinimumRequestInterval)
-            {
-                await Task.Delay(MinimumRequestInterval - sinceLastRequest, cancellationToken).ConfigureAwait(false);
-            }
-
-            _lastRequestAt = DateTimeOffset.UtcNow;
-        }
-        finally
-        {
-            _rateLimitGate.Release();
-        }
-    }
 }

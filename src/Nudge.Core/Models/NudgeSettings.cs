@@ -84,6 +84,37 @@ public sealed class NudgeSettings
     /// the network at all; a user who never enables it gets a purely offline app.
     /// </summary>
     public bool FetchArtworkFromInternet { get; set; }
+
+    /// <summary>
+    /// API key for the optional Google Custom Search artwork source (a second
+    /// <c>IArtworkProvider</c>, alongside vps-db - see docs/RESEARCH-NOTES.md). Null/empty means
+    /// that source is not configured and is skipped entirely - Nudge never scrapes Google directly
+    /// (against its Terms of Service); this is the official, sanctioned API, and it is the user's
+    /// own key, obtained from their own Google Cloud project.
+    /// </summary>
+    public string? GoogleCustomSearchApiKey { get; set; }
+
+    /// <summary>
+    /// The Programmable Search Engine ID ("cx") paired with <see cref="GoogleCustomSearchApiKey"/>.
+    /// Both must be set for the Google Images source to be usable.
+    /// </summary>
+    public string? GoogleCustomSearchEngineId { get; set; }
+
+    /// <summary>
+    /// Which artwork source (by its <c>IArtworkProvider.Name</c>, e.g. "vps-db" or "Google Images")
+    /// to try first for a table with no entry in <see cref="TableArtworkSourceOverrides"/>. The
+    /// composite provider still falls through to every other configured source afterward if the
+    /// first one finds nothing - this only decides the order, not an exclusive choice.
+    /// </summary>
+    public string DefaultArtworkSourceName { get; set; } = "vps-db";
+
+    /// <summary>
+    /// Pins specific tables to a specific artwork source by name, keyed by the table's file path -
+    /// "use one scraper for some tables and another for other tables", per the maintainer's request.
+    /// A table with no entry here uses <see cref="DefaultArtworkSourceName"/> and the automatic
+    /// fallback order instead. Only tables the user has explicitly overridden appear here.
+    /// </summary>
+    public Dictionary<string, string> TableArtworkSourceOverrides { get; set; } = [];
 }
 
 /// <summary>A remembered installation. Deliberately minimal: paths get re-validated on every start.</summary>

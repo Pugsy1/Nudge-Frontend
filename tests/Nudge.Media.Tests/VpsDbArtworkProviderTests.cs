@@ -161,10 +161,10 @@ public sealed class VpsDbArtworkProviderTests
     {
         public Dictionary<string, ArtworkImage> Stored { get; } = new(StringComparer.OrdinalIgnoreCase);
 
-        public Task<ArtworkImage?> TryGetAsync(string tablePath, CancellationToken cancellationToken = default) =>
+        public Task<ArtworkImage?> TryGetAsync(string sourceName, string tablePath, CancellationToken cancellationToken = default) =>
             Task.FromResult(Stored.TryGetValue(tablePath, out ArtworkImage? image) ? image : null);
 
-        public Task SaveAsync(string tablePath, ArtworkImage image, CancellationToken cancellationToken = default)
+        public Task SaveAsync(string sourceName, string tablePath, ArtworkImage image, CancellationToken cancellationToken = default)
         {
             Stored[tablePath] = image;
             return Task.CompletedTask;

@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Nudge.Core.Abstractions;
 using Nudge.Core.Diagnostics;
+using Nudge.Media.GoogleImages;
 using Nudge.Media.VpsDb;
 
 namespace Nudge.Media.DependencyInjection;
@@ -51,7 +52,11 @@ public static class ServiceCollectionExtensions
                 provider.GetRequiredService<ILogger<ArtworkCache>>());
         });
 
-        services.TryAddSingleton<IArtworkProvider>(provider =>
+        // Each concrete source is registered under its own type - not IArtworkProvider - so it can
+        // be resolved individually below without also satisfying every other IArtworkProvider
+        // consumer in the container. IArtworkProvider itself resolves to CompositeArtworkProvider,
+        // the only thing the rest of the app ever needs to know about.
+        services.TryAddSingleton<VpsDbArtworkProvider>(provider =>
         {
             HttpClient client = provider.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(VpsDbArtworkProvider));
 
@@ -63,6 +68,26 @@ public static class ServiceCollectionExtensions
                 provider.GetRequiredService<IPathRedactor>(),
                 provider.GetRequiredService<ILogger<VpsDbArtworkProvider>>());
         });
+
+        services.TryAddSingleton<GoogleCustomSearchArtworkProvider>(provider =>
+        {
+            HttpClient client = provider.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(GoogleCustomSearchArtworkProvider));
+
+            return new GoogleCustomSearchArtworkProvider(
+                provider.GetRequiredService<IArtworkCache>(),
+                client,
+                provider.GetRequiredService<ISettingsService>(),
+                provider.GetRequiredService<IPathRedactor>(),
+                provider.GetRequiredService<ILogger<GoogleCustomSearchArtworkProvider>>());
+        });
+
+        services.TryAddSingleton<IArtworkProvider>(provider => new CompositeArtworkProvider(
+            [
+                provider.GetRequiredService<VpsDbArtworkProvider>(),
+                provider.GetRequiredService<GoogleCustomSearchArtworkProvider>()
+            ],
+            provider.GetRequiredService<ISettingsService>(),
+            provider.GetRequiredService<ILogger<CompositeArtworkProvider>>()));
 
         return services;
     }

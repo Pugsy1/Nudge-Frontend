@@ -4,13 +4,22 @@ using Nudge.Core.Results;
 namespace Nudge.Core.Abstractions;
 
 /// <summary>
-/// Finds artwork for a table. Implemented by <c>Nudge.Media.VpsDb.VpsDbArtworkProvider</c>, which
-/// looks the table up in the community vps-db dataset and fetches its image over the network - see
-/// docs/RESEARCH-NOTES.md for why a local-only source (embedded table images, a media folder
-/// convention) was not used instead.
+/// Finds artwork for a table. Two implementations exist in <c>Nudge.Media</c>:
+/// <c>VpsDb.VpsDbArtworkProvider</c> (the community vps-db dataset) and
+/// <c>GoogleImages.GoogleCustomSearchArtworkProvider</c> (Google's official, sanctioned Custom
+/// Search API - never a direct scrape of Google, which its Terms of Service prohibit). A third,
+/// <c>CompositeArtworkProvider</c>, is the one actually registered as <see cref="IArtworkProvider"/>:
+/// it picks which of the others to try for a given table (per-table override, else a default order
+/// with automatic fallback) - see docs/RESEARCH-NOTES.md and <c>NudgeSettings.DefaultArtworkSourceName</c>
+/// / <c>TableArtworkSourceOverrides</c>.
 /// </summary>
 public interface IArtworkProvider
 {
+    /// <summary>A short, stable, human-readable name for this specific source, e.g. "vps-db" or
+    /// "Google Images" - used to refer to it in settings (<c>NudgeSettings.DefaultArtworkSourceName</c>,
+    /// <c>TableArtworkSourceOverrides</c>) and in a future UI picker. Never shown as a raw enum or id.</summary>
+    string Name { get; }
+
     /// <summary>
     /// Never throws for "nothing found" - an unmatched table, a network error, a disabled setting,
     /// or missing artwork in an otherwise-matched entry are all the same ordinary, expected

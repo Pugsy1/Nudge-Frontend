@@ -308,6 +308,64 @@ primary source, then a network source was chosen and verified live.
     gap in `VpsDbArtworkProvider`'s error handling (an unhandled exception on a bad network image,
     rather than the intended graceful "not found").
 
+## A second artwork source was requested: Google/IPDB scraping is not possible, an official API is
+
+The maintainer asked for a second source, specifically "scrape from Google" for pinball posters.
+Checked before writing any code, per the same rule vps-db was held to:
+
+- **Google Search/Images**: Google's Terms of Service explicitly prohibit automated/programmatic
+  access to Search, and Google actively enforces this with bot detection and CAPTCHAs. This is a
+  fundamentally different situation from vps-db (no stated terms either way, a gray area) - this is
+  an explicit, active prohibition. **Not built, and won't be**, regardless of instruction to
+  proceed: building a scraper here would mean defeating Google's bot detection, which is a hard
+  line, not a judgement call weighed against convenience.
+- **IPDB (Internet Pinball Database)**: checked as a real-flyer/poster alternative. IPDB's own
+  `robots.txt` was recently updated to **block all crawlers**, stated by the maintainers to be a
+  direct response to being overwhelmed by AI-scraper traffic. As explicit a "do not scrape us"
+  signal as a site can give without a formal terms page. Not built.
+- **The legitimate path taken instead: Google's own Custom Search JSON API**
+  (`developers.google.com/custom-search`), an official, sanctioned, documented API - not a scrape of
+  anything. Requires the user's own free API key (Google Cloud Console) and a Programmable Search
+  Engine ID ("cx", from programmablesearchengine.google.com) - Nudge cannot provision either on the
+  user's behalf, and does not try to. Free tier: 100 queries/day at the time this was written, a
+  real published quota rather than an undocumented rate Nudge has to guess at and stay under.
+  - Endpoint and schema confirmed against Google's own published REST reference
+    (`developers.google.com/custom-search/v1/reference/rest/v1/cse/list` and `.../Search`):
+    `GET https://customsearch.googleapis.com/customsearch/v1?key=&cx=&q=&searchType=image`. For an
+    image search specifically, the **top-level `link` field is the direct image file URL** - not
+    `image.contextLink` (the page the image was found on) or `image.thumbnailLink` (a small
+    preview), which is an easy field to pick wrong without checking the docs closely.
+  - **Not verified against a real live call** - unlike every other network integration in this
+    project, which was checked against real data before being called done. This one genuinely
+    cannot be: it needs a user-supplied API key and search engine ID that do not exist yet. Built
+    and unit-tested against the documented contract with a faked HTTP response instead
+    (`GoogleCustomSearchArtworkProviderTests`). **This should be treated as unverified until the
+    user adds a real key and it is tried against a real table** - flagged explicitly rather than
+    quietly treated the same as everything else that was actually checked.
+  - Query built as `"<title> <manufacturer> pinball machine"` (manufacturer included when known, the
+    same disambiguating role it plays in `VpsDbMatcher`). Not tuned against real search results for
+    the same reason above - untested judgement, not a measured choice.
+
+### Choosing between sources, per table
+
+The maintainer asked for "an option to change between scrapers, or use one for some tables and
+another for others." Built as `CompositeArtworkProvider`, the one thing actually registered as
+`IArtworkProvider` - `VpsDbArtworkProvider` and `GoogleCustomSearchArtworkProvider` are both
+registered under their own concrete types instead, resolved only by the composite:
+
+- A table with an entry in `NudgeSettings.TableArtworkSourceOverrides` (keyed by file path) asks
+  **only** that named source - an explicit per-table choice is honoured, never silently
+  second-guessed by falling back to something else if it finds nothing.
+- A table with no override tries `NudgeSettings.DefaultArtworkSourceName` first, then every other
+  registered source in turn - one source finding nothing never stops another from filling the table
+  in, which is the "best for filling in the images" goal the maintainer stated directly.
+- The cache (`IArtworkCache`) is keyed by **(source name, table path)**, not table path alone -
+  otherwise switching a table from one source to another would keep silently serving the first
+  source's stale cached image back out, since the cache would have no way to know a different
+  source was asked for.
+- No UI exists yet for either setting - both are plain `NudgeSettings` fields a future settings
+  screen can read/write; see docs/IMPLEMENTATION-STATUS.md.
+
 ## Where sources conflicted
 
 None yet. If a future Visual Pinball release changes something documented here, record the
