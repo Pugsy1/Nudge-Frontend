@@ -510,3 +510,88 @@ see docs/RESEARCH-NOTES.md for the full reasoning.
    the real matcher against **all 61 real table files** in the maintainer's test collection - measured
    50/61 (82%) matched against the live index, up from 37/61 (61%) for the original plain
    exact-string matcher. See docs/RESEARCH-NOTES.md for the categorised misses.
+
+## Hand-picking artwork: browsing every candidate image, not just the best guess
+
+**Status: built and unit-tested. Shares the same "not verified live" caveat as the Google Custom
+Search source above for the Google half; the vps-db half was checked against the same live index
+already verified elsewhere in this document.**
+
+Requested by the maintainer as a "three lines menu" per table: instead of Nudge silently picking
+its one best-guess image, let the user open a list of every candidate image either source can find
+and hand-pick one - useful when the auto-picked image is wrong, or when nothing was auto-picked at
+all. See docs/RESEARCH-NOTES.md, "Browsing and hand-picking a specific image", for the design
+rationale.
+
+### What's built
+
+- **`IArtworkBrowser`** (`Nudge.Core.Abstractions`) - the new entry point for browsing, separate
+  from `IArtworkProvider`'s single-best-guess `GetArtworkAsync`. `AvailableSourceNames` lists every
+  registered source by name (currently `"vps-db"` and `"Google Images"`); `SearchAsync(table,
+  sourceName)` returns every `ArtworkCandidate` (an image URL plus a human-readable description)
+  that source can find for that table, unranked and not yet downloaded; `SelectAsync(table,
+  candidate)` downloads, resizes, and caches whichever one the user picked, exactly like
+  `GetArtworkAsync` does for the automatic path.
+- **`Nudge.Media.ArtworkBrowser`** - the concrete implementation, registered as `IArtworkBrowser`.
+  It is a thin dispatcher only: it never searches or downloads anything itself, only routes to
+  whichever internal `IArtworkCandidateSource` matches the requested source name, and fails
+  gracefully (an ordinary `Result.Failure`, not an exception) for an unknown name in either
+  direction.
+- **`VpsDbArtworkProvider` and `GoogleCustomSearchArtworkProvider` both now also implement**
+  `IArtworkCandidateSource` (`Nudge.Media`, internal) alongside their existing `IArtworkProvider`.
+  `SearchCandidatesAsync` reuses each provider's existing match/query logic but returns every result
+  instead of just the first: for vps-db that means every table-cabinet and backglass image from
+  every ambiguously-matching entry (`VpsDbMatcher.FindAllMatches` + `AllImageUrls`, new alongside
+  the existing single-best-match `FindMatch`/`BestImageUrl`); for Google it means up to 8 image
+  search results instead of 1. `ResolveCandidateAsync` on both reuses the exact same
+  download-resize-cache path (`FetchAndCacheAsync`/`FetchAndCacheAsync`) that the automatic
+  `GetArtworkAsync` path already uses, so a hand-picked image is cached identically to an
+  auto-picked one - same rate limiting, same timeout, same resize-to-480px, same cache key.
+- Both `IArtworkProvider` and `IArtworkCandidateSource` are keyed by the provider's existing `Name`
+  property (`"vps-db"` / `"Google Images"`), so `ArtworkCandidate.SourceName` round-trips cleanly
+  back through `IArtworkBrowser.SelectAsync` to the right source without any separate lookup table.
+
+### What's deliberately not built
+
+- **No UI.** This is the backend half of the maintainer's "three lines menu" request only - no menu,
+  no image grid, no way to trigger a browse from a tile. See "For the UI/composition session" below
+  for what's needed.
+- **No ranking or deduplication of candidates.** `SearchAsync` returns everything a source finds,
+  in whatever order the source produced it (vps-db: entry order then table-then-backglass; Google:
+  the search API's own relevance order) - the user does the picking, so Nudge doesn't need to guess
+  which candidate is "best" the way the automatic path does.
+- **No caching of the candidate list itself** - only the final chosen image is cached, the same as
+  the automatic path. Re-opening the browser re-queries the source (subject to its normal rate
+  limit), which is deliberate: candidate lists can change as vps-db or a Google index updates.
+
+### For the UI/composition session
+
+- `services.AddNudgeMedia(...)` already registers `IArtworkBrowser` - no composition-root change
+  needed beyond what `AddNudgeMedia` already required for the automatic artwork feature.
+- A "three lines" menu per tile would call `IArtworkBrowser.AvailableSourceNames` to populate a
+  source picker (e.g. "vps-db" vs "Google Images" tabs or a dropdown), then
+  `SearchAsync(table, sourceName)` to populate an image grid from the returned
+  `ArtworkCandidate.ImageUrl`/`Description` pairs (note: these URLs are direct links to the
+  *original, un-resized* source images - fine to hot-link for a picker thumbnail grid, but the
+  actual cached artwork only exists after `SelectAsync` is called), and finally
+  `SelectAsync(table, candidate)` on the user's chosen candidate, treating the returned
+  `Result<ArtworkImage>` exactly like `GetArtworkAsync`'s (failure = show the placeholder, not an
+  error).
+- Nothing here writes to `NudgeSettings.TableArtworkSourceOverrides` - hand-picking one image for
+  one table is independent of the existing "which source should this table default to" setting.
+  Both can coexist: an override still decides what the *automatic* path does next time; the browser
+  is purely a manual one-off replacement of the cached image.
+
+### Verified
+
+- **6 new tests** (`ArtworkBrowserTests`) covering source-name listing, correct routing of both
+  `SearchAsync` and `SelectAsync` to the named source, and graceful (non-throwing) failure for an
+  unknown source name on both operations.
+- **9 more new tests** across `VpsDbArtworkProviderTests`, `GoogleCustomSearchArtworkProviderTests`,
+  and `VpsDbMatcherTests` covering `SearchCandidates`/`ResolveCandidate` on both providers (including
+  the settings-gate-blocks-without-any-network-call case) and the new `FindAllMatches`/`AllImageUrls`
+  matcher behaviour (every ambiguous entry returned unranked, every table and backglass image
+  yielded, entries with no image skipped, an empty list rather than null when nothing matches).
+- **63 tests pass in `Nudge.Media.Tests` overall** (up from 48), and the rest of the backend
+  (`Nudge.Core`, `Nudge.Vpx`) still builds and passes unchanged, since nothing about this feature
+  touched either of those projects.

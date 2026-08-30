@@ -27,9 +27,10 @@ namespace Nudge.Media.GoogleImages;
 /// environment does not have. Flagged explicitly rather than claimed as verified; see
 /// docs/RESEARCH-NOTES.md.
 /// </remarks>
-public sealed class GoogleCustomSearchArtworkProvider : IArtworkProvider
+public sealed class GoogleCustomSearchArtworkProvider : IArtworkProvider, IArtworkCandidateSource
 {
     private const string Endpoint = "https://customsearch.googleapis.com/customsearch/v1";
+    private const int MaxBrowseCandidates = 8;
     private static readonly TimeSpan MinimumRequestInterval = TimeSpan.FromMilliseconds(300);
 
     private readonly IArtworkCache _cache;
@@ -66,16 +67,16 @@ public sealed class GoogleCustomSearchArtworkProvider : IArtworkProvider
             return Result<ArtworkImage>.Success(cached);
         }
 
-        NudgeSettings settings = await _settingsService.LoadAsync(cancellationToken).ConfigureAwait(false);
-        if (string.IsNullOrWhiteSpace(settings.GoogleCustomSearchApiKey) || string.IsNullOrWhiteSpace(settings.GoogleCustomSearchEngineId))
+        NudgeSettings? settings = await RequireConfiguredSettingsAsync(cancellationToken).ConfigureAwait(false);
+        if (settings is null)
         {
             return Result<ArtworkImage>.Failure("Google Images is not configured (no API key / search engine id).");
         }
 
-        string? imageUrl;
+        List<GoogleCustomSearchItem> items;
         try
         {
-            imageUrl = await FindImageUrlAsync(table, settings, cancellationToken).ConfigureAwait(false);
+            items = await SearchImagesAsync(table, settings, maxResults: 1, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
         {
@@ -83,6 +84,7 @@ public sealed class GoogleCustomSearchArtworkProvider : IArtworkProvider
             return Result<ArtworkImage>.Failure("Could not search Google Images.");
         }
 
+        string? imageUrl = items.FirstOrDefault(i => !string.IsNullOrWhiteSpace(i.Link))?.Link;
         if (imageUrl is null)
         {
             return Result<ArtworkImage>.Failure("No image found via Google Images.");
@@ -91,14 +93,74 @@ public sealed class GoogleCustomSearchArtworkProvider : IArtworkProvider
         return await FetchAndCacheAsync(table.Path, imageUrl, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<string?> FindImageUrlAsync(VpxTableFile table, NudgeSettings settings, CancellationToken cancellationToken)
+    /// <summary>
+    /// Up to <see cref="MaxBrowseCandidates"/> image results as unfetched candidates - for browsing
+    /// (<see cref="Core.Abstractions.IArtworkBrowser"/>), unlike <see cref="GetArtworkAsync"/>'s
+    /// single automatic choice. Costs the same one search-quota unit either way; only how many of
+    /// the results are kept differs.
+    /// </summary>
+    public async Task<Result<IReadOnlyList<ArtworkCandidate>>> SearchCandidatesAsync(
+        VpxTableFile table,
+        CancellationToken cancellationToken)
+    {
+        NudgeSettings? settings = await RequireConfiguredSettingsAsync(cancellationToken).ConfigureAwait(false);
+        if (settings is null)
+        {
+            return Result<IReadOnlyList<ArtworkCandidate>>.Failure("Google Images is not configured (no API key / search engine id).");
+        }
+
+        List<GoogleCustomSearchItem> items;
+        try
+        {
+            items = await SearchImagesAsync(table, settings, MaxBrowseCandidates, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+        {
+            _logger.LogDebug(ex, "Google Custom Search request failed for {Title}.", table.DisplayTitle);
+            return Result<IReadOnlyList<ArtworkCandidate>>.Failure("Could not search Google Images.");
+        }
+
+        List<ArtworkCandidate> candidates = items
+            .Where(i => !string.IsNullOrWhiteSpace(i.Link))
+            .Select(i => new ArtworkCandidate
+            {
+                ImageUrl = i.Link!,
+                SourceName = Name,
+                Description = string.IsNullOrWhiteSpace(i.Title) ? table.DisplayTitle : i.Title!
+            })
+            .ToList();
+
+        return candidates.Count == 0
+            ? Result<IReadOnlyList<ArtworkCandidate>>.Failure("No images found via Google Images.")
+            : Result<IReadOnlyList<ArtworkCandidate>>.Success(candidates);
+    }
+
+    public Task<Result<ArtworkImage>> ResolveCandidateAsync(
+        VpxTableFile table,
+        ArtworkCandidate candidate,
+        CancellationToken cancellationToken) =>
+        FetchAndCacheAsync(table.Path, candidate.ImageUrl, cancellationToken);
+
+    private async Task<NudgeSettings?> RequireConfiguredSettingsAsync(CancellationToken cancellationToken)
+    {
+        NudgeSettings settings = await _settingsService.LoadAsync(cancellationToken).ConfigureAwait(false);
+        return string.IsNullOrWhiteSpace(settings.GoogleCustomSearchApiKey) || string.IsNullOrWhiteSpace(settings.GoogleCustomSearchEngineId)
+            ? null
+            : settings;
+    }
+
+    private async Task<List<GoogleCustomSearchItem>> SearchImagesAsync(
+        VpxTableFile table,
+        NudgeSettings settings,
+        int maxResults,
+        CancellationToken cancellationToken)
     {
         await _rateLimiter.WaitAsync(cancellationToken).ConfigureAwait(false);
 
         string query = BuildQuery(table);
         string url = $"{Endpoint}?key={Uri.EscapeDataString(settings.GoogleCustomSearchApiKey!)}"
                      + $"&cx={Uri.EscapeDataString(settings.GoogleCustomSearchEngineId!)}"
-                     + $"&q={Uri.EscapeDataString(query)}&searchType=image&num=1&safe=active";
+                     + $"&q={Uri.EscapeDataString(query)}&searchType=image&num={maxResults}&safe=active";
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(15));
@@ -110,7 +172,7 @@ public sealed class GoogleCustomSearchArtworkProvider : IArtworkProvider
                 "Google Custom Search returned {StatusCode} for {Title}.",
                 response.StatusCode,
                 table.DisplayTitle);
-            return null;
+            return [];
         }
 
         Stream stream = await response.Content.ReadAsStreamAsync(timeout.Token).ConfigureAwait(false);
@@ -120,7 +182,7 @@ public sealed class GoogleCustomSearchArtworkProvider : IArtworkProvider
                 .DeserializeAsync<GoogleCustomSearchResponse>(stream, cancellationToken: timeout.Token)
                 .ConfigureAwait(false);
 
-            return parsed?.Items?.FirstOrDefault(i => !string.IsNullOrWhiteSpace(i.Link))?.Link;
+            return parsed?.Items ?? [];
         }
     }
 

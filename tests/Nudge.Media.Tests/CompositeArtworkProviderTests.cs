@@ -149,5 +149,11 @@ public sealed class CompositeArtworkProviderTests
         });
 
         public Task SaveAsync(NudgeSettings settings, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task MutateAsync(Action<NudgeSettings> mutate, CancellationToken cancellationToken = default)
+        {
+            mutate(new NudgeSettings { DefaultArtworkSourceName = DefaultSourceName, TableArtworkSourceOverrides = Overrides });
+            return Task.CompletedTask;
+        }
     }
 }

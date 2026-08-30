@@ -366,6 +366,29 @@ registered under their own concrete types instead, resolved only by the composit
 - No UI exists yet for either setting - both are plain `NudgeSettings` fields a future settings
   screen can read/write; see docs/IMPLEMENTATION-STATUS.md.
 
+### Browsing and hand-picking a specific image
+
+A follow-up request: "so without actually having the images on the device the user can go into the
+three lines and click on... maybe swap between the google search... and the vpx db scraper... and
+hand select a good image". `CompositeArtworkProvider`/`IArtworkProvider` only ever return the one
+automatic choice, so a separate, smaller interface was added rather than overloading that one:
+`IArtworkBrowser` (`Nudge.Media.ArtworkBrowser`), with two operations:
+
+- `SearchAsync(table, sourceName)` - lightweight `ArtworkCandidate` references (a URL and a
+  description) from one *named* source, nothing downloaded or cached yet. `VpsDbArtworkProvider`
+  returns every image (table screenshot **and** backglass) from every entry `VpsDbMatcher.FindAllMatches`
+  finds - deliberately every plausible option, not the one `FindMatch`/`GetArtworkAsync` would have
+  disambiguated down to automatically. `GoogleCustomSearchArtworkProvider` returns up to 8 image
+  search results instead of just the first, for the same one search-quota cost either way.
+- `SelectAsync(table, candidate)` - downloads, resizes, and permanently caches the one candidate the
+  user picked, under its own source's name, so it comes back out of `IArtworkProvider.GetArtworkAsync`
+  from then on exactly as if it had been found automatically.
+
+Both concrete providers implement a small internal `IArtworkCandidateSource` interface for this
+(search + resolve); `ArtworkBrowser` is a thin dispatcher over whichever one the caller names -
+it never searches or resolves anything itself. No UI exists yet - see
+docs/IMPLEMENTATION-STATUS.md for what a picker screen would need.
+
 ## Where sources conflicted
 
 None yet. If a future Visual Pinball release changes something documented here, record the

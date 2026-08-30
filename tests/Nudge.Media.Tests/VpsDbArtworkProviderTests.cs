@@ -100,6 +100,52 @@ public sealed class VpsDbArtworkProviderTests
         _cache.Stored.Should().NotContainKey(TablePath);
     }
 
+    [Fact]
+    public async Task SearchCandidates_returns_every_image_from_every_matching_entry()
+    {
+        VpsDbEntry entry = Entry();
+        entry.B2SFiles.Add(new VpsDbMediaFile { ImgUrl = "https://example.test/backglass.webp" });
+        var index = new FakeVpsDbIndex([entry]);
+
+        Result<IReadOnlyList<ArtworkCandidate>> result = await CreateProvider(index, NeverCalledHandler())
+            .SearchCandidatesAsync(Table(), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().HaveCount(2);
+        result.Value.Should().OnlyContain(c => c.SourceName == "vps-db");
+    }
+
+    [Fact]
+    public async Task SearchCandidates_fails_without_any_lookup_when_the_setting_is_off()
+    {
+        _settings.FetchEnabled = false;
+        var index = new FakeVpsDbIndex([Entry()]);
+
+        Result<IReadOnlyList<ArtworkCandidate>> result = await CreateProvider(index, NeverCalledHandler())
+            .SearchCandidatesAsync(Table(), CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        index.WasQueried.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ResolveCandidate_downloads_resizes_and_caches_the_chosen_candidate()
+    {
+        var candidate = new ArtworkCandidate
+        {
+            ImageUrl = "https://example.test/table.webp",
+            SourceName = "vps-db",
+            Description = "Medieval Madness - table image"
+        };
+        var handler = new RespondWithHandler(BuildPng(600, 600));
+
+        Result<ArtworkImage> result = await CreateProvider(new FakeVpsDbIndex([]), handler)
+            .ResolveCandidateAsync(Table(), candidate, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        _cache.Stored.Should().ContainKey(TablePath);
+    }
+
     private VpsDbArtworkProvider CreateProvider(IVpsDbIndex index, HttpMessageHandler handler) => new(
         index,
         _cache,
@@ -193,5 +239,11 @@ public sealed class VpsDbArtworkProviderTests
 
         public Task SaveAsync(NudgeSettings settings, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
+
+        public Task MutateAsync(Action<NudgeSettings> mutate, CancellationToken cancellationToken = default)
+        {
+            mutate(new NudgeSettings { FetchArtworkFromInternet = FetchEnabled });
+            return Task.CompletedTask;
+        }
     }
 }

@@ -37,16 +37,7 @@ public static class VpsDbMatcher
 
     public static VpsDbEntry? FindMatch(VpxTableFile table, IReadOnlyList<VpsDbEntry> entries)
     {
-        HashSet<string> tableTokens = Tokenize(table.DisplayTitle);
-        if (tableTokens.Count == 0)
-        {
-            return null;
-        }
-
-        List<VpsDbEntry> titleMatches = entries
-            .Where(e => TokensMatch(tableTokens, Tokenize(e.Name)))
-            .ToList();
-
+        List<VpsDbEntry> titleMatches = FindAllMatches(table, entries);
         if (titleMatches.Count == 0)
         {
             return null;
@@ -89,6 +80,19 @@ public static class VpsDbMatcher
         return titleMatches[0];
     }
 
+    /// <summary>
+    /// Every entry whose title token-matches the table, unranked and undisambiguated - for browsing
+    /// (<c>ArtworkBrowser</c>), where the point is to show the user everything plausible and let them
+    /// choose, rather than for <see cref="FindMatch"/>'s job of picking exactly one automatically.
+    /// </summary>
+    public static List<VpsDbEntry> FindAllMatches(VpxTableFile table, IReadOnlyList<VpsDbEntry> entries)
+    {
+        HashSet<string> tableTokens = Tokenize(table.DisplayTitle);
+        return tableTokens.Count == 0
+            ? []
+            : entries.Where(e => TokensMatch(tableTokens, Tokenize(e.Name))).ToList();
+    }
+
     /// <summary>The best directly-fetchable image URL for an entry, or null when it has none. Table
     /// (playfield) screenshots are preferred over backglasses only because they are more consistently
     /// present in the real dataset - see docs/RESEARCH-NOTES.md.</summary>
@@ -110,6 +114,28 @@ public static class VpsDbMatcher
 
         sourceDescription = string.Empty;
         return null;
+    }
+
+    /// <summary>Every distinct, directly-fetchable image URL an entry has - both table screenshots
+    /// and backglasses - each with a description for display. Used for browsing (multiple
+    /// candidates), unlike <see cref="BestImageUrl"/>'s "pick exactly one automatically".</summary>
+    public static IEnumerable<(string Url, string Description)> AllImageUrls(VpsDbEntry entry)
+    {
+        foreach (VpsDbMediaFile file in entry.TableFiles)
+        {
+            if (!string.IsNullOrWhiteSpace(file.ImgUrl))
+            {
+                yield return (file.ImgUrl, $"{entry.Name} - table image");
+            }
+        }
+
+        foreach (VpsDbMediaFile file in entry.B2SFiles)
+        {
+            if (!string.IsNullOrWhiteSpace(file.ImgUrl))
+            {
+                yield return (file.ImgUrl, $"{entry.Name} - backglass");
+            }
+        }
     }
 
     /// <summary>Two token sets match when they are identical, or when the smaller is wholly contained

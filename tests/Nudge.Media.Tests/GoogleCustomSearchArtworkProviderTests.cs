@@ -112,6 +112,57 @@ public sealed class GoogleCustomSearchArtworkProviderTests
         handler.LastSearchUrl.Should().Contain(Uri.EscapeDataString("Williams"));
     }
 
+    [Fact]
+    public async Task SearchCandidates_returns_every_result_as_an_unfetched_candidate()
+    {
+        var settings = new FakeSettingsService { ApiKey = "test-key", EngineId = "test-cx" };
+        var handler = new RoutingHandler(searchResponseJson: """
+            { "items": [
+                { "link": "https://example.test/one.jpg", "title": "Result One" },
+                { "link": "https://example.test/two.jpg", "title": "Result Two" }
+            ] }
+            """);
+
+        Result<IReadOnlyList<ArtworkCandidate>> result = await CreateProvider(handler, settings)
+            .SearchCandidatesAsync(Table(), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().HaveCount(2);
+        result.Value.Should().OnlyContain(c => c.SourceName == "Google Images");
+        result.Value.Select(c => c.ImageUrl).Should().Contain("https://example.test/one.jpg");
+    }
+
+    [Fact]
+    public async Task SearchCandidates_fails_without_any_request_when_not_configured()
+    {
+        var settings = new FakeSettingsService();
+        var handler = new RoutingHandler(NeverCalled: true);
+
+        Result<IReadOnlyList<ArtworkCandidate>> result = await CreateProvider(handler, settings)
+            .SearchCandidatesAsync(Table(), CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ResolveCandidate_downloads_resizes_and_caches_the_chosen_candidate()
+    {
+        var settings = new FakeSettingsService { ApiKey = "test-key", EngineId = "test-cx" };
+        var candidate = new ArtworkCandidate
+        {
+            ImageUrl = "https://example.test/chosen.jpg",
+            SourceName = "Google Images",
+            Description = "Chosen result"
+        };
+        var handler = new RoutingHandler(imageBytes: BuildJpeg(400, 400));
+
+        Result<ArtworkImage> result = await CreateProvider(handler, settings)
+            .ResolveCandidateAsync(Table(), candidate, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        _cache.Stored.Should().ContainKey(TablePath);
+    }
+
     private GoogleCustomSearchArtworkProvider CreateProvider(HttpMessageHandler handler, FakeSettingsService settings) => new(
         _cache,
         new HttpClient(handler),
@@ -212,5 +263,11 @@ public sealed class GoogleCustomSearchArtworkProviderTests
         });
 
         public Task SaveAsync(NudgeSettings settings, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task MutateAsync(Action<NudgeSettings> mutate, CancellationToken cancellationToken = default)
+        {
+            mutate(new NudgeSettings { GoogleCustomSearchApiKey = ApiKey, GoogleCustomSearchEngineId = EngineId });
+            return Task.CompletedTask;
+        }
     }
 }

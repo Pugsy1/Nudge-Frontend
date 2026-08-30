@@ -14,7 +14,7 @@ namespace Nudge.Media.VpsDb;
 /// Any failure along the way - no match, no image on the match, a network error, a disabled setting
 /// - is the same ordinary "nothing found" outcome; nothing here retries or blocks the caller.
 /// </remarks>
-public sealed class VpsDbArtworkProvider : IArtworkProvider
+public sealed class VpsDbArtworkProvider : IArtworkProvider, IArtworkCandidateSource
 {
     private static readonly TimeSpan MinimumRequestInterval = TimeSpan.FromMilliseconds(300);
 
@@ -78,6 +78,41 @@ public sealed class VpsDbArtworkProvider : IArtworkProvider
             .ConfigureAwait(false);
         return fetched;
     }
+
+    /// <summary>
+    /// Every matched entry's table screenshots and backglasses, as unfetched candidates - for
+    /// browsing (<see cref="Core.Abstractions.IArtworkBrowser"/>), unlike <see cref="GetArtworkAsync"/>'s
+    /// single automatic choice. Still gated by the same internet-fetch setting: browsing is still
+    /// fetching (the vps-db index itself, if not already cached), just not committing to an image yet.
+    /// </summary>
+    public async Task<Result<IReadOnlyList<ArtworkCandidate>>> SearchCandidatesAsync(
+        VpxTableFile table,
+        CancellationToken cancellationToken)
+    {
+        NudgeSettings settings = await _settingsService.LoadAsync(cancellationToken).ConfigureAwait(false);
+        if (!settings.FetchArtworkFromInternet)
+        {
+            return Result<IReadOnlyList<ArtworkCandidate>>.Failure("Fetching artwork from the internet is turned off.");
+        }
+
+        IReadOnlyList<VpsDbEntry> entries = await _index.GetEntriesAsync(cancellationToken).ConfigureAwait(false);
+        List<VpsDbEntry> matches = VpsDbMatcher.FindAllMatches(table, entries);
+
+        List<ArtworkCandidate> candidates = matches
+            .SelectMany(VpsDbMatcher.AllImageUrls)
+            .Select(pair => new ArtworkCandidate { ImageUrl = pair.Url, SourceName = Name, Description = pair.Description })
+            .ToList();
+
+        return candidates.Count == 0
+            ? Result<IReadOnlyList<ArtworkCandidate>>.Failure("No candidate images found in vps-db.")
+            : Result<IReadOnlyList<ArtworkCandidate>>.Success(candidates);
+    }
+
+    public Task<Result<ArtworkImage>> ResolveCandidateAsync(
+        VpxTableFile table,
+        ArtworkCandidate candidate,
+        CancellationToken cancellationToken) =>
+        FetchAndCacheAsync(table.Path, candidate.ImageUrl, candidate.Description, cancellationToken);
 
     private async Task<Result<ArtworkImage>> FetchAndCacheAsync(
         string tablePath,

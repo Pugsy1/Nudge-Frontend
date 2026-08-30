@@ -172,6 +172,57 @@ public sealed class VpsDbMatcherTests
         VpsDbMatcher.BestImageUrl(entry, out _).Should().BeNull();
     }
 
+    [Fact]
+    public void FindAllMatches_returns_every_ambiguous_entry_unranked_for_browsing()
+    {
+        // FindMatch (the automatic path) would disambiguate down to one; FindAllMatches (the
+        // browsing path - the user wants to see every plausible option and choose) must not.
+        VpxTableFile table = Table("Twilight Zone");
+        var entries = new List<VpsDbEntry>
+        {
+            Entry("bally-version", "Twilight Zone", manufacturer: "Bally"),
+            Entry("mod-version", "Twilight Zone", manufacturer: "Bally VPW Mod")
+        };
+
+        List<VpsDbEntry> matches = VpsDbMatcher.FindAllMatches(table, entries);
+
+        matches.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void FindAllMatches_returns_an_empty_list_rather_than_null_when_nothing_matches()
+    {
+        VpsDbMatcher.FindAllMatches(Table("Anything"), []).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void AllImageUrls_returns_every_table_image_and_every_backglass()
+    {
+        VpsDbEntry entry = Entry("id1", "Medieval Madness");
+        entry.TableFiles.Add(new VpsDbMediaFile { ImgUrl = "https://example.test/table1.webp" });
+        entry.TableFiles.Add(new VpsDbMediaFile { ImgUrl = "https://example.test/table2.webp" });
+        entry.B2SFiles.Add(new VpsDbMediaFile { ImgUrl = "https://example.test/backglass.webp" });
+
+        List<(string Url, string Description)> urls = VpsDbMatcher.AllImageUrls(entry).ToList();
+
+        urls.Should().HaveCount(3);
+        urls.Select(u => u.Url).Should().Contain(
+        [
+            "https://example.test/table1.webp",
+            "https://example.test/table2.webp",
+            "https://example.test/backglass.webp"
+        ]);
+    }
+
+    [Fact]
+    public void AllImageUrls_skips_entries_with_no_ImgUrl_set()
+    {
+        VpsDbEntry entry = Entry("id1", "Medieval Madness");
+        entry.TableFiles.Add(new VpsDbMediaFile { ImgUrl = null });
+
+        VpsDbMatcher.AllImageUrls(entry).Should().BeEmpty();
+    }
+
     private static VpxTableFile Table(string title, string? manufacturer = null, int? year = null) => new()
     {
         Path = $@"D:\Tables\{title}.vpx",

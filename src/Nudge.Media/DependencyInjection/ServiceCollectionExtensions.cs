@@ -89,6 +89,12 @@ public static class ServiceCollectionExtensions
             provider.GetRequiredService<ISettingsService>(),
             provider.GetRequiredService<ILogger<CompositeArtworkProvider>>()));
 
+        services.TryAddSingleton<IArtworkBrowser>(provider => new ArtworkBrowser(
+            [
+                provider.GetRequiredService<VpsDbArtworkProvider>(),
+                provider.GetRequiredService<GoogleCustomSearchArtworkProvider>()
+            ]));
+
         return services;
     }
 }
