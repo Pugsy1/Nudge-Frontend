@@ -9,6 +9,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddNudgeLibrary(this IServiceCollection services)
     {
         services.TryAddSingleton<IVpxLibraryScanner, VpxLibraryScanner>();
+        services.TryAddSingleton<ITableFolderWatcher, TableFolderWatcher>();
         return services;
     }
 }

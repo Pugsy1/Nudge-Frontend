@@ -258,6 +258,55 @@ but nothing in the UI triggers a scan or displays scanned tables yet - that's Ph
   `nudge.db` from an older schema version being migrated forward) - there's only ever been one
   migration so far.
 
+### Diagnosed: "the scanner doesn't seem to be working" when a table is added/removed (2026-08-30)
+
+The maintainer reported that adding/removing a table wasn't being picked up. Investigated against
+the maintainer's real, live `nudge.db` and real Tables folder (not synthetic data): copied the real
+database and re-ran the exact production scan/repository pipeline (`VpxLibraryScanner` +
+`TableRepository`, real SQLite, real files) against a controlled folder - add, remove, and
+no-op-rescan all behaved correctly (new file inserted, deleted file's row removed, unchanged file
+left alone with its old `LastScannedAt`). **The add/remove detection logic itself was never
+broken.**
+
+What the live database actually showed: every one of the 61 rows for the maintainer's installation
+shared the exact same `LastScannedAt` timestamp, two days stale relative to when the check was run,
+even though the app had clearly been opened and used more recently (settings changed the next day).
+The real gap is that **nothing rescans automatically** - `LibraryViewModel` only calls `ScanAsync`
+once, when a library first loads for an installation, plus whenever the user explicitly clicks
+"Rescan". Drop a table into the folder while already sitting on the library screen (the maintainer's
+actual test, most likely) and nothing will notice until the app restarts or Rescan is clicked - which
+reads as "the scanner doesn't work" even though a scan, once actually run, is correct.
+
+**Fix**: added `ITableFolderWatcher` (`Nudge.Core.Abstractions`) / `TableFolderWatcher`
+(`Nudge.Library`, registered in `AddNudgeLibrary`) - wraps a `FileSystemWatcher` (via
+`IFileSystem.FileSystemWatcher`, so it's still fully behind the same testing seam as everything
+else) over the tables folder, debounced 3 seconds so copying one large table (which repeatedly
+touches the destination's last-write time throughout the copy) doesn't trigger a scan mid-copy, and
+calls back at most once per burst of activity. `Watch(...)` returns an `IDisposable` handle; a
+missing folder returns a harmless no-op handle instead of throwing.
+
+**For the UI/composition session**: this is a new capability, not a wired-up feature - nothing calls
+it yet. `LibraryViewModel` (wherever it currently calls the existing `ScanAsync()` after loading an
+installation - see its `InitializeAsync`) should also do something like:
+```csharp
+_watcherSession?.Dispose();
+_watcherSession = _tableFolderWatcher.Watch(installation.TablesPath, RescanCommand.ExecuteAsync);
+```
+and dispose `_watcherSession` when the installation changes or the view is torn down.
+`ITableFolderWatcher` is resolved like any other Nudge.Library service (already registered by the
+existing `AddNudgeLibrary()` call). Marshal back to the UI thread inside the callback if
+`RescanCommand`/`ScanAsync` touch bound properties directly rather than through `Progress<T>` (which
+already marshals itself, per the existing comment in `LibraryViewModel.ScanAsync`).
+
+**Verified**: 5 new tests in `TableFolderWatcherTests` (`Nudge.Library.Tests`) against a real
+temporary folder and the real `FileSystem` (not `MockFileSystem` - this version of
+`System.IO.Abstractions.TestingHelpers` has no built-in `FileSystemWatcher` simulation, confirmed by
+running against it first and hitting its own `NotImplementedException`; a hand-rolled fake watcher
+would only prove the fake behaves as coded, not that this class works with a real one) - fires after
+an add, fires after a remove, a burst of 5 near-simultaneous writes debounces to exactly 1 callback,
+disposing stops further callbacks, and watching a nonexistent folder returns a no-op handle rather
+than throwing. 16/16 tests pass in `Nudge.Library.Tests` overall (up from 11).
+
 ## Phase 5 — Launch engine (backend only; table detail screen not yet built)
 
 **Status: the launch engine itself is functionally complete and verified against a real
