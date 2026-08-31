@@ -44,34 +44,83 @@ public sealed class XInputControllerReader : IControllerReader
             return false;
         }
 
-        var pressed = new HashSet<ControllerButton>();
-        AddIfSet(pressed, raw.Gamepad.wButtons, DPadUp, ControllerButton.DPadUp);
-        AddIfSet(pressed, raw.Gamepad.wButtons, DPadDown, ControllerButton.DPadDown);
-        AddIfSet(pressed, raw.Gamepad.wButtons, DPadLeft, ControllerButton.DPadLeft);
-        AddIfSet(pressed, raw.Gamepad.wButtons, DPadRight, ControllerButton.DPadRight);
-        AddIfSet(pressed, raw.Gamepad.wButtons, Start, ControllerButton.Start);
-        AddIfSet(pressed, raw.Gamepad.wButtons, Back, ControllerButton.Back);
-        AddIfSet(pressed, raw.Gamepad.wButtons, LeftThumb, ControllerButton.LeftThumb);
-        AddIfSet(pressed, raw.Gamepad.wButtons, RightThumb, ControllerButton.RightThumb);
-        AddIfSet(pressed, raw.Gamepad.wButtons, LeftShoulder, ControllerButton.LeftShoulder);
-        AddIfSet(pressed, raw.Gamepad.wButtons, RightShoulder, ControllerButton.RightShoulder);
-        AddIfSet(pressed, raw.Gamepad.wButtons, AButton, ControllerButton.A);
-        AddIfSet(pressed, raw.Gamepad.wButtons, BButton, ControllerButton.B);
-        AddIfSet(pressed, raw.Gamepad.wButtons, XButton, ControllerButton.X);
-        AddIfSet(pressed, raw.Gamepad.wButtons, YButton, ControllerButton.Y);
+        state = Decode(
+            raw.Gamepad.wButtons,
+            raw.Gamepad.bLeftTrigger,
+            raw.Gamepad.bRightTrigger,
+            raw.Gamepad.sThumbLX,
+            raw.Gamepad.sThumbLY);
+        return true;
+    }
 
-        if (raw.Gamepad.bLeftTrigger >= TriggerThreshold)
+    /// <summary>
+    /// Turns one raw XInput gamepad reading into the buttons Nudge understands.
+    ///
+    /// Split out from the P/Invoke above so it can actually be tested: everything with a decision in
+    /// it lives here (which bit means which button, where a trigger counts as pulled, where a stick
+    /// counts as pushed, which way is up), while <see cref="TryGetState"/> is left as a thin wrapper
+    /// around the OS call that no test can meaningfully exercise without a controller plugged in.
+    /// </summary>
+    internal static ControllerState Decode(
+        ushort buttons,
+        byte leftTrigger,
+        byte rightTrigger,
+        short thumbLX,
+        short thumbLY)
+    {
+        var pressed = new HashSet<ControllerButton>();
+        AddIfSet(pressed, buttons, DPadUp, ControllerButton.DPadUp);
+        AddIfSet(pressed, buttons, DPadDown, ControllerButton.DPadDown);
+        AddIfSet(pressed, buttons, DPadLeft, ControllerButton.DPadLeft);
+        AddIfSet(pressed, buttons, DPadRight, ControllerButton.DPadRight);
+        AddIfSet(pressed, buttons, Start, ControllerButton.Start);
+        AddIfSet(pressed, buttons, Back, ControllerButton.Back);
+        AddIfSet(pressed, buttons, LeftThumb, ControllerButton.LeftThumb);
+        AddIfSet(pressed, buttons, RightThumb, ControllerButton.RightThumb);
+        AddIfSet(pressed, buttons, LeftShoulder, ControllerButton.LeftShoulder);
+        AddIfSet(pressed, buttons, RightShoulder, ControllerButton.RightShoulder);
+        AddIfSet(pressed, buttons, AButton, ControllerButton.A);
+        AddIfSet(pressed, buttons, BButton, ControllerButton.B);
+        AddIfSet(pressed, buttons, XButton, ControllerButton.X);
+        AddIfSet(pressed, buttons, YButton, ControllerButton.Y);
+
+        if (leftTrigger >= TriggerThreshold)
         {
             pressed.Add(ControllerButton.LeftTrigger);
         }
 
-        if (raw.Gamepad.bRightTrigger >= TriggerThreshold)
+        if (rightTrigger >= TriggerThreshold)
         {
             pressed.Add(ControllerButton.RightTrigger);
         }
 
-        state = new ControllerState { PressedButtons = pressed };
-        return true;
+        // The left stick, collapsed to four discrete directions. Both axes are tested independently
+        // rather than picking a single dominant direction, so a diagonal push reports both of the
+        // directions it lies between - a caller that only binds up/down simply ignores the other.
+        //
+        // XInput's Y axis is positive upward, which is the opposite of the screen coordinates most
+        // callers think in; converting here keeps that inversion in the one place that knows about
+        // the hardware. The right stick is deliberately left unread: nothing in a pinball frontend
+        // has an obvious use for it, and reporting directions nobody consumes would just be noise.
+        if (thumbLY >= ThumbstickThreshold)
+        {
+            pressed.Add(ControllerButton.LeftStickUp);
+        }
+        else if (thumbLY <= -ThumbstickThreshold)
+        {
+            pressed.Add(ControllerButton.LeftStickDown);
+        }
+
+        if (thumbLX >= ThumbstickThreshold)
+        {
+            pressed.Add(ControllerButton.LeftStickRight);
+        }
+        else if (thumbLX <= -ThumbstickThreshold)
+        {
+            pressed.Add(ControllerButton.LeftStickLeft);
+        }
+
+        return new ControllerState { PressedButtons = pressed };
     }
 
     private static void AddIfSet(HashSet<ControllerButton> pressed, ushort buttons, ushort flag, ControllerButton button)

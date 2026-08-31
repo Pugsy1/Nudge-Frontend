@@ -21,5 +21,15 @@ public enum ControllerButton
     A,
     B,
     X,
-    Y
+    Y,
+
+    // The left stick pushed past its dead zone, reported as four discrete directions rather than as
+    // an analog value. Everything that consumes a controller in Nudge wants discrete presses - moving
+    // one tile, sending one keystroke - so the analog-to-digital decision is made once, in the
+    // reader, instead of by every caller. LeftThumb/RightThumb above are the stick *click* buttons,
+    // which are unrelated to these.
+    LeftStickUp,
+    LeftStickDown,
+    LeftStickLeft,
+    LeftStickRight
 }
