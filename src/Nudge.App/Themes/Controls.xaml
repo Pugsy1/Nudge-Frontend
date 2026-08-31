@@ -900,7 +900,7 @@
        and eases back on release, the same "fluid" feedback the tile hover lift uses elsewhere,
        rather than snapping straight between its two sizes. -->
   <Style x:Key="Slider.Standard" TargetType="Slider">
-    <Setter Property="Height" Value="30" />
+    <Setter Property="Height" Value="32" />
     <Setter Property="IsSnapToTickEnabled" Value="True" />
     <Setter Property="TickFrequency" Value="1" />
     <Setter Property="SmallChange" Value="1" />
@@ -913,10 +913,16 @@
       <Setter.Value>
         <ControlTemplate TargetType="Slider">
           <Grid VerticalAlignment="Center">
-            <Border Height="10"
+            <!-- A capsule, not a hairline: 14 tall with a matching 7 radius, so both ends are true
+                 semicircles and the groove reads as a moulded channel. 10 was thin enough that the
+                 rounding barely registered and it looked like a drawn line. Deliberately no thicker -
+                 past about 16 the thumb stops reading as a knob sitting IN a track and starts looking
+                 like a second bar on top of one. -->
+            <Border Height="14"
                     Background="{DynamicResource Brush.Surface.Recessed}"
                     BorderThickness="0"
-                    CornerRadius="5" />
+                    CornerRadius="7"
+                    Effect="{DynamicResource Effect.Inset.Shadow}" />
 
             <!-- The filled portion, left edge to the thumb - reads as "how much" at a glance,
                  the way a volume slider does, rather than leaving the groove uniformly empty. Width
@@ -926,10 +932,10 @@
                  changing - drag, click, or keyboard alike. A satin gradient, the same
                  Brush.Accent.Surface every raised accent surface uses, rather than a flat fill. -->
             <Border x:Name="Fill"
-                    Height="10"
+                    Height="14"
                     HorizontalAlignment="Left"
                     Background="{DynamicResource Brush.Accent.Surface}"
-                    CornerRadius="5">
+                    CornerRadius="7">
               <Border.Width>
                 <MultiBinding Converter="{StaticResource SliderFillWidthConverter}">
                   <Binding RelativeSource="{RelativeSource TemplatedParent}" Path="Value" />
@@ -955,7 +961,10 @@
                      declared via a sibling property setter like Thumb.RenderTransform. That
                      mismatch didn't fail to compile - it threw an InvalidOperationException at
                      runtime on every single MouseEnter/MouseLeave, confirmed via the Nudge log. -->
-                <Thumb x:Name="SliderThumb" Width="22" Height="22" Cursor="Hand">
+                <!-- Kept clear of the 14 track so the knob still visibly rides above the channel
+                     rather than filling it - the ring of track showing either side of it is what
+                     makes the pairing read as a slider at a glance. -->
+                <Thumb x:Name="SliderThumb" Width="24" Height="24" Cursor="Hand">
                   <Thumb.Template>
                     <ControlTemplate TargetType="Thumb">
                       <Ellipse x:Name="Knob"

@@ -51,6 +51,16 @@ public partial class LibraryView : UserControl
             return;
         }
 
+        // "The pad is in the header" is a property of a live library view - _inHeader below is a
+        // field on this instance - but it was being recorded on the view model, which outlives the
+        // view. Opening settings from the header (Start, or A on the cog) left the flag set; coming
+        // back built a NEW view that had never been in the header, while the model still said it
+        // was. The selection ring is hidden whenever the header has the pad, so directions moved the
+        // grid and scrolled it with nothing highlighted. Clearing it here keeps the two in step
+        // however settings was reached.
+        library.IsHeaderFocused = false;
+        _inHeader = false;
+
         _controller = new ControllerNavigator(library.ControllerReader);
         _controller.Action += OnControllerAction;
         _controller.Start();
@@ -73,6 +83,15 @@ public partial class LibraryView : UserControl
         // pointer is the only thing that can say whether the user reached for the mouse.
         PreviewMouseMove += (_, e) =>
         {
+            // A popup captures the mouse while it is open, and opening one moves what is under the
+            // pointer without the pointer itself moving. That is the second half of the dropdown fix:
+            // screen coordinates stop the ordinary case, and this covers the moment the capture is
+            // taken or released, when the reported position can jump.
+            if (Mouse.Captured is not null)
+            {
+                return;
+            }
+
             Point position = PointToScreen(e.GetPosition(this));
 
             // No baseline yet: record where the pointer is and wait for it to actually move. Treating
@@ -84,7 +103,10 @@ public partial class LibraryView : UserControl
                 return;
             }
 
-            if ((position - last).Length < 2)
+            // Reaching for the mouse moves it a long way; a knock against the desk, or the last pixel
+            // of a settling animation, does not. Deliberately well above the 1-2px that any amount of
+            // rounding or DPI scaling can account for.
+            if ((position - last).Length < MouseWakeDistance)
             {
                 return;
             }
@@ -93,6 +115,9 @@ public partial class LibraryView : UserControl
             library.ExitControllerMode();
         };
     }
+
+    /// <summary>How far the physical pointer must travel, in device pixels, to count as "the user reached for the mouse".</summary>
+    private const double MouseWakeDistance = 6;
 
     private Point? _lastMousePosition;
 
@@ -394,6 +419,9 @@ public partial class LibraryView : UserControl
                 break;
 
             case ControllerAction.Menu:
+                // Leave the header on the way out, so the flag does not outlive this view - see
+                // StartControllerNavigation for what that cost.
+                LeaveHeader(library);
                 library.ToggleSettingsCommand.Execute(null);
                 break;
         }
