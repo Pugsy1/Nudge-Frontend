@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Nudge.Core.Abstractions;
 using Nudge.Core.Models;
 
 namespace Nudge.Vpx.Controller;
@@ -13,6 +14,9 @@ internal sealed class ControllerInputSession : IDisposable
 {
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(16); // ~60Hz
 
+    /// <summary>How many polls to skip after finding no controller connected - see <see cref="ReadController"/>. ~1 second at <see cref="PollInterval"/>.</summary>
+    private const int DisconnectedProbeIntervalTicks = 60;
+
     private readonly IControllerReader _controllerReader;
     private readonly IKeyboardInputSynthesizer _keyboard;
     private readonly IForegroundWindowService _foregroundWindow;
@@ -23,6 +27,8 @@ internal sealed class ControllerInputSession : IDisposable
     private readonly CancellationTokenSource _cts = new();
     private readonly HashSet<VirtualKey> _heldKeys = [];
     private ControllerState _previousState = ControllerState.Empty;
+    private bool _hadFocus;
+    private int _ticksUntilReconnectProbe;
     private Task? _loopTask;
     private int _disposed;
 
@@ -71,9 +77,23 @@ internal sealed class ControllerInputSession : IDisposable
         string? foregroundProcessName = _foregroundWindow.GetForegroundProcessName();
         bool hasFocus = string.Equals(foregroundProcessName, _targetProcessName, StringComparison.OrdinalIgnoreCase);
 
-        ControllerState current = hasFocus && _controllerReader.TryGetState(0, out ControllerState state)
-            ? state
-            : ControllerState.Empty;
+        ControllerState current = hasFocus ? ReadController() : ControllerState.Empty;
+
+        // Focus has just arrived: adopt whatever is physically held right now as the baseline rather
+        // than treating it as a fresh press. This is the seam between browsing the library with a pad
+        // and playing with it, and without this that seam is visibly broken - the A press that
+        // launched the table from Nudge's own library is still held for the fraction of a second it
+        // takes Visual Pinball to take focus, so translation would start by reading it as a brand-new
+        // press and fire a phantom plunger before the player has touched anything. A direction still
+        // held from navigating does the same thing as a phantom nudge.
+        if (hasFocus && !_hadFocus)
+        {
+            _hadFocus = true;
+            _previousState = current;
+            return;
+        }
+
+        _hadFocus = hasFocus;
 
         ControllerTranslationResult diff = ControllerTranslator.Translate(_previousState, current, _mapping);
 
@@ -85,11 +105,44 @@ internal sealed class ControllerInputSession : IDisposable
 
         foreach (VirtualKey key in diff.KeysToRelease)
         {
-            _keyboard.KeyUp(key);
-            _heldKeys.Remove(key);
+            // Only release what this session actually pressed. A button adopted as the focus baseline
+            // above was never pressed down here, so releasing it would send the running table a
+            // key-up it never saw a matching key-down for.
+            if (_heldKeys.Remove(key))
+            {
+                _keyboard.KeyUp(key);
+            }
         }
 
         _previousState = current;
+    }
+
+    /// <summary>
+    /// The controller's current state, or nothing-pressed when no pad is connected.
+    ///
+    /// Backs off rather than asking every single tick while nothing is connected. Querying XInput
+    /// for an empty slot is not free - it goes out and enumerates devices, which Microsoft's own
+    /// guidance warns against doing every frame - and this loop runs for the entire play session, so
+    /// on a machine with no controller at all that cost would be paid 60 times a second the whole
+    /// time a table is running, stealing time from the physics simulation for nothing. Probing once
+    /// a second instead is invisible to someone plugging a pad in mid-session, while a connected
+    /// controller is still read at the full rate with no added latency.
+    /// </summary>
+    private ControllerState ReadController()
+    {
+        if (_ticksUntilReconnectProbe > 0)
+        {
+            _ticksUntilReconnectProbe--;
+            return ControllerState.Empty;
+        }
+
+        if (_controllerReader.TryGetState(0, out ControllerState state))
+        {
+            return state;
+        }
+
+        _ticksUntilReconnectProbe = DisconnectedProbeIntervalTicks;
+        return ControllerState.Empty;
     }
 
     public void Dispose()

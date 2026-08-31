@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Nudge.Core.Abstractions;
 using Nudge.Core.Models;
 
 namespace Nudge.Vpx.Controller;
