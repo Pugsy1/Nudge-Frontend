@@ -699,13 +699,20 @@ configure anything, the same role tools like JoyToKey/AntiMicroX play for other 
 
 ### What's deliberately not built
 
-- **No UI.** No toggle for `EnableControllerSupport`, no remapping screen, no "controller detected"
-  indicator. `AddNudgeVpx` already registers everything needed; flipping the setting on today would
-  require hand-editing `settings.json`.
-- **Controller navigation of Nudge's own library UI (selecting/launching tables with a pad) is not
-  part of this at all** - the maintainer asked for both in the same request, but that half is
-  WPF input-handling work that belongs to the UI session, not `Nudge.Core`/`Nudge.Vpx`. This backend
-  piece only covers input *during a running table*, via `LaunchEngine`.
+- ~~**No UI.**~~ **Both halves now exist.** The UI session has since built the other half - a
+  `ControllerNavigator` that drives the library's own selection, a remapping screen with a live
+  "which button am I holding" indicator, and per-button rebinding persisted to
+  `NudgeSettings.ControllerButtonOverrides`. See "Joining the two halves" below for how they fit
+  together and what had to be fixed at the seam.
+- **`NudgeSettings.EnableControllerSupport` is now dead** and should be removed. The UI session made
+  a deliberate call that a pad sits alongside keyboard and mouse rather than being a mode to switch
+  on, so `LaunchEngine` no longer consults it and nothing else ever did. Nothing reads it anywhere
+  in the solution today. That reasoning is sound, but the property is actively misleading while it
+  remains: a user reading `"enableControllerSupport": false` in their own `settings.json` would
+  reasonably conclude controller support is off when it is in fact always on. Left in place rather
+  than removed unilaterally, because `NudgeSettings.cs` is being actively edited by the UI session
+  and this is their call to make - dropping the property is safe whenever they want it, since
+  `System.Text.Json` ignores unknown properties, so existing settings files keep loading.
 - **Only the first connected controller (index 0) is read.** Multi-controller support (e.g. two
   players nudging independently) was not requested and was not built.
 - **Thumbsticks are read by `XInputControllerReader` but nothing in `ControllerMapping.Default` uses
@@ -737,20 +744,54 @@ configure anything, the same role tools like JoyToKey/AntiMicroX play for other 
    controller physically plugged in or against a real running VPX instance** - flagged rather than
    assumed, the same way the Google Custom Search source was flagged pending real credentials.
 
-### For the UI/composition session
+### Joining the two halves: browse with the pad, then play with it
 
-- A toggle for `NudgeSettings.EnableControllerSupport` (bool, default `false`) is all that's needed
-  to turn this on with the default mapping - no other wiring required, since `LaunchEngine` already
-  starts/stops translation around every play session automatically.
-- If a remapping screen is ever wanted: `NudgeSettings.ControllerButtonOverrides` is a
-  `Dictionary<string, string>` (`ControllerButton` name → `VirtualKey` name), empty by default.
-  `ControllerMapping.Default`'s bindings (listed above) are what an unmodified dictionary falls back
-  to per button.
-- Controller navigation of the library grid itself (the other half of the maintainer's request) is
-  unstarted and is UI-side work - reading a pad's D-pad/face buttons to move focus between tiles and
-  "press A to launch" belongs in `Nudge.App`, most likely as its own input-handling class rather than
-  reusing anything under `Nudge.Vpx.Controller` (that namespace is specifically about faking
-  keyboard input *into VPX*, not about focus navigation inside WPF).
+The maintainer asked for one continuous experience - navigate the library on a controller, press A,
+and keep using the same controller inside the table. Those are two genuinely separate mechanisms
+(one moves the library's own selection, the other fakes keystrokes into another process), and are kept
+apart deliberately: `ControllerNavigator` (`Nudge.App`) runs only while a Nudge window is active,
+`ControllerInputSession` (`Nudge.Vpx`) only while the launched executable owns the foreground. They
+can never both act on the same button press.
+
+Wiring them together surfaced one real bug, present in **both** directions, from the same mistake on
+each side: treating *"input just started reaching me"* as *"every button currently held was just
+pressed"*.
+
+- **Going in.** The A press that launches a table is still held for the fraction of a second it
+  takes Visual Pinball to take focus. Translation therefore began by reading it as a brand-new press
+  and firing a phantom plunger before the player had touched anything - and a direction still held
+  from navigating fired a phantom nudge the same way.
+- **Coming back out.** The button used to quit a table is still held as VPX closes and the library
+  returns, so the navigator's first poll fired that button's action - quitting a table dropped you
+  onto the customization page of whatever tile the selection happened to be on.
+
+Both sides now **adopt whatever is held at the moment input starts reaching them as a baseline**
+rather than as fresh presses, so only a press that genuinely begins after the handoff counts. The
+in-game half additionally only sends a key-up for a key it actually pressed down, so a button
+adopted as a baseline never sends the running table an unmatched key-up when it is released.
+
+Two related changes came out of the same pass:
+
+- **`IControllerReader` moved from `Nudge.Vpx.Controller` to `Nudge.Core.Abstractions`.** Both halves
+  consume it, and the UI is only allowed to depend on contracts from Core (AGENTS.md section 5) - so
+  the UI's own code was reaching into `Nudge.Vpx` internals to get at it. Moving the contract makes
+  that dependency legitimate instead of a layering violation; nothing about the behaviour changed.
+- **XInput polling now backs off while no pad is connected.** The in-game loop runs for the whole
+  play session, and querying an empty XInput slot enumerates devices rather than returning cheaply
+  (Microsoft's own guidance warns against doing it every frame). On a machine with no controller,
+  that cost was being paid 60 times a second for the entire time a table was running - stealing time
+  from the physics simulation for nothing. Now probed roughly once a second; a connected pad is
+  still read at the full rate with no added latency.
+
+**Verified**: 5 further tests (12 total in `ControllerInputSessionTests`) covering a button held
+across the handoff firing nothing, its release sending no unmatched key-up, a genuine press after
+the handoff still working normally, the disconnected-probe backoff actually reducing XInput calls,
+and a pad plugged in mid-session still being picked up once the backoff elapses. 191 tests pass in
+`Nudge.Vpx.Tests`. The real built app was also launched and left running with the navigator polling
+and no controller attached: no crash, no errors in the log. **Still not verified with a physical
+controller in hand** - the "no phantom plunger on launch" and "no phantom action on quit" fixes are
+reasoned from the state machine and locked in by tests, but nobody has yet held A through a real
+launch to watch it not happen.
 
 ## Seamless launch: switching from Nudge to the table only once it's actually showing
 
