@@ -1074,4 +1074,55 @@
     </Setter>
   </Style>
 
+  <!-- ============================ Controller hint bar ============================ -->
+
+  <!--
+    The button legend shown along the bottom of a screen while a pad is in use. Defined once here
+    rather than per page so every screen's legend is identical in shape and weight - the whole point
+    is that it becomes furniture you stop reading, which only works if it never moves or changes
+    style between pages.
+
+    Each entry is a rounded badge holding the button name, then the action beside it. No "=" between
+    them: the badge already reads as a button, so the equals sign is punctuation doing a job the
+    shape has already done.
+  -->
+  <DataTemplate x:Key="ControllerHint.Template">
+    <StackPanel Orientation="Horizontal" Margin="0,0,18,0" VerticalAlignment="Center">
+      <Border Background="{DynamicResource Brush.Control.Background}"
+              CornerRadius="{DynamicResource CornerRadius.Pill}"
+              MinWidth="26"
+              Padding="8,3,8,3"
+              Effect="{DynamicResource Effect.Button.Shadow}">
+        <TextBlock Text="{Binding Button}"
+                   HorizontalAlignment="Center"
+                   FontFamily="{DynamicResource Font.Family.Primary}"
+                   FontSize="{DynamicResource Font.Size.Caption}"
+                   FontWeight="{DynamicResource Font.Weight.SemiBold}"
+                   Foreground="{DynamicResource Brush.Accent}" />
+      </Border>
+      <TextBlock Text="{Binding Action}"
+                 Margin="8,0,0,0"
+                 VerticalAlignment="Center"
+                 FontFamily="{DynamicResource Font.Family.Primary}"
+                 FontSize="{DynamicResource Font.Size.Caption}"
+                 Foreground="{DynamicResource Brush.Text.Secondary}" />
+    </StackPanel>
+  </DataTemplate>
+
+  <!-- The bar itself: a full-width strip along the bottom of whichever page is showing. Bound to a
+       page's own hint list, so each screen states its own actions. -->
+  <Style x:Key="ControllerHintBar" TargetType="ItemsControl">
+    <Setter Property="ItemTemplate" Value="{StaticResource ControllerHint.Template}" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="IsHitTestVisible" Value="False" />
+    <Setter Property="Focusable" Value="False" />
+    <Setter Property="ItemsPanel">
+      <Setter.Value>
+        <ItemsPanelTemplate>
+          <StackPanel Orientation="Horizontal" />
+        </ItemsPanelTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
 </ResourceDictionary>

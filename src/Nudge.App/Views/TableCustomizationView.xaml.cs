@@ -30,15 +30,13 @@ public partial class TableCustomizationView : UserControl
     private TableCustomizationViewModel? Model => DataContext as TableCustomizationViewModel;
 
     /// <summary>
-    /// Only B, and deliberately only B. This page is reached with Y from the library, so without it
-    /// a controller arrives here and is stranded - every other pad-reachable screen (the details
-    /// page, the random picker) already backs out, and this one did not.
+    /// Full navigation, not just an escape hatch. Originally only B was bound, on the reasoning that
+    /// A activating an unseen control could commit edits by accident - but that reasoning depended
+    /// on there being no visible focus. Moving focus properly means the control being activated is
+    /// the one outlined on screen, which is no more dangerous than clicking it.
     ///
-    /// Nothing else is bound on purpose. The page is a form of text fields, file pickers and a save
-    /// button; there is no meaningful "move between tiles" here for the directions, and mapping A to
-    /// Save would let a press the user cannot see the target of commit edits to their table. Getting
-    /// out is the part that has to work without a mouse - the rest of the page is honestly a
-    /// keyboard-and-mouse screen and is left as one.
+    /// Directions move between controls, A presses whatever has focus, B leaves. Text fields still
+    /// need a keyboard to type into; the pad gets you to them and out again.
     /// </summary>
     private void StartControllerNavigation()
     {
@@ -50,6 +48,13 @@ public partial class TableCustomizationView : UserControl
         _controller = new ControllerNavigator(library.ControllerReader);
         _controller.Action += action =>
         {
+            library.EnterControllerMode();
+
+            if (FormControllerNavigation.Apply(this, action))
+            {
+                return;
+            }
+
             if (action is ControllerAction.Back)
             {
                 Model?.BackCommand.Execute(null);

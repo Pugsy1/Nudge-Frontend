@@ -64,10 +64,15 @@ public partial class SettingsView : UserControl
         _controller = new ControllerNavigator(library.ControllerReader);
         _controller.Action += action =>
         {
+            library.EnterControllerMode();
+
             if (action is ControllerAction.Back or ControllerAction.Menu)
             {
                 library.IsSettingsOpen = false;
+                return;
             }
+
+            FormControllerNavigation.Apply(this, action);
         };
         _controller.Start();
     }

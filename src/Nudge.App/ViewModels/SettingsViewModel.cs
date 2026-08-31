@@ -19,6 +19,13 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public LibraryViewModel Library { get; }
 
+    /// <summary>Controller legend for the settings page.</summary>
+    public IReadOnlyList<ControllerHint> ControllerHints { get; } =
+    [
+        new("A", "Select"),
+        new("B", "Back")
+    ];
+
     [RelayCommand]
     private void Back() => Library.IsSettingsOpen = false;
 }

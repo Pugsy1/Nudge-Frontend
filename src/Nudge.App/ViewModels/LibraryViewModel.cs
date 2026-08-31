@@ -666,6 +666,19 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private TableTileViewModel? _selectedTile;
 
+    /// <summary>
+    /// The button legend shown along the bottom while a pad is in use. Only appears in controller
+    /// mode - with a mouse it is telling you about buttons you are not holding.
+    /// </summary>
+    public IReadOnlyList<ControllerHint> ControllerHints { get; } =
+    [
+        new("A", "Play"),
+        new("X", "Details"),
+        new("Y", "Customize"),
+        new("LB", "Favourite"),
+        new("Start", "Settings")
+    ];
+
     partial void OnSelectedTileChanged(TableTileViewModel? oldValue, TableTileViewModel? newValue)
     {
         if (oldValue is not null)
@@ -1244,11 +1257,7 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>Stops watching the Tables folder. Called when the host container disposes this singleton on app shutdown.</summary>
-    public void Dispose()
-    {
-        _folderWatch?.Dispose();
-        _controllerPollTimer?.Stop();
-    }
+    public void Dispose() => _folderWatch?.Dispose();
 
     /// <summary>
     /// What each button does in a table, in the order they matter to a player - flippers first,
@@ -1278,13 +1287,13 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
         (ControllerButton.RightThumb, "Unassigned")
     ];
 
-    private DispatcherTimer? _controllerPollTimer;
-
     /// <summary>
-    /// Builds the binding rows from the saved overrides, and starts polling the pad so the rows can
-    /// light up as buttons are pressed. Called when the settings screen opens rather than at
-    /// startup: there is no reason to poll a controller sixty times a second while someone is just
-    /// browsing their library.
+    /// Builds the binding rows from the saved overrides. Called when the settings screen opens.
+    ///
+    /// No longer polls the pad. The rows used to light up as buttons were pressed, which was a
+    /// genuinely useful way to identify a button - but once the pad also navigates this page, the
+    /// same press both moves the focus and lights a lamp somewhere else, and the two readings of one
+    /// button contradict each other. Navigation is the more valuable of the two, so the lamps go.
     /// </summary>
     public void BeginControllerSetup()
     {
@@ -1300,47 +1309,17 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
         }
 
         ControllerHint = string.Empty;
-
-        _controllerPollTimer ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(60) };
-        _controllerPollTimer.Tick -= OnControllerPollTick;
-        _controllerPollTimer.Tick += OnControllerPollTick;
-        _controllerPollTimer.Start();
     }
 
-    /// <summary>Stops the pad polling when the settings screen closes.</summary>
+    /// <summary>Clears any half-finished rebind when the settings screen closes.</summary>
     public void EndControllerSetup()
     {
-        _controllerPollTimer?.Stop();
-
         foreach (ControllerBindingViewModel binding in ControllerBindings)
         {
             binding.IsListening = false;
-            binding.IsPressed = false;
         }
 
         OnPropertyChanged(nameof(IsRebinding));
-    }
-
-    private void OnControllerPollTick(object? sender, EventArgs e)
-    {
-        // Controller 0 only: this is a "press a button and watch the row light up" aid, and a
-        // second pad lighting the same rows would be confusing rather than helpful.
-        if (!_controllerReader.TryGetState(0, out ControllerState state))
-        {
-            IsControllerConnected = false;
-            foreach (ControllerBindingViewModel binding in ControllerBindings)
-            {
-                binding.IsPressed = false;
-            }
-
-            return;
-        }
-
-        IsControllerConnected = true;
-        foreach (ControllerBindingViewModel binding in ControllerBindings)
-        {
-            binding.IsPressed = state.IsPressed(binding.Button);
-        }
     }
 
     /// <summary>Puts one row into "press a key" mode. Only ever one at a time, so a stray press can't land on two rows.</summary>

@@ -13,8 +13,6 @@ public partial class MainWindow : Window
     // \u escapes, not literal characters: these are Segoe MDL2 Assets private-use-area glyphs, which
     // don't render in most editors/terminals and have previously been silently dropped or corrupted
     // when written as literal characters (see the maximize/restore glyphs' history).
-    private const string MaximizeGlyph = "\uE922";
-    private const string RestoreGlyph = "\uE923";
     private const string FullscreenGlyph = "\uE740";
     private const string ExitFullscreenGlyph = "\uE73F";
 
@@ -73,9 +71,7 @@ public partial class MainWindow : Window
 
         DataContext = shellViewModel;
 
-        StateChanged += (_, _) => UpdateMaximizeRestoreGlyph();
         PreviewKeyDown += OnPreviewKeyDown;
-        UpdateMaximizeRestoreGlyph();
 
         // Fixes a well-known WPF issue: a borderless window using WindowChrome, when maximized,
         // otherwise renders a few pixels past every edge of the monitor (confirmed directly on this
@@ -148,17 +144,6 @@ public partial class MainWindow : Window
 
     private void OnMinimizeClick(object sender, RoutedEventArgs e) => SystemCommands.MinimizeWindow(this);
 
-    private void OnMaximizeRestoreClick(object sender, RoutedEventArgs e)
-    {
-        if (WindowState == WindowState.Maximized)
-        {
-            SystemCommands.RestoreWindow(this);
-        }
-        else
-        {
-            SystemCommands.MaximizeWindow(this);
-        }
-    }
 
     private void OnCloseClick(object sender, RoutedEventArgs e) => SystemCommands.CloseWindow(this);
 
@@ -275,10 +260,4 @@ public partial class MainWindow : Window
         Height = (info.rcMonitor.Bottom - info.rcMonitor.Top) * transform.M22;
     }
 
-    private void UpdateMaximizeRestoreGlyph()
-    {
-        bool isMaximized = WindowState == WindowState.Maximized;
-        MaximizeRestoreButton.Content = isMaximized ? RestoreGlyph : MaximizeGlyph;
-        MaximizeRestoreButton.ToolTip = isMaximized ? "Restore" : "Maximize";
-    }
 }

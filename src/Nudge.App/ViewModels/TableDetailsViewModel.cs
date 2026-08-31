@@ -23,6 +23,14 @@ public sealed partial class TableDetailsViewModel : ObservableObject
     /// <summary>The owning library, so the details view can reach shared services such as the controller reader.</summary>
     public LibraryViewModel Library => _library;
 
+    /// <summary>This page's own controller legend - the actions differ from the library's, so the bar has to as well.</summary>
+    public IReadOnlyList<ControllerHint> ControllerHints { get; } =
+    [
+        new("A", "Play"),
+        new("Y", "Customize"),
+        new("B", "Back")
+    ];
+
     public TableDetailsViewModel(
         TableTileViewModel tile,
         LibraryViewModel library,

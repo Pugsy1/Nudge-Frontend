@@ -61,18 +61,27 @@ public partial class TableDetailsView : UserControl
         _controller = new ControllerNavigator(library.ControllerReader);
         _controller.Action += action =>
         {
+            library.EnterControllerMode();
+
             switch (action)
             {
+                // A plays outright rather than pressing whatever has focus. This page exists to
+                // decide whether to play a table, so the primary button should do the primary thing
+                // without first having to navigate to it.
                 case ControllerAction.Activate:
                     Model?.PlayCommand.Execute(null);
-                    break;
+                    return;
                 case ControllerAction.Customize:
                     Model?.CustomizeCommand.Execute(null);
-                    break;
+                    return;
                 case ControllerAction.Back:
                     Model?.BackCommand.Execute(null);
-                    break;
+                    return;
             }
+
+            // Everything else - directions - moves through the page so the video controls and the
+            // buttons under the cover are all reachable.
+            FormControllerNavigation.Apply(this, action);
         };
         _controller.Start();
     }

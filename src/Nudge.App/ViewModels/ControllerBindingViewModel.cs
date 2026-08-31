@@ -50,14 +50,6 @@ public sealed partial class ControllerBindingViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(KeyLabel))]
     private bool _isListening;
 
-    /// <summary>
-    /// True while the physical button is held. Drives a live indicator so someone can press a button
-    /// on the pad and immediately see which row it is - far easier than guessing whether the thing
-    /// under their finger is "LeftShoulder" or "LeftTrigger".
-    /// </summary>
-    [ObservableProperty]
-    private bool _isPressed;
-
     private static string FormatKey(VirtualKey key) => key switch
     {
         VirtualKey.LeftShift => "Left Shift",

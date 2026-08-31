@@ -105,16 +105,14 @@
                 Content="&#xE740;"
                 ToolTip="Full screen (F11)"
                 Click="OnFullscreenClick" />
+        <!-- No maximize/restore button: Nudge has one "make it big" concept, and it is fullscreen.
+             Offering maximize alongside it meant two nearly identical states with different window
+             chrome, and no way to tell from the buttons which one you were in. -->
         <Button x:Name="MinimizeButton"
                 Style="{StaticResource TitleBarButton}"
                 Content="&#xE921;"
                 ToolTip="Minimize"
                 Click="OnMinimizeClick" />
-        <Button x:Name="MaximizeRestoreButton"
-                Style="{StaticResource TitleBarButton}"
-                Content="&#xE922;"
-                ToolTip="Maximize"
-                Click="OnMaximizeRestoreClick" />
         <Button x:Name="CloseButton"
                 Style="{StaticResource TitleBarButton.Close}"
                 Content="&#xE8BB;"

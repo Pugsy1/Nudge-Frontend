@@ -13,7 +13,6 @@
       <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
       <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVisibility" />
       <converters:NonEmptyToVisibilityConverter x:Key="NonEmptyToVisibility" />
-      <converters:BoolToPressOpacityConverter x:Key="BoolToPressOpacity" />
     </Grid.Resources>
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
@@ -33,6 +32,13 @@
               Command="{Binding BackCommand}"
               Focusable="False" />
       <TextBlock Style="{StaticResource Text.Title}" Text="Settings" VerticalAlignment="Center" />
+
+      <!-- Controller legend in the header, matching where it sits on every other screen. -->
+      <ItemsControl Style="{StaticResource ControllerHintBar}"
+                    Margin="24,0,0,0"
+                    VerticalAlignment="Center"
+                    ItemsSource="{Binding ControllerHints}"
+                    Visibility="{Binding Library.IsControllerMode, Converter={StaticResource BoolToVisibility}}" />
     </StackPanel>
 
     <!-- Inset lives on the inner StackPanel's Margin, NOT this ScrollViewer's Padding. A
@@ -94,18 +100,6 @@
                        TextWrapping="Wrap"
                        Text="A controller works alongside your keyboard and mouse - there's nothing to switch on. While a table is running, Nudge sends the key each button is bound to below. It only ever sends input while Visual Pinball is the active window, so it never leaks into Nudge or anything else you have open." />
 
-            <!-- Connection state, so an unplugged pad reads as "nothing connected" rather than the
-                 whole section just appearing inert. -->
-            <TextBlock Style="{StaticResource Text.BodySecondary}"
-                       Margin="{DynamicResource Gap.Above.M}"
-                       Foreground="{DynamicResource Brush.Accent}"
-                       Text="Controller connected - press a button to find its row below."
-                       Visibility="{Binding Library.IsControllerConnected, Converter={StaticResource BoolToVisibility}}" />
-            <TextBlock Style="{StaticResource Text.BodySecondary}"
-                       Margin="{DynamicResource Gap.Above.M}"
-                       Text="No controller detected. You can still set bindings up now - they'll work as soon as one is plugged in."
-                       Visibility="{Binding Library.IsControllerConnected, Converter={StaticResource InverseBoolToVisibility}}" />
-
             <TextBlock Style="{StaticResource Text.BodySecondary}"
                        Margin="{DynamicResource Gap.Above.S}"
                        TextWrapping="Wrap"
@@ -119,34 +113,24 @@
                 <DataTemplate>
                   <Grid Margin="0,0,0,6">
                     <Grid.ColumnDefinitions>
-                      <ColumnDefinition Width="Auto" />
                       <ColumnDefinition Width="150" />
                       <ColumnDefinition Width="*" />
                       <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <!-- Live press indicator: lights while the physical button is held, which is how
-                         someone works out which row is the button under their finger. -->
-                    <Ellipse Grid.Column="0"
-                             Width="8" Height="8"
-                             Margin="0,0,10,0"
-                             VerticalAlignment="Center"
-                             Fill="{DynamicResource Brush.Accent}"
-                             Opacity="{Binding IsPressed, Converter={StaticResource BoolToPressOpacity}}" />
-
-                    <TextBlock Grid.Column="1"
+                    <TextBlock Grid.Column="0"
                                Style="{StaticResource Text.Body}"
                                VerticalAlignment="Center"
                                Text="{Binding ButtonLabel}" />
 
-                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
                       <TextBlock Style="{StaticResource Text.Body}" Text="{Binding KeyLabel}" />
                       <TextBlock Style="{StaticResource Text.Caption}"
                                  Foreground="{DynamicResource Brush.Text.Muted}"
                                  Text="{Binding PinballRole}" />
                     </StackPanel>
 
-                    <Button Grid.Column="3"
+                    <Button Grid.Column="2"
                             Style="{StaticResource Button.Subtle}"
                             Content="Rebind"
                             VerticalAlignment="Center"

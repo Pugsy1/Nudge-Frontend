@@ -62,6 +62,13 @@ public sealed partial class TableCustomizationViewModel : ObservableObject
 
     public LibraryViewModel Library { get; }
 
+    /// <summary>Controller legend for this page. A presses whatever is focused rather than a fixed action, so it is labelled generically.</summary>
+    public IReadOnlyList<ControllerHint> ControllerHints { get; } =
+    [
+        new("A", "Select"),
+        new("B", "Back")
+    ];
+
     [ObservableProperty]
     private string _description = string.Empty;
 

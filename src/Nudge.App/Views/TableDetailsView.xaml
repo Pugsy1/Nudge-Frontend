@@ -39,7 +39,14 @@
       </StackPanel>
 
       <!-- Play and Customize live under the cover rather than up here: they act on the table, so
-           they belong beside the thing they act on, not in the window chrome. -->
+           they belong beside the thing they act on, not in the window chrome. That leaves this
+           column free for the controller legend, which is where it sits on every other screen. -->
+      <ItemsControl Grid.Column="2"
+                    Style="{StaticResource ControllerHintBar}"
+                    Margin="16,0,0,0"
+                    VerticalAlignment="Center"
+                    ItemsSource="{Binding ControllerHints}"
+                    Visibility="{Binding Library.IsControllerMode, Converter={StaticResource BoolToVisibility}}" />
     </Grid>
 
     <ScrollViewer Grid.Row="1">

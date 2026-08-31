@@ -520,6 +520,19 @@
            gloss: an OpacityMask reads the artwork purely as a silhouette (alpha channel), then Fill
            paints that shape with whatever DynamicResource Brush.Accent currently resolves to, so the
            wordmark re-tints itself on every theme switch along with everything else. -->
+      <!-- Controller legend, in the header's own empty stretch between the wordmark and the
+           controls. It lives in the same column as the logo (the flexible one) with a left margin
+           that clears it, rather than in a row of its own: the header already has this space going
+           spare, so the legend costs no layout at all and appears exactly where the eye is when the
+           pad is picked up. -->
+      <ItemsControl Grid.Column="0"
+                    Style="{StaticResource ControllerHintBar}"
+                    Margin="124,0,16,0"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Center"
+                    ItemsSource="{Binding ControllerHints}"
+                    Visibility="{Binding IsControllerMode, Converter={StaticResource BoolToVisibility}}" />
+
       <Rectangle Grid.Column="0"
                  Width="99" Height="56"
                  HorizontalAlignment="Left"

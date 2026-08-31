@@ -16,17 +16,3 @@ public sealed class NonEmptyToVisibilityConverter : IValueConverter
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         throw new NotSupportedException();
 }
-
-/// <summary>
-/// Dims a controller row's press indicator instead of hiding it. Kept visible at low opacity so the
-/// column reads as a consistent row of lamps that light up, rather than dots appearing and
-/// disappearing and shifting the eye around as buttons are pressed.
-/// </summary>
-public sealed class BoolToPressOpacityConverter : IValueConverter
-{
-    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
-        value is true ? 1.0 : 0.18;
-
-    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
-        throw new NotSupportedException();
-}

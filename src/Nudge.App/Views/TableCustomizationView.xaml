@@ -35,6 +35,13 @@
                    Margin="{DynamicResource Gap.Above.S}"
                    Text="{Binding Tile.DisplayTitle}" />
       </StackPanel>
+
+      <!-- Controller legend in the header, matching where it sits on every other screen. -->
+      <ItemsControl Style="{StaticResource ControllerHintBar}"
+                    Margin="24,0,0,0"
+                    VerticalAlignment="Center"
+                    ItemsSource="{Binding ControllerHints}"
+                    Visibility="{Binding Library.IsControllerMode, Converter={StaticResource BoolToVisibility}}" />
     </StackPanel>
 
     <!-- Inset as the StackPanel's Margin, not this ScrollViewer's Padding - see SettingsView's own
