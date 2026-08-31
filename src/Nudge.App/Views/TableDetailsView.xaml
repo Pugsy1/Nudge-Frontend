@@ -167,6 +167,44 @@
             </ContentControl>
           </StackPanel>
 
+          <!-- ======================= Play history ======================= -->
+          <!-- Three numbers side by side rather than three more rows in the specifications list
+               below: everything there describes the table, and this describes the person reading it.
+               Hidden entirely until the table has actually been played - a row of dashes on a table
+               you have never opened is noise, and "Never / - / -" says nothing the absence of the
+               section does not. -->
+          <StackPanel Visibility="{Binding HasBeenPlayed, Converter={StaticResource BoolToVisibility}}">
+            <TextBlock Style="{StaticResource Text.SectionHeading}" Margin="{DynamicResource Gap.Below.M}" Text="PLAY HISTORY" />
+
+            <ContentControl Style="{StaticResource Card.Neumorphic}" Margin="{DynamicResource Gap.Below.XL}">
+              <UniformGrid Columns="3">
+                <StackPanel>
+                  <TextBlock Style="{StaticResource Text.Title}" Text="{Binding TimesPlayedLabel}" />
+                  <TextBlock Style="{StaticResource Text.Caption}"
+                             Margin="{DynamicResource Gap.Above.S}"
+                             Foreground="{DynamicResource Brush.Text.Muted}"
+                             Text="PLAYED" />
+                </StackPanel>
+                <StackPanel>
+                  <TextBlock Style="{StaticResource Text.Title}" Text="{Binding TotalPlayTimeLabel}" />
+                  <TextBlock Style="{StaticResource Text.Caption}"
+                             Margin="{DynamicResource Gap.Above.S}"
+                             Foreground="{DynamicResource Brush.Text.Muted}"
+                             Text="TOTAL TIME" />
+                </StackPanel>
+                <StackPanel>
+                  <TextBlock Style="{StaticResource Text.Title}"
+                             TextWrapping="Wrap"
+                             Text="{Binding LastPlayedLabel}" />
+                  <TextBlock Style="{StaticResource Text.Caption}"
+                             Margin="{DynamicResource Gap.Above.S}"
+                             Foreground="{DynamicResource Brush.Text.Muted}"
+                             Text="LAST PLAYED" />
+                </StackPanel>
+              </UniformGrid>
+            </ContentControl>
+          </StackPanel>
+
           <!-- ======================= Specifications ======================= -->
           <TextBlock Style="{StaticResource Text.SectionHeading}" Margin="{DynamicResource Gap.Below.M}" Text="DETAILS" />
 

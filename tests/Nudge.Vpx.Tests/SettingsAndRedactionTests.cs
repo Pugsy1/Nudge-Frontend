@@ -50,6 +50,81 @@ public sealed class JsonSettingsServiceTests
     }
 
     [Fact]
+    public async Task Play_history_survives_a_save_and_load_round_trip()
+    {
+        var harness = new NudgeTestHarness(new MockFileSystem());
+        ISettingsService service = harness.BuildSettingsService(SettingsPath);
+
+        var lastPlayed = new DateTimeOffset(2026, 8, 30, 21, 15, 0, TimeSpan.Zero);
+
+        await service.SaveAsync(new NudgeSettings
+        {
+            TablePlayStats =
+            {
+                [@"D:\Tables\Attack From Mars.vpx"] = new TablePlayStats
+                {
+                    TimesPlayed = 7,
+                    TotalPlaySeconds = 12_345,
+                    LastPlayedAt = lastPlayed
+                }
+            }
+        });
+
+        NudgeSettings loaded = await service.LoadAsync();
+
+        loaded.TablePlayStats.Should().ContainKey(@"D:\Tables\Attack From Mars.vpx");
+        TablePlayStats stats = loaded.TablePlayStats[@"D:\Tables\Attack From Mars.vpx"];
+        stats.TimesPlayed.Should().Be(7);
+        stats.TotalPlaySeconds.Should().Be(12_345);
+        stats.LastPlayedAt.Should().Be(lastPlayed);
+    }
+
+    /// <summary>
+    /// Play history is the one thing in the settings file that cannot be recreated - a theme or a
+    /// sort order is one click to set again, and hours played are gone for good. So it has to survive
+    /// being read by a build that has never heard of it and written back out.
+    /// </summary>
+    [Fact]
+    public async Task Play_history_is_not_lost_when_other_settings_are_saved()
+    {
+        var harness = new NudgeTestHarness(new MockFileSystem());
+        ISettingsService service = harness.BuildSettingsService(SettingsPath);
+
+        await service.SaveAsync(new NudgeSettings
+        {
+            TablePlayStats =
+            {
+                [@"D:\Tables\Medieval Madness.vpx"] = new TablePlayStats { TimesPlayed = 3, TotalPlaySeconds = 900 }
+            }
+        });
+
+        // Something entirely unrelated changes - the shape every other preference save takes.
+        await service.MutateAsync(s => s.ThemeName = "Light");
+
+        NudgeSettings loaded = await service.LoadAsync();
+
+        loaded.ThemeName.Should().Be("Light");
+        loaded.TablePlayStats[@"D:\Tables\Medieval Madness.vpx"].TimesPlayed.Should().Be(3);
+        loaded.TablePlayStats[@"D:\Tables\Medieval Madness.vpx"].TotalPlaySeconds.Should().Be(900);
+    }
+
+    /// <summary>A settings file written before play tracking existed must still load.</summary>
+    [Fact]
+    public async Task A_settings_file_without_play_history_loads_with_an_empty_one()
+    {
+        var fileSystem = new MockFileSystem();
+        fileSystem.AddFile(SettingsPath, new MockFileData("""{ "SettingsVersion": 1, "ThemeName": "Dark" }"""));
+
+        var harness = new NudgeTestHarness(fileSystem);
+        ISettingsService service = harness.BuildSettingsService(SettingsPath);
+
+        NudgeSettings loaded = await service.LoadAsync();
+
+        loaded.TablePlayStats.Should().NotBeNull();
+        loaded.TablePlayStats.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Loading_when_no_settings_file_exists_returns_usable_defaults()
     {
         var harness = new NudgeTestHarness(new MockFileSystem());

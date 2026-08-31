@@ -108,6 +108,24 @@ public sealed partial class TableDetailsViewModel : ObservableObject
         }
     }
 
+    // ---------------------------------------------------------------- Play history
+
+    /// <summary>
+    /// What this table has actually been played, recorded as each session ends. Shown as its own
+    /// block rather than three more rows in the specifications list: everything there describes the
+    /// table, and this describes the person reading it.
+    /// </summary>
+    private TablePlayStats? Stats => _library.GetPlayStats(Tile.Table.Path);
+
+    public bool HasBeenPlayed => Stats is { TimesPlayed: > 0 };
+
+    public string TimesPlayedLabel => PlayHistoryFormat.TimesPlayed(Stats?.TimesPlayed ?? 0);
+
+    public string TotalPlayTimeLabel => PlayHistoryFormat.Duration(Stats?.TotalPlaySeconds ?? 0);
+
+    public string LastPlayedLabel =>
+        Stats?.LastPlayedAt is { } last ? PlayHistoryFormat.When(last, DateTime.Today) : "-";
+
     private static string FormatSize(long bytes) =>
         bytes >= 1024L * 1024 * 1024
             ? $"{bytes / (1024.0 * 1024 * 1024):0.0} GB"
@@ -156,8 +174,21 @@ public sealed partial class TableDetailsViewModel : ObservableObject
     [RelayCommand]
     private void Back() => _library.CloseTableDetails();
 
+    /// <summary>
+    /// Awaited rather than fired and forgotten, purely so the play-history block can refresh when the
+    /// table closes. This page stays open behind Visual Pinball, so without this a session started
+    /// from here finishes and leaves the counts on screen showing what they were before it.
+    /// </summary>
     [RelayCommand]
-    private void Play() => _library.LaunchTableCommand.Execute(Tile);
+    private async Task PlayAsync()
+    {
+        await _library.LaunchTableCommand.ExecuteAsync(Tile).ConfigureAwait(true);
+
+        OnPropertyChanged(nameof(HasBeenPlayed));
+        OnPropertyChanged(nameof(TimesPlayedLabel));
+        OnPropertyChanged(nameof(TotalPlayTimeLabel));
+        OnPropertyChanged(nameof(LastPlayedLabel));
+    }
 
     [RelayCommand]
     private void Customize()

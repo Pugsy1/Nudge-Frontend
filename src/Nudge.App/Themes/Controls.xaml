@@ -57,6 +57,17 @@
          inherits WPF's default instead - which is black, and stays black on a dark palette. That is
          what the Rebind and "Reset all to defaults" buttons were. -->
     <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
+    <!--
+      BorderBrush carries the FOCUS RING's colour, not a border - these buttons draw no border at
+      all (BorderThickness is 0 on every one of them), and the ring is an overlay that a Style has no
+      other way to reach inside and recolour.
+
+      It has to be per-style because Brush.Focus is literally the same colour as Brush.Accent in
+      every palette. On a control that sits on the page that is a strong, obvious highlight; on
+      Button.Primary, whose whole face is that same accent, the ring vanished into the button - you
+      could not tell the Play button was selected at all.
+    -->
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
     <Setter Property="FontFamily" Value="{DynamicResource Font.Family.Primary}" />
     <Setter Property="FontSize" Value="{DynamicResource Font.Size.Body}" />
     <Setter Property="FontWeight" Value="{DynamicResource Font.Weight.Medium}" />
@@ -86,7 +97,7 @@
           </Grid>
           <ControlTemplate.Triggers>
             <Trigger Property="IsKeyboardFocused" Value="True">
-              <Setter TargetName="FocusRing" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
+              <Setter TargetName="FocusRing" Property="BorderBrush" Value="{Binding BorderBrush, RelativeSource={RelativeSource TemplatedParent}}" />
             </Trigger>
             <Trigger Property="IsEnabled" Value="False">
               <Setter TargetName="Root" Property="Opacity" Value="0.45" />
@@ -102,7 +113,12 @@
   <Style x:Key="Button.Primary" TargetType="Button" BasedOn="{StaticResource Button.Base}">
     <Setter Property="Background" Value="{DynamicResource Brush.Accent.Surface}" />
     <Setter Property="Foreground" Value="{DynamicResource Brush.Accent.Foreground}" />
-    <Setter Property="BorderBrush" Value="Transparent" />
+    <!-- The focus ring, not a border - see Button.Base. Brush.Accent.Foreground rather than
+         Brush.Focus, because this button's whole face IS the accent and Brush.Focus is the same
+         colour: an accent ring on an accent button is invisible. Accent.Foreground is already the
+         colour each palette picked to read clearly against its own accent - it is this button's own
+         text colour - so it contrasts by construction in all of them. -->
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent.Foreground}" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="Effect" Value="{DynamicResource Effect.Button.Shadow}" />
     <Style.Triggers>
@@ -145,7 +161,9 @@
          this style, and the IsMouseOver trigger below already brightens it. -->
     <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
     <Setter Property="Background" Value="Transparent" />
-    <Setter Property="BorderBrush" Value="Transparent" />
+    <!-- No BorderBrush setter: it carries the focus ring's colour now (see Button.Base), and
+         "Transparent" here used to mean "no border", which would leave this style with no focus
+         visual at all. -->
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="MinWidth" Value="0" />
     <Setter Property="FontSize" Value="{DynamicResource Font.Size.Caption}" />
@@ -169,6 +187,9 @@
          state its own foreground, or it inherits WPF's black. -->
     <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
     <Setter Property="Background" Value="Transparent" />
+    <!-- The focus ring's colour, as in Button.Base. This one sits on the page rather than on an
+         accent surface, so the ordinary focus colour reads fine. -->
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="Padding" Value="0" />
     <Setter Property="MinWidth" Value="0" />
@@ -188,7 +209,7 @@
           </Grid>
           <ControlTemplate.Triggers>
             <Trigger Property="IsKeyboardFocused" Value="True">
-              <Setter TargetName="FocusRing" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
+              <Setter TargetName="FocusRing" Property="BorderBrush" Value="{Binding BorderBrush, RelativeSource={RelativeSource TemplatedParent}}" />
             </Trigger>
             <Trigger Property="IsEnabled" Value="False">
               <Setter Property="Opacity" Value="0.45" />
@@ -229,7 +250,7 @@
           </Grid>
           <ControlTemplate.Triggers>
             <Trigger Property="IsKeyboardFocused" Value="True">
-              <Setter TargetName="FocusRing" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
+              <Setter TargetName="FocusRing" Property="BorderBrush" Value="{Binding BorderBrush, RelativeSource={RelativeSource TemplatedParent}}" />
             </Trigger>
             <Trigger Property="IsEnabled" Value="False">
               <Setter TargetName="Root" Property="Opacity" Value="0.45" />
@@ -1010,10 +1031,17 @@
               </Track.Thumb>
             </Track>
 
-            <!-- Sits around the whole control rather than the 10px groove, so the ring reads as
-                 "you are on the density slider" rather than outlining a hairline bar. -->
+            <!-- Sits around the whole control rather than the 14px groove, so the ring reads as
+                 "you are on this slider" rather than outlining the channel itself.
+
+                 A fixed radius, not CornerRadius.Pill. A pill clamps to a full stadium, which is
+                 fine on the header's 100px-wide density slider but turns the settings page's
+                 full-width shadow-intensity slider into a long stretched oval - the exact shape this
+                 interface keeps being pulled away from. 12 stays visibly a capsule at 100px and
+                 still reads as a rounded rectangle at 500. -->
             <Border x:Name="FocusRing"
-                    Style="{StaticResource FocusRing.Pill}"
+                    Style="{StaticResource FocusRing.Base}"
+                    CornerRadius="12"
                     Margin="-6,-2,-6,-2" />
           </Grid>
           <ControlTemplate.Triggers>

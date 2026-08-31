@@ -180,6 +180,31 @@ public sealed class NudgeSettings
     /// Cloud project.
     /// </summary>
     public string? YouTubeApiKey { get; set; }
+
+    /// <summary>
+    /// How much each table has actually been played, keyed by full path - the same key the
+    /// customizations and artwork overrides use.
+    ///
+    /// Deliberately NOT part of <see cref="TableCustomization"/>, even though the two are keyed
+    /// identically: a customization is something the user wrote and can reasonably reset, and play
+    /// history is a record they did not author and would not expect a reset to erase.
+    /// </summary>
+    public Dictionary<string, TablePlayStats> TablePlayStats { get; set; } = [];
+}
+
+/// <summary>What one table's play history amounts to - see <see cref="NudgeSettings.TablePlayStats"/>.</summary>
+public sealed class TablePlayStats
+{
+    /// <summary>Completed launches. A session counts once it ends, so a table currently open is not included yet.</summary>
+    public int TimesPlayed { get; set; }
+
+    /// <summary>
+    /// Total time with the table open, in seconds. Seconds rather than a TimeSpan because this is
+    /// written to JSON that a person may well read - "1847" is legible where "PT30M47S" is not.
+    /// </summary>
+    public long TotalPlaySeconds { get; set; }
+
+    public DateTimeOffset? LastPlayedAt { get; set; }
 }
 
 /// <summary>One table's user-authored customization - see <see cref="NudgeSettings.TableCustomizations"/>.</summary>

@@ -102,6 +102,13 @@ public sealed class FormControllerNavigation
         BringFocusIntoView();
     }
 
+    /// <summary>
+    /// Whether something on this page currently holds focus - i.e. whether the pad has actually
+    /// moved onto a control yet. Lets a page treat the very first press differently from a press
+    /// after navigating somewhere.
+    /// </summary>
+    public bool HasFocusWithinPage => CurrentWithinPage() is not null;
+
     private UIElement? CurrentWithinPage() =>
         Keyboard.FocusedElement is UIElement element && IsWithin(element, _page) ? element : null;
 

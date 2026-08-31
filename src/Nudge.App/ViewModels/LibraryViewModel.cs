@@ -182,7 +182,9 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
             new OptionItem<TableSortOrder>("Title  Z → A", TableSortOrder.TitleDescending),
             new OptionItem<TableSortOrder>("Year  newest first", TableSortOrder.YearNewest),
             new OptionItem<TableSortOrder>("Year  oldest first", TableSortOrder.YearOldest),
-            new OptionItem<TableSortOrder>("Favourites only", TableSortOrder.FavoritesOnly)
+            new OptionItem<TableSortOrder>("Favourites only", TableSortOrder.FavoritesOnly),
+            new OptionItem<TableSortOrder>("Most played", TableSortOrder.MostPlayed),
+            new OptionItem<TableSortOrder>("Recently played", TableSortOrder.RecentlyPlayed)
         ];
         _selectedSort = SortOptions[0];
 
@@ -1342,6 +1344,8 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
             TableSortOrder.YearNewest => new TableYearComparer(newestFirst: true),
             TableSortOrder.YearOldest => new TableYearComparer(newestFirst: false),
             TableSortOrder.FavoritesOnly => new TableFavoriteComparer(),
+            TableSortOrder.MostPlayed => new TablePlayComparer(GetPlayStats, byRecency: false),
+            TableSortOrder.RecentlyPlayed => new TablePlayComparer(GetPlayStats, byRecency: true),
             _ => new TableTitleComparer(ascending: true)
         };
 
@@ -1400,6 +1404,65 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
 
     /// <summary>Cached copy of NudgeSettings.TableCustomizations, refreshed in LoadPreferencesAsync - applied to each tile as it's created (ApplyTables) so a custom image survives a rescan/restart without waiting on IArtworkProvider.</summary>
     private Dictionary<string, TableCustomization> _tableCustomizations = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Cached copy of NudgeSettings.TablePlayStats, kept in step as sessions end so the details page can read it without a settings dependency of its own.</summary>
+    private Dictionary<string, TablePlayStats> _playStats = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>This table's play history, or null if it has never been played.</summary>
+    public TablePlayStats? GetPlayStats(string tablePath) =>
+        _playStats.TryGetValue(tablePath, out TablePlayStats? stats) ? stats : null;
+
+    /// <summary>
+    /// Files one finished session. Called after the launch engine reports the table's process has
+    /// exited, so the duration is the real time it was open rather than a guess.
+    ///
+    /// Every completed launch counts, including a very short one. The alternative - ignoring
+    /// sessions under some threshold - means a user who starts a table, changes their mind and quits
+    /// sees the count not move, which reads as the feature being broken; a table that genuinely
+    /// crashed on load is the rarer case and is at least honestly recorded.
+    /// </summary>
+    private async Task RecordPlaySessionAsync(string tablePath, TimeSpan duration)
+    {
+        if (!_playStats.TryGetValue(tablePath, out TablePlayStats? stats))
+        {
+            stats = new TablePlayStats();
+            _playStats[tablePath] = stats;
+        }
+
+        stats.TimesPlayed++;
+        stats.TotalPlaySeconds += Math.Max(0, (long)duration.TotalSeconds);
+        stats.LastPlayedAt = DateTimeOffset.Now;
+
+        try
+        {
+            // MutateAsync so a session ending at the same moment as any other preference save cannot
+            // silently discard one or the other - see SavePreferencesAsync's own note.
+            await _settingsService.MutateAsync(s =>
+            {
+                if (!s.TablePlayStats.TryGetValue(tablePath, out TablePlayStats? persisted))
+                {
+                    persisted = new TablePlayStats();
+                    s.TablePlayStats[tablePath] = persisted;
+                }
+
+                persisted.TimesPlayed = stats.TimesPlayed;
+                persisted.TotalPlaySeconds = stats.TotalPlaySeconds;
+                persisted.LastPlayedAt = stats.LastPlayedAt;
+            }).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not save play history for {Path}.", _redactor.Redact(tablePath));
+        }
+
+        // Live sorting reacts to properties changing on the tiles themselves, and play history is
+        // not one - it is looked up by path. So a play-ordered library has to be told to re-sort, or
+        // the table just played stays exactly where it was under "Recently played".
+        if (SelectedSort?.Value is TableSortOrder.MostPlayed or TableSortOrder.RecentlyPlayed)
+        {
+            ApplySort();
+        }
+    }
 
     [RelayCommand]
     private void ToggleFavorite(TableTileViewModel? tile)
@@ -1812,6 +1875,7 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
             MuteMediaTrailers = settings.MuteMediaTrailers;
             _favoriteTablePaths = new HashSet<string>(settings.FavoriteTablePaths, StringComparer.OrdinalIgnoreCase);
             _tableCustomizations = new Dictionary<string, TableCustomization>(settings.TableCustomizations, StringComparer.OrdinalIgnoreCase);
+            _playStats = new Dictionary<string, TablePlayStats>(settings.TablePlayStats, StringComparer.OrdinalIgnoreCase);
             TablesPerRow = Math.Clamp(settings.TablesPerRow, 3, 8);
             EnableShadows = settings.EnableShadows;
             ShadowIntensityPercent = Math.Clamp(settings.ShadowIntensityPercent, 25, 175);
@@ -1986,6 +2050,10 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
                 _redactor.Redact(result.Value.ExecutablePath),
                 result.Value.ExitCode,
                 result.Value.Duration);
+
+            // The launch engine waits for the table's process to exit, so by here the session is over
+            // and its duration is measured rather than estimated.
+            await RecordPlaySessionAsync(tile.Table.Path, result.Value.Duration).ConfigureAwait(true);
         }
         catch (Exception ex)
         {

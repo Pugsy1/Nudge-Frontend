@@ -69,11 +69,24 @@ public partial class TableDetailsView : UserControl
 
             switch (action)
             {
-                // A plays outright rather than pressing whatever has focus. This page exists to
-                // decide whether to play a table, so the primary button should do the primary thing
-                // without first having to navigate to it.
+                // A presses whatever has focus, and falls back to Play only while nothing on the
+                // page has been navigated to yet - so arriving here and pressing A immediately still
+                // starts the table, which is what this page is for.
+                //
+                // It used to play unconditionally, on the reasoning that the primary button should
+                // not need navigating to. That was written when directions did not move through this
+                // page; once they did, it meant every other control was unreachable - moving down to
+                // Customize and pressing A played the table anyway.
                 case ControllerAction.Activate:
-                    Model?.PlayCommand.Execute(null);
+                    if (_formNav.HasFocusWithinPage)
+                    {
+                        _formNav.Apply(action);
+                    }
+                    else
+                    {
+                        Model?.PlayCommand.Execute(null);
+                    }
+
                     return;
                 case ControllerAction.Customize:
                     Model?.CustomizeCommand.Execute(null);
