@@ -108,11 +108,68 @@ public partial class LibraryView : UserControl
             return;
         }
 
+        // The keyboard is modal while open: it is a grid of its own, and letting the library also
+        // read the directions underneath would move both at once.
+        if (library.IsOnScreenKeyboardOpen && library.OnScreenKeyboard is { } keyboard)
+        {
+            switch (action)
+            {
+                case ControllerAction.Up: keyboard.Move(0, -1); break;
+                case ControllerAction.Down: keyboard.Move(0, 1); break;
+                case ControllerAction.Left: keyboard.Move(-1, 0); break;
+                case ControllerAction.Right: keyboard.Move(1, 0); break;
+                case ControllerAction.Activate: keyboard.TypeSelected(); break;
+                case ControllerAction.Details: keyboard.Backspace(); break;
+                case ControllerAction.Favorite: keyboard.Clear(); break;
+                case ControllerAction.Back:
+                case ControllerAction.Menu:
+                    library.CloseOnScreenKeyboard();
+                    break;
+            }
+
+            return;
+        }
+
+        // A slider being adjusted owns the pad completely until it is confirmed - see EnterHeader's
+        // remarks for why a slider needs a mode of its own rather than reacting to bare directions.
+        if (_adjustingSlider is { } slider)
+        {
+            switch (action)
+            {
+                case ControllerAction.Left:
+                    slider.Value = Math.Max(slider.Minimum, slider.Value - slider.SmallChange);
+                    break;
+                case ControllerAction.Right:
+                    slider.Value = Math.Min(slider.Maximum, slider.Value + slider.SmallChange);
+                    break;
+                case ControllerAction.Activate:
+                case ControllerAction.Back:
+                    _adjustingSlider = null;
+                    library.ControllerHintsFor(ControllerScreen.Library);
+                    break;
+            }
+
+            return;
+        }
+
+        if (_inHeader)
+        {
+            HandleHeaderAction(library, action);
+            return;
+        }
+
         TableTileViewModel? selected = library.SelectedTile;
 
         switch (action)
         {
             case ControllerAction.Up:
+                // Already on the first row, so up leaves the grid entirely and lands in the header.
+                if (library.IsSelectionOnTopRow)
+                {
+                    EnterHeader(library);
+                    break;
+                }
+
                 library.MoveSelection(0, -1);
                 break;
             case ControllerAction.Down:
@@ -148,6 +205,94 @@ public partial class LibraryView : UserControl
             case ControllerAction.Back:
                 break;
         }
+    }
+
+    private bool _inHeader;
+    private Slider? _adjustingSlider;
+
+    /// <summary>
+    /// Moves focus out of the tile grid and into the header controls - the 2D/VR switch, search,
+    /// sort, layout and the density slider. The grid keeps its selection while up here, so dropping
+    /// back down returns to the tile you left rather than to the start.
+    /// </summary>
+    private void EnterHeader(LibraryViewModel library)
+    {
+        _inHeader = true;
+        library.IsHeaderFocused = true;
+        HeaderBar.MoveFocus(new TraversalRequest(FocusNavigationDirection.First));
+    }
+
+    private void LeaveHeader(LibraryViewModel library)
+    {
+        _inHeader = false;
+        _adjustingSlider = null;
+        library.IsHeaderFocused = false;
+        Keyboard.ClearFocus();
+    }
+
+    private void HandleHeaderAction(LibraryViewModel library, ControllerAction action)
+    {
+        switch (action)
+        {
+            case ControllerAction.Left:
+                MoveWithinHeader(FocusNavigationDirection.Previous);
+                break;
+            case ControllerAction.Right:
+                MoveWithinHeader(FocusNavigationDirection.Next);
+                break;
+
+            case ControllerAction.Down:
+            case ControllerAction.Back:
+                LeaveHeader(library);
+                break;
+
+            case ControllerAction.Activate:
+                ActivateHeaderControl(library);
+                break;
+
+            case ControllerAction.Menu:
+                library.ToggleSettingsCommand.Execute(null);
+                break;
+        }
+    }
+
+    private void MoveWithinHeader(FocusNavigationDirection direction)
+    {
+        if (Keyboard.FocusedElement is UIElement current)
+        {
+            current.MoveFocus(new TraversalRequest(direction));
+        }
+        else
+        {
+            HeaderBar.MoveFocus(new TraversalRequest(FocusNavigationDirection.First));
+        }
+    }
+
+    /// <summary>
+    /// Presses the focused header control. A slider is the one control that cannot simply be
+    /// "pressed": it holds a value rather than performing an action, and letting bare left/right
+    /// change it while merely passing over would make moving through the header silently alter the
+    /// grid density. So A enters an explicit adjust mode, left/right change the value, and A (or B)
+    /// confirms - the value is live throughout, so there is nothing to commit, only a mode to leave.
+    /// </summary>
+    private void ActivateHeaderControl(LibraryViewModel library)
+    {
+        if (Keyboard.FocusedElement is Slider slider)
+        {
+            _adjustingSlider = slider;
+            library.ControllerHintsFor(ControllerScreen.SliderAdjust);
+            return;
+        }
+
+        if (Keyboard.FocusedElement is TextBox)
+        {
+            // Text needs characters, which a pad has no way to produce - the on-screen keyboard is
+            // what makes the search box usable without reaching for a keyboard.
+            library.OpenOnScreenKeyboard();
+            return;
+        }
+
+        FormControllerNavigation.ActivateFocused();
     }
 
     /// <summary>

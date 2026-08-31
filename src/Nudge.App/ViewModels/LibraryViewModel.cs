@@ -667,10 +667,17 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
     private TableTileViewModel? _selectedTile;
 
     /// <summary>
-    /// The button legend shown along the bottom while a pad is in use. Only appears in controller
-    /// mode - with a mouse it is telling you about buttons you are not holding.
+    /// The button legend shown in the header while a pad is in use. Only appears in controller mode
+    /// - with a mouse it is telling you about buttons you are not holding.
+    ///
+    /// Swapped as the focus moves rather than fixed, because the same buttons genuinely do different
+    /// things in the grid, in the header and while dragging a slider. A legend that kept claiming
+    /// "A plays" while A was actually confirming a slider would be worse than no legend at all.
     /// </summary>
-    public IReadOnlyList<ControllerHint> ControllerHints { get; } =
+    [ObservableProperty]
+    private IReadOnlyList<ControllerHint> _controllerHints = GridHints;
+
+    private static readonly IReadOnlyList<ControllerHint> GridHints =
     [
         new("A", "Play"),
         new("X", "Details"),
@@ -678,6 +685,84 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
         new("LB", "Favourite"),
         new("Start", "Settings")
     ];
+
+    private static readonly IReadOnlyList<ControllerHint> HeaderHints =
+    [
+        new("A", "Select"),
+        new("←→", "Move"),
+        new("↓", "Back to tables")
+    ];
+
+    private static readonly IReadOnlyList<ControllerHint> SliderHints =
+    [
+        new("←→", "Adjust"),
+        new("A", "Done")
+    ];
+
+    private static readonly IReadOnlyList<ControllerHint> KeyboardHints =
+    [
+        new("A", "Type"),
+        new("X", "Backspace"),
+        new("B", "Done")
+    ];
+
+    /// <summary>Which set of hints the legend is showing.</summary>
+    public void ControllerHintsFor(ControllerScreen screen) => ControllerHints = screen switch
+    {
+        ControllerScreen.Header => HeaderHints,
+        ControllerScreen.SliderAdjust => SliderHints,
+        ControllerScreen.Keyboard => KeyboardHints,
+        _ => GridHints
+    };
+
+    /// <summary>
+    /// True while the pad is driving the header rather than the grid. Hides the tile selection ring,
+    /// so there is only ever one thing on screen claiming to be "where you are".
+    /// </summary>
+    [ObservableProperty]
+    private bool _isHeaderFocused;
+
+    partial void OnIsHeaderFocusedChanged(bool value) =>
+        ControllerHintsFor(value ? ControllerScreen.Header : ControllerScreen.Library);
+
+    // ---------------------------------------------------------------- On-screen keyboard
+
+    /// <summary>The pad-driven keyboard for the search box. Null until it is first opened.</summary>
+    [ObservableProperty]
+    private OnScreenKeyboardViewModel? _onScreenKeyboard;
+
+    [ObservableProperty]
+    private bool _isOnScreenKeyboardOpen;
+
+    /// <summary>
+    /// Opens the keyboard, seeded with whatever is already in the search box so it edits rather than
+    /// replaces. Its text is pushed straight back into SearchText on every key, so the library
+    /// filters live underneath - the same feedback typing on a real keyboard gives.
+    /// </summary>
+    public void OpenOnScreenKeyboard()
+    {
+        if (OnScreenKeyboard is null)
+        {
+            OnScreenKeyboard = new OnScreenKeyboardViewModel();
+            OnScreenKeyboard.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(OnScreenKeyboardViewModel.Text))
+                {
+                    SearchText = OnScreenKeyboard!.Text;
+                }
+            };
+        }
+
+        OnScreenKeyboard.Text = SearchText ?? string.Empty;
+        IsOnScreenKeyboardOpen = true;
+        ControllerHintsFor(ControllerScreen.Keyboard);
+    }
+
+    public void CloseOnScreenKeyboard()
+    {
+        IsOnScreenKeyboardOpen = false;
+        ControllerHintsFor(IsHeaderFocused ? ControllerScreen.Header : ControllerScreen.Library);
+    }
 
     partial void OnSelectedTileChanged(TableTileViewModel? oldValue, TableTileViewModel? newValue)
     {
@@ -710,6 +795,30 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
     public void ExitControllerMode() => IsControllerMode = false;
 
     private List<TableTileViewModel> VisibleTables() => TablesView.Cast<TableTileViewModel>().ToList();
+
+    /// <summary>
+    /// Whether the selection is on the first row, so pressing up should leave the grid and reach the
+    /// header rather than doing nothing. Being unable to get to the search box and the 2D/VR switch
+    /// without a mouse is what makes a pad feel like a partial input rather than a real one.
+    /// </summary>
+    public bool IsSelectionOnTopRow
+    {
+        get
+        {
+            List<TableTileViewModel> items = VisibleTables();
+            int index = SelectedTile is null ? -1 : items.IndexOf(SelectedTile);
+            if (index < 0)
+            {
+                return true;
+            }
+
+            int perRow = SelectedLayoutMode?.Value is LibraryLayoutMode.Grid or LibraryLayoutMode.Compact
+                ? Math.Max(1, TablesPerRow)
+                : 1;
+
+            return index < perRow;
+        }
+    }
 
     private void SelectFirstVisible()
     {

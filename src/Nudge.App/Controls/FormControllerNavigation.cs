@@ -38,7 +38,7 @@ public static class FormControllerNavigation
                 return true;
 
             case ControllerAction.Activate:
-                Activate();
+                ActivateFocused();
                 return true;
 
             default:
@@ -81,7 +81,8 @@ public static class FormControllerNavigation
     /// peers already express that difference - Invoke for things that do something, Toggle for
     /// things that flip, ExpandCollapse for things that open.
     /// </summary>
-    private static void Activate()
+    /// <summary>Presses whatever currently has keyboard focus. Public so callers with their own key handling (the library header) can reuse it.</summary>
+    public static void ActivateFocused()
     {
         if (Keyboard.FocusedElement is not UIElement focused)
         {

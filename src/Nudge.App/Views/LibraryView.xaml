@@ -277,6 +277,9 @@
                 <MultiDataTrigger.Conditions>
                   <Condition Binding="{Binding IsSelected}" Value="True" />
                   <Condition Binding="{Binding DataContext.IsControllerMode, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Value="True" />
+                  <!-- Not while the header has the pad: two highlights at once would each claim to
+                       be the current position. -->
+                  <Condition Binding="{Binding DataContext.IsHeaderFocused, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Value="False" />
                 </MultiDataTrigger.Conditions>
                 <Setter TargetName="SelectionRing" Property="Visibility" Value="Visible" />
               </MultiDataTrigger>
@@ -547,7 +550,7 @@
         </Rectangle.OpacityMask>
       </Rectangle>
 
-      <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+      <StackPanel x:Name="HeaderBar" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
 
         <!-- 2D / VR launch mode: one fluid pill, not two separate buttons. The whole track is
              clickable - either half sets that mode - and a sliding cap animates to whichever side
@@ -1156,6 +1159,73 @@
                    Text="{Binding StatusMessage}" />
       </StackPanel>
     </Border>
+
+    <!-- ======================= On-screen keyboard ======================= -->
+    <!-- For the search box, which is the only thing in Nudge that needs characters rather than a
+         choice. Modal, because it is a grid the pad drives directly - the library must not move
+         underneath it at the same time. -->
+    <Grid Grid.Row="0" Grid.RowSpan="3"
+          Background="{DynamicResource Brush.Overlay.Scrim}"
+          Visibility="{Binding IsOnScreenKeyboardOpen, Converter={StaticResource BoolToVisibility}}">
+      <ContentControl Style="{StaticResource Card.Neumorphic}"
+                      HorizontalAlignment="Center"
+                      VerticalAlignment="Center"
+                      Padding="{DynamicResource Inset.XL}">
+        <StackPanel>
+          <TextBlock Style="{StaticResource Text.Caption}"
+                     Foreground="{DynamicResource Brush.Accent}"
+                     Text="SEARCH" />
+
+          <!-- What has been typed so far, in the recessed slot the real search box uses, so it reads
+               as the same field rather than a separate preview. -->
+          <Border Background="{DynamicResource Brush.Surface.Recessed}"
+                  CornerRadius="{DynamicResource CornerRadius.Button}"
+                  Padding="{DynamicResource Inset.M}"
+                  MinWidth="520"
+                  Margin="{DynamicResource Gap.Above.S}">
+            <TextBlock Style="{StaticResource Text.Body}"
+                       Text="{Binding OnScreenKeyboard.Text}"
+                       MinHeight="20" />
+          </Border>
+
+          <ItemsControl ItemsSource="{Binding OnScreenKeyboard.Keys}"
+                        Margin="{DynamicResource Gap.Above.M}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <!-- Fixed column count matching the view model's own row length, so the grid on
+                     screen is the same shape as the one the arithmetic moves through. -->
+                <UniformGrid Columns="10" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border Margin="3"
+                        MinWidth="46" MinHeight="42"
+                        CornerRadius="{DynamicResource CornerRadius.Button}"
+                        Background="{DynamicResource Brush.Control.Background}">
+                  <Border.Style>
+                    <Style TargetType="Border">
+                      <Setter Property="BorderThickness" Value="2" />
+                      <Setter Property="BorderBrush" Value="Transparent" />
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                          <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
+                          <Setter Property="Background" Value="{DynamicResource Brush.Control.BackgroundHover}" />
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </Border.Style>
+                  <TextBlock Text="{Binding Label}"
+                             HorizontalAlignment="Center"
+                             VerticalAlignment="Center"
+                             Style="{StaticResource Text.Body}" />
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </ContentControl>
+    </Grid>
 
     <!-- ======================= Random table picker ======================= -->
     <!-- A full-bleed scrim over the whole window rather than a small popup: this is a "decide what

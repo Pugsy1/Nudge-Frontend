@@ -184,15 +184,34 @@ public partial class App : Application
         string logsDirectory = Vpx.DependencyInjection.ServiceCollectionExtensions.ResolveLogsDirectory(environment);
         string logFilePath = Path.Combine(logsDirectory, "nudge-.log");
 
+        // Debug logging is opt-in via NUDGE_LOG_DEBUG=1 rather than always on. At Debug level this
+        // wrote roughly 7 MB a day - almost all of it Entity Framework echoing every tracked entity
+        // and the full text of every query - which meant ~50 MB of retained logs, a slower scan
+        // (every row costs a formatted write), and a genuinely useful signal buried under thousands
+        // of lines of noise. The variable is there so a support request can still ask for a verbose
+        // run without needing a special build.
+        bool verbose = Environment.GetEnvironmentVariable("NUDGE_LOG_DEBUG") == "1";
+        LogEventLevel level = verbose ? LogEventLevel.Debug : LogEventLevel.Information;
+
         LoggerConfiguration configuration = new LoggerConfiguration()
-            .MinimumLevel.Debug()
+            .MinimumLevel.Is(level)
+
+            // Even in a verbose run, EF's per-entity and per-command chatter is noise rather than
+            // diagnosis; a failing query still surfaces at Warning.
+            .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+            .MinimumLevel.Override("Microsoft.Extensions.Hosting", LogEventLevel.Warning)
             .Enrich.FromLogContext()
             .WriteTo.File(
                 new RedactingTextFormatter(LogOutputTemplate, redactor),
                 logFilePath,
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 7,
-                restrictedToMinimumLevel: LogEventLevel.Debug,
+
+                // A hard ceiling as well as a level: a pathological loop should cost one capped file
+                // rather than filling the user's disk.
+                fileSizeLimitBytes: 16 * 1024 * 1024,
+                rollOnFileSizeLimit: true,
+                restrictedToMinimumLevel: level,
                 shared: true);
 
 #if DEBUG
