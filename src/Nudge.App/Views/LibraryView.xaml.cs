@@ -279,6 +279,15 @@ public partial class LibraryView : UserControl
 
     private void HandleHeaderAction(LibraryViewModel library, ControllerAction action)
     {
+        // An open sort/layout list owns the pad until it is closed. Without this, pressing A opened
+        // the list and pressing down immediately left the header - so both dropdowns could be opened
+        // but neither could be used to actually choose anything.
+        if (FormControllerNavigation.OpenDropDownAt(_lastHeaderStop) is { } open)
+        {
+            FormControllerNavigation.ApplyToOpenDropDown(open, action);
+            return;
+        }
+
         switch (action)
         {
             case ControllerAction.Left:

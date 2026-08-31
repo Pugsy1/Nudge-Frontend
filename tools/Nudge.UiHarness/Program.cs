@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using Nudge.App.Controls;
 using Nudge.App.Views;
 
 // Headless UI harness. Run it with:  dotnet run --project tools/Nudge.UiHarness
@@ -29,7 +30,11 @@ internal static class Program
     [STAThread]
     private static int Main()
     {
-        Application app = new();
+        // Without this the default OnLastWindowClose applies: the first check closes its host window,
+        // that is the last window, and the Application shuts down - so every later Show() silently
+        // builds no visual tree and every subsequent check passes over an empty page.
+        Application app = new() { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+
         foreach (string src in new[]
                  {
                      "Colors.Dark.xaml", "Typography.xaml", "Layout.xaml", "Effects.xaml",
@@ -45,6 +50,8 @@ internal static class Program
         int failed = 0;
         failed += LoadEveryViewInEveryTheme(app);
         failed += CheckHeaderStops();
+        failed += CheckEveryStopShowsFocus();
+        failed += CheckOpenDropDownNavigation();
 
         Console.WriteLine();
         Console.WriteLine(failed == 0 ? "ALL CHECKS PASSED" : $"{failed} CHECK(S) FAILED");
@@ -107,6 +114,143 @@ internal static class Program
 
         Console.WriteLine($"View load: {views.Length} views x {themes.Length} themes = {checks} checks, {failed} failed");
         return failed;
+    }
+
+    /// <summary>
+    /// An open dropdown must be navigable. Both the header and the form pages route directions into
+    /// the open list through the same helper - before that, opening the sort list and pressing down
+    /// moved the page behind it instead, so the list could be opened but never used to choose.
+    /// </summary>
+    private static int CheckOpenDropDownNavigation()
+    {
+        ComboBox box = new() { ItemsSource = new[] { "one", "two", "three" }, SelectedIndex = 0 };
+        Window host = new() { Width = 400, Height = 200, Content = box };
+        host.Show();
+        host.UpdateLayout();
+
+        box.IsDropDownOpen = true;
+
+        int failed = 0;
+
+        FormControllerNavigation.ApplyToOpenDropDown(box, ControllerAction.Down);
+        FormControllerNavigation.ApplyToOpenDropDown(box, ControllerAction.Down);
+        if (box.SelectedIndex != 2)
+        {
+            failed++;
+            Console.WriteLine($"FAIL  open dropdown: two downs left SelectedIndex at {box.SelectedIndex}, expected 2");
+        }
+
+        FormControllerNavigation.ApplyToOpenDropDown(box, ControllerAction.Up);
+        if (box.SelectedIndex != 1)
+        {
+            failed++;
+            Console.WriteLine($"FAIL  open dropdown: up left SelectedIndex at {box.SelectedIndex}, expected 1");
+        }
+
+        // Past the end must clamp, not wrap - running off a list of options and reappearing at the
+        // top is how you pick the wrong one without noticing.
+        FormControllerNavigation.ApplyToOpenDropDown(box, ControllerAction.Down);
+        FormControllerNavigation.ApplyToOpenDropDown(box, ControllerAction.Down);
+        FormControllerNavigation.ApplyToOpenDropDown(box, ControllerAction.Down);
+        if (box.SelectedIndex != 2)
+        {
+            failed++;
+            Console.WriteLine($"FAIL  open dropdown: ran past the end to {box.SelectedIndex}, expected to clamp at 2");
+        }
+
+        FormControllerNavigation.ApplyToOpenDropDown(box, ControllerAction.Activate);
+        if (box.IsDropDownOpen)
+        {
+            failed++;
+            Console.WriteLine("FAIL  open dropdown: A did not close the list");
+        }
+
+        if (failed == 0)
+        {
+            Console.WriteLine("Open dropdown: up/down move the selection, clamped at both ends, A closes");
+        }
+
+        host.Close();
+        return failed;
+    }
+
+    /// <summary>
+    /// Every control a controller can land on must be able to say so. A focusable control whose
+    /// template has no focus ring leaves the pad sitting on something with nothing on screen to show
+    /// it - "invisible, but it's over a button". The settings switches were exactly this: seven of
+    /// them, none with any focus visual at all.
+    ///
+    /// The rule checked is structural - a focusable control's template must contain an element named
+    /// FocusRing - which is what makes it enforceable rather than a matter of remembering.
+    /// </summary>
+    private static int CheckEveryStopShowsFocus()
+    {
+        int failed = 0;
+
+        foreach (UserControl page in new UserControl[] { new SettingsView(), new LibraryView() })
+        {
+            Window host = new() { Width = 1920, Height = 1080, Content = page };
+            host.Show();
+            host.UpdateLayout();
+
+            List<UIElement> stops = [];
+            Collect(host);
+
+            List<string> missing = stops
+                .Where(s => !HasFocusRing(s))
+                .Select(s => s.GetType().Name)
+                .ToList();
+
+            if (missing.Count > 0)
+            {
+                failed++;
+                Console.WriteLine($"FAIL  {page.GetType().Name}: {missing.Count} focusable control(s) " +
+                                  $"with no focus ring: {string.Join(", ", missing.Distinct())}");
+            }
+            else
+            {
+                Console.WriteLine($"Focus visuals: {page.GetType().Name} - all {stops.Count} stops show a focus ring");
+            }
+
+            host.Close();
+
+            void Collect(DependencyObject node)
+            {
+                int count = VisualTreeHelper.GetChildrenCount(node);
+                for (int i = 0; i < count; i++)
+                {
+                    DependencyObject child = VisualTreeHelper.GetChild(node, i);
+                    if (child is UIElement { Focusable: true, IsEnabled: true, IsVisible: true } stop)
+                    {
+                        stops.Add(stop);
+                        continue;
+                    }
+
+                    Collect(child);
+                }
+            }
+        }
+
+        return failed;
+
+        static bool HasFocusRing(DependencyObject node)
+        {
+            if (node is FrameworkElement { Name: "FocusRing" })
+            {
+                return true;
+            }
+
+            int count = VisualTreeHelper.GetChildrenCount(node);
+            for (int i = 0; i < count; i++)
+            {
+                if (HasFocusRing(VisualTreeHelper.GetChild(node, i)))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
     }
 
     /// <summary>

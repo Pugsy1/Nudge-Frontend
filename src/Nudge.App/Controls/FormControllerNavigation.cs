@@ -41,24 +41,8 @@ public sealed class FormControllerNavigation
         // pressing down moved page focus instead, so the list could be opened but never used.
         if (OpenDropDown() is { } open)
         {
-            switch (action)
-            {
-                case ControllerAction.Up:
-                    open.SelectedIndex = Math.Max(0, open.SelectedIndex - 1);
-                    return true;
-                case ControllerAction.Down:
-                    open.SelectedIndex = Math.Min(open.Items.Count - 1, open.SelectedIndex + 1);
-                    return true;
-                case ControllerAction.Activate:
-                case ControllerAction.Back:
-                    open.IsDropDownOpen = false;
-                    open.Focus();
-                    Remember(open);
-                    return true;
-            }
-
-            // Everything else is swallowed while a list is open, so a stray button cannot act on the
-            // page underneath it.
+            ApplyToOpenDropDown(open, action);
+            Remember(open);
             return true;
         }
 
@@ -144,6 +128,45 @@ public sealed class FormControllerNavigation
                               ?? FindComboBox(_lastFocused);
 
         return candidate is { IsDropDownOpen: true } ? candidate : null;
+    }
+
+    /// <summary>
+    /// The dropdown showing its list somewhere at or above <paramref name="focused"/>, if any.
+    /// Shared with the library header, which drives focus itself rather than through this class but
+    /// needs an open list to behave identically once it is open.
+    /// </summary>
+    public static ComboBox? OpenDropDownAt(UIElement? focused)
+    {
+        ComboBox? candidate = FindComboBox(Keyboard.FocusedElement as DependencyObject)
+                              ?? FindComboBox(focused);
+
+        return candidate is { IsDropDownOpen: true } ? candidate : null;
+    }
+
+    /// <summary>
+    /// Moves through an open list. The directions belong to the list while it is up - they must not
+    /// wander off to whatever is behind it, which is what made a dropdown openable but unusable: the
+    /// list appeared, and pressing down moved the page underneath instead of the selection.
+    ///
+    /// Everything not handled here is deliberately swallowed, so a stray button cannot act on the
+    /// page behind an open list.
+    /// </summary>
+    public static void ApplyToOpenDropDown(ComboBox open, ControllerAction action)
+    {
+        switch (action)
+        {
+            case ControllerAction.Up:
+                open.SelectedIndex = Math.Max(0, open.SelectedIndex - 1);
+                break;
+            case ControllerAction.Down:
+                open.SelectedIndex = Math.Min(open.Items.Count - 1, open.SelectedIndex + 1);
+                break;
+            case ControllerAction.Activate:
+            case ControllerAction.Back:
+                open.IsDropDownOpen = false;
+                open.Focus();
+                break;
+        }
     }
 
     private static ComboBox? FindComboBox(DependencyObject? start)

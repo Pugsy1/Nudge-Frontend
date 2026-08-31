@@ -745,6 +745,11 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
     public void CloseOnScreenKeyboard()
     {
         IsOnScreenKeyboardOpen = false;
+
+        // Everything typed while the keyboard was up is applied here, in one pass - see
+        // OnSearchTextChanged for why it is deferred rather than run per keystroke.
+        _searchDebounceTimer.Stop();
+        _searchDebounceTimer.Start();
     }
 
     partial void OnSelectedTileChanged(TableTileViewModel? oldValue, TableTileViewModel? newValue)
@@ -941,6 +946,18 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
 
     partial void OnSearchTextChanged(string value)
     {
+        // The on-screen keyboard holds the filter pass back entirely until it closes. Refreshing the
+        // view re-runs the filter over the whole library and forces the virtualizing panel to
+        // re-measure and re-realize tiles, all on the UI thread - perhaps 120ms of work. On a
+        // physical keyboard that hides inside the gaps between keystrokes; on a pad, where each
+        // letter is a deliberate press, it landed squarely on top of every single one, which is the
+        // hitch after each letter and after each backspace. Nothing is lost by waiting: the library
+        // is behind a scrim while the keyboard is up, and Search applies it the moment you are done.
+        if (IsOnScreenKeyboardOpen)
+        {
+            return;
+        }
+
         // Restarting rather than letting it run means a keystroke arriving mid-interval pushes the
         // actual filter pass back out, so it only ever fires once typing has actually paused.
         _searchDebounceTimer.Stop();

@@ -70,13 +70,20 @@ public partial class SettingsView : UserControl
         {
             library.EnterControllerMode();
 
-            if (action is ControllerAction.Back or ControllerAction.Menu)
+            // Page navigation gets first refusal, and B only closes settings when nothing on the
+            // page wanted it. The order used to be the other way round, which meant B while a
+            // dropdown was open shut the whole page instead of the list - open the theme list, press
+            // B, and you were back at the library with no way to pick a different theme without
+            // starting over.
+            if (_formNav.Apply(action))
             {
-                library.IsSettingsOpen = false;
                 return;
             }
 
-            _formNav.Apply(action);
+            if (action is ControllerAction.Back or ControllerAction.Menu)
+            {
+                library.IsSettingsOpen = false;
+            }
         };
         _controller.Start();
     }

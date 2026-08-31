@@ -362,8 +362,20 @@
                       CornerRadius="7"
                       Effect="{DynamicResource Effect.Button.Shadow}" />
             </Border>
+
+            <!-- Around the whole row, label included, rather than just the track: on a settings page
+                 the thing you are "on" is the setting, not the 46px rocker at the end of it. Without
+                 any focus visual at all - which is what these had - a controller could be sitting on
+                 a switch with nothing on screen saying so. -->
+            <Border x:Name="FocusRing"
+                    Grid.Column="0" Grid.ColumnSpan="2"
+                    Style="{StaticResource FocusRing.Medium}"
+                    Margin="-10,-6,-4,-6" />
           </Grid>
           <ControlTemplate.Triggers>
+            <Trigger Property="IsKeyboardFocused" Value="True">
+              <Setter TargetName="FocusRing" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
+            </Trigger>
             <Trigger Property="IsChecked" Value="True">
               <Setter TargetName="Knob" Property="HorizontalAlignment" Value="Right" />
               <Setter TargetName="Knob" Property="Margin" Value="0,0,3,0" />
@@ -993,9 +1005,12 @@
                  be "pressed", so it needs a state of its own - without a visible difference between
                  "passing over" and "now moving this", left/right would look identical in both and
                  the user would have no way to tell which one they were in. -->
+            <!-- Only the ring's colour and weight change. It briefly also filled itself with
+                 Brush.Accent.Subtle, but the ring is drawn OVER the slider, so that fill covered the
+                 groove and thumb - the slider appeared to vanish the moment it was activated. -->
             <Trigger Property="controls:SliderBehavior.IsAdjusting" Value="True">
               <Setter TargetName="FocusRing" Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
-              <Setter TargetName="FocusRing" Property="Background" Value="{DynamicResource Brush.Accent.Subtle}" />
+              <Setter TargetName="FocusRing" Property="BorderThickness" Value="{DynamicResource BorderThickness.Focus.Strong}" />
             </Trigger>
             <Trigger Property="IsEnabled" Value="False">
               <Setter Property="Opacity" Value="0.45" />
@@ -1220,6 +1235,16 @@
 
   <!-- The bar itself: a full-width strip along the bottom of whichever page is showing. Bound to a
        page's own hint list, so each screen states its own actions. -->
+  <!--
+    A plain ItemsControl is a container, never a target. It inherits Focusable="True" from Control,
+    though, so focus traversal stops ON the list itself before reaching anything inside it - a stop
+    with no visual, no action and nothing to say it is there. That is the settings page landing "on a
+    button" with nothing highlighted.
+  -->
+  <Style TargetType="ItemsControl">
+    <Setter Property="Focusable" Value="False" />
+  </Style>
+
   <Style x:Key="ControllerHintBar" TargetType="ItemsControl">
     <Setter Property="ItemTemplate" Value="{StaticResource ControllerHint.Template}" />
     <Setter Property="VerticalAlignment" Value="Center" />

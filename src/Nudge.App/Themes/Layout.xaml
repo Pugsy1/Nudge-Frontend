@@ -69,6 +69,10 @@
        FocusRing styles in Controls.xaml, which draw it as an overlay rather than as a real border. -->
   <Thickness x:Key="BorderThickness.Focus">2</Thickness>
 
+  <!-- For a control that has been not just landed on but ENTERED - the density slider in adjust
+       mode. Heavier than plain focus so the two states are told apart at a glance. -->
+  <Thickness x:Key="BorderThickness.Focus.Strong">3</Thickness>
+
   <!-- A library tile's own outline: no top/bottom border at all, only left/right - since the
        top/bottom edges of every tile in a row line up into one continuous horizontal seam across
        the whole grid, where even a thin one reads as a much heavier line than intended. A

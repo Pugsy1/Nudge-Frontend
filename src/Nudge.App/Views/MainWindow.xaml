@@ -200,9 +200,13 @@
                                 From="0" To="1" Duration="0:0:0.35" />
 
               <!-- Sweeps continuously for as long as the splash is up - Forever, not a fixed repeat
-                   count, since how long startup actually takes isn't known in advance. -->
+                   count, since how long startup actually takes isn't known in advance. AutoReverse
+                   rather than restarting from the left: the fill eases to a stop at one end and
+                   comes back, so there is no jump-cut when the cycle wraps.
+                   150 = the 220 track less the 70 fill, so it stops exactly flush at each end. -->
               <DoubleAnimation Storyboard.TargetName="LoadingBarFillTransform" Storyboard.TargetProperty="X"
-                                From="-70" To="220" BeginTime="0:0:0.25" Duration="0:0:0.9"
+                                From="0" To="150" BeginTime="0:0:0.25" Duration="0:0:0.85"
+                                AutoReverse="True"
                                 RepeatBehavior="Forever">
                 <DoubleAnimation.EasingFunction>
                   <SineEase EasingMode="EaseInOut" />
@@ -246,18 +250,24 @@
              with a short accent-coloured fill that sweeps back and forth - indeterminate rather than
              a real percentage, since there's nothing measurable to report yet at this point in
              startup (AGENTS.md's scan progress only exists once the library screen is already up). -->
-        <Border Width="220" Height="4"
-                Margin="0,24,0,0"
+        <Border Width="220" Height="6"
+                Margin="0,26,0,0"
                 HorizontalAlignment="Center"
                 Background="{DynamicResource Brush.Surface.Recessed}"
-                CornerRadius="2">
+                CornerRadius="3"
+                ClipToBounds="True">
+          <!-- ClipToBounds on the track above, because a RenderTransform is not constrained by its
+               parent's bounds: the fill used to slide visibly out past both ends of the track, which
+               read as the animation being wider than the bar it was supposedly inside. It now also
+               travels only the width it has room for (0 to 220-70), easing at each end, so it stays
+               within the groove at all times rather than emptying it on every pass. -->
           <Border HorizontalAlignment="Left"
-                  Width="70" Height="4"
+                  Width="70" Height="6"
                   Background="{DynamicResource Brush.Accent}"
-                  CornerRadius="2"
+                  CornerRadius="3"
                   RenderTransformOrigin="0,0.5">
             <Border.RenderTransform>
-              <TranslateTransform x:Name="LoadingBarFillTransform" X="-70" />
+              <TranslateTransform x:Name="LoadingBarFillTransform" X="0" />
             </Border.RenderTransform>
           </Border>
         </Border>
