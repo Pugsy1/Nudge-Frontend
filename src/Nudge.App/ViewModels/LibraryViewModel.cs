@@ -670,14 +670,13 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
     /// The button legend shown in the header while a pad is in use. Only appears in controller mode
     /// - with a mouse it is telling you about buttons you are not holding.
     ///
-    /// Swapped as the focus moves rather than fixed, because the same buttons genuinely do different
-    /// things in the grid, in the header and while dragging a slider. A legend that kept claiming
-    /// "A plays" while A was actually confirming a slider would be worse than no legend at all.
+    /// Deliberately FIXED, not swapped as the focus moves. An earlier version changed the legend for
+    /// the header, the slider and the keyboard, which was accurate but meant the one strip of the
+    /// screen you glance at kept rearranging itself underneath you - the flicker cost more than the
+    /// accuracy bought. Contexts that genuinely rebind the buttons (the slider, the keyboard) state
+    /// their own actions inside the thing you are looking at instead.
     /// </summary>
-    [ObservableProperty]
-    private IReadOnlyList<ControllerHint> _controllerHints = GridHints;
-
-    private static readonly IReadOnlyList<ControllerHint> GridHints =
+    public IReadOnlyList<ControllerHint> ControllerHints { get; } =
     [
         new("A", "Play"),
         new("X", "Details"),
@@ -686,34 +685,18 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
         new("Start", "Settings")
     ];
 
-    private static readonly IReadOnlyList<ControllerHint> HeaderHints =
-    [
-        new("A", "Select"),
-        new("←→", "Move"),
-        new("↓", "Back to tables")
-    ];
-
-    private static readonly IReadOnlyList<ControllerHint> SliderHints =
-    [
-        new("←→", "Adjust"),
-        new("A", "Done")
-    ];
-
-    private static readonly IReadOnlyList<ControllerHint> KeyboardHints =
+    /// <summary>
+    /// The keyboard's own legend, shown inside the keyboard card. These buttons genuinely mean
+    /// something else while typing, so they are stated where the eye already is rather than by
+    /// rewriting <see cref="ControllerHints"/> out from under the user.
+    /// </summary>
+    public IReadOnlyList<ControllerHint> OnScreenKeyboardHints { get; } =
     [
         new("A", "Type"),
         new("X", "Backspace"),
+        new("LB", "Clear"),
         new("B", "Done")
     ];
-
-    /// <summary>Which set of hints the legend is showing.</summary>
-    public void ControllerHintsFor(ControllerScreen screen) => ControllerHints = screen switch
-    {
-        ControllerScreen.Header => HeaderHints,
-        ControllerScreen.SliderAdjust => SliderHints,
-        ControllerScreen.Keyboard => KeyboardHints,
-        _ => GridHints
-    };
 
     /// <summary>
     /// True while the pad is driving the header rather than the grid. Hides the tile selection ring,
@@ -721,9 +704,6 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
     /// </summary>
     [ObservableProperty]
     private bool _isHeaderFocused;
-
-    partial void OnIsHeaderFocusedChanged(bool value) =>
-        ControllerHintsFor(value ? ControllerScreen.Header : ControllerScreen.Library);
 
     // ---------------------------------------------------------------- On-screen keyboard
 
@@ -751,17 +731,20 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
                     SearchText = OnScreenKeyboard!.Text;
                 }
             };
+
+            // The search key does not perform a search - the results have been filtering live with
+            // every keystroke already. It closes the keyboard, which is what "done" means here.
+            OnScreenKeyboard.Submitted += CloseOnScreenKeyboard;
         }
 
         OnScreenKeyboard.Text = SearchText ?? string.Empty;
+        OnScreenKeyboard.ResetSelection();
         IsOnScreenKeyboardOpen = true;
-        ControllerHintsFor(ControllerScreen.Keyboard);
     }
 
     public void CloseOnScreenKeyboard()
     {
         IsOnScreenKeyboardOpen = false;
-        ControllerHintsFor(IsHeaderFocused ? ControllerScreen.Header : ControllerScreen.Library);
     }
 
     partial void OnSelectedTileChanged(TableTileViewModel? oldValue, TableTileViewModel? newValue)

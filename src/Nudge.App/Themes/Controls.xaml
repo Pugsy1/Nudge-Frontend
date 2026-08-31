@@ -45,7 +45,6 @@
           <ControlTemplate.Triggers>
             <Trigger Property="IsKeyboardFocused" Value="True">
               <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
-              <Setter TargetName="Root" Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
             </Trigger>
             <Trigger Property="IsEnabled" Value="False">
               <Setter TargetName="Root" Property="Opacity" Value="0.45" />
@@ -62,7 +61,8 @@
     <Setter Property="Background" Value="{DynamicResource Brush.Accent.Surface}" />
     <Setter Property="Foreground" Value="{DynamicResource Brush.Accent.Foreground}" />
     <Setter Property="BorderBrush" Value="Transparent" />
-    <Setter Property="BorderThickness" Value="0" />
+    <!-- A constant hairline, transparent until focused. Focus used to ADD this thickness, which grew the control and shoved everything after it along - the visible jump when a controller moved into the header. Reserving the space always means focus only ever changes its colour. -->
+    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
     <Setter Property="Effect" Value="{DynamicResource Effect.Button.Shadow}" />
     <Style.Triggers>
       <Trigger Property="IsMouseOver" Value="True">
@@ -84,7 +84,8 @@
   <Style x:Key="Button.Secondary" TargetType="Button" BasedOn="{StaticResource Button.Base}">
     <Setter Property="Background" Value="{DynamicResource Brush.Control.Background}" />
     <Setter Property="Foreground" Value="{DynamicResource Brush.Control.Foreground}" />
-    <Setter Property="BorderBrush" Value="Transparent" />
+    <!-- A constant hairline, transparent until focused. Focus used to ADD this thickness, which grew the control and shoved everything after it along - the visible jump when a controller moved into the header. Reserving the space always means focus only ever changes its colour. -->
+    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="Effect" Value="{DynamicResource Effect.Button.Shadow}" />
     <Style.Triggers>
@@ -102,7 +103,8 @@
   <!-- Low-emphasis inline action. Flush with the page until hovered. -->
   <Style x:Key="Button.Subtle" TargetType="Button" BasedOn="{StaticResource Button.Base}">
     <Setter Property="Background" Value="Transparent" />
-    <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
+    <!-- A constant hairline, transparent until focused. Focus used to ADD this thickness, which grew the control and shoved everything after it along - the visible jump when a controller moved into the header. Reserving the space always means focus only ever changes its colour. -->
+    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
     <Setter Property="BorderBrush" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="MinWidth" Value="0" />
@@ -143,7 +145,6 @@
           <ControlTemplate.Triggers>
             <Trigger Property="IsKeyboardFocused" Value="True">
               <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
-              <Setter TargetName="Root" Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
             </Trigger>
             <Trigger Property="IsEnabled" Value="False">
               <Setter TargetName="Root" Property="Opacity" Value="0.45" />
@@ -313,7 +314,8 @@
     <Setter Property="FontFamily" Value="{DynamicResource Font.Family.Primary}" />
     <Setter Property="FontSize" Value="{DynamicResource Font.Size.Body}" />
     <Setter Property="Foreground" Value="{DynamicResource Brush.Control.Foreground}" />
-    <Setter Property="CaretBrush" Value="{DynamicResource Brush.Accent}" />
+    <!-- A constant hairline, transparent until focused. Focus used to ADD this thickness, which grew the control and shoved everything after it along - the visible jump when a controller moved into the header. Reserving the space always means focus only ever changes its colour. -->
+    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
     <Setter Property="Background" Value="{DynamicResource Brush.Surface.Recessed}" />
     <Setter Property="BorderBrush" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
@@ -334,7 +336,6 @@
           <ControlTemplate.Triggers>
             <Trigger Property="IsKeyboardFocused" Value="True">
               <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
-              <Setter TargetName="Root" Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
             </Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
@@ -349,7 +350,8 @@
   <Style x:Key="TextBox.MultiLine" TargetType="TextBox">
     <Setter Property="FontFamily" Value="{DynamicResource Font.Family.Primary}" />
     <Setter Property="FontSize" Value="{DynamicResource Font.Size.Body}" />
-    <Setter Property="Foreground" Value="{DynamicResource Brush.Control.Foreground}" />
+    <!-- A constant hairline, transparent until focused. Focus used to ADD this thickness, which grew the control and shoved everything after it along - the visible jump when a controller moved into the header. Reserving the space always means focus only ever changes its colour. -->
+    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
     <Setter Property="CaretBrush" Value="{DynamicResource Brush.Accent}" />
     <Setter Property="Background" Value="{DynamicResource Brush.Surface.Recessed}" />
     <Setter Property="BorderBrush" Value="Transparent" />
@@ -374,7 +376,6 @@
           <ControlTemplate.Triggers>
             <Trigger Property="IsKeyboardFocused" Value="True">
               <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
-              <Setter TargetName="Root" Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
             </Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
@@ -387,7 +388,8 @@
        customization page's name/author/date overrides. -->
   <Style x:Key="TextBox.SingleLine" TargetType="TextBox">
     <Setter Property="FontFamily" Value="{DynamicResource Font.Family.Primary}" />
-    <Setter Property="FontSize" Value="{DynamicResource Font.Size.Body}" />
+    <!-- A constant hairline, transparent until focused. Focus used to ADD this thickness, which grew the control and shoved everything after it along - the visible jump when a controller moved into the header. Reserving the space always means focus only ever changes its colour. -->
+    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
     <Setter Property="Foreground" Value="{DynamicResource Brush.Control.Foreground}" />
     <Setter Property="CaretBrush" Value="{DynamicResource Brush.Accent}" />
     <Setter Property="Background" Value="{DynamicResource Brush.Surface.Recessed}" />
@@ -410,7 +412,6 @@
           <ControlTemplate.Triggers>
             <Trigger Property="IsKeyboardFocused" Value="True">
               <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
-              <Setter TargetName="Root" Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
             </Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
@@ -482,9 +483,14 @@
                 <ControlTemplate TargetType="ToggleButton">
                   <!-- Borderless pill, shadow carries the raised edge at rest - same rule as every
                        other control in the clean-neumorphic pass. -->
+                  <!-- Hairline always present, coloured only when focused - same reasoning as the
+                       buttons and text fields. Without any focus visual at all, moving a controller
+                       from the search box onto this dropdown made the highlight simply vanish, so
+                       the pad appeared to have lost its place. -->
                   <Border x:Name="Cap"
                           Background="{DynamicResource Brush.Control.Background}"
-                          BorderThickness="0"
+                          BorderThickness="{DynamicResource BorderThickness.Thin}"
+                          BorderBrush="Transparent"
                           CornerRadius="{DynamicResource CornerRadius.Button}"
                           Effect="{DynamicResource Effect.Button.Shadow}">
                     <Grid>
@@ -513,6 +519,12 @@
                       <Setter TargetName="Cap" Property="Background" Value="{DynamicResource Brush.Control.BackgroundPressed}" />
                       <Setter TargetName="Cap" Property="Effect" Value="{DynamicResource Effect.Button.Shadow.Pressed}" />
                     </Trigger>
+                    <!-- Focus lands on the ComboBox itself, not this inner ToggleButton, so the
+                         trigger has to look up at the templated parent rather than at its own
+                         IsKeyboardFocused - which is never true here. -->
+                    <DataTrigger Binding="{Binding IsKeyboardFocusWithin, RelativeSource={RelativeSource AncestorType=ComboBox}}" Value="True">
+                      <Setter TargetName="Cap" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
+                    </DataTrigger>
                   </ControlTemplate.Triggers>
                 </ControlTemplate>
               </ToggleButton.Template>

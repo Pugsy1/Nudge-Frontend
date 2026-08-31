@@ -53,6 +53,10 @@ public partial class SettingsView : UserControl
     }
 
     private ControllerNavigator? _controller;
+    private FormControllerNavigation? _formNavField;
+
+    /// <summary>One navigator per page, created lazily - it remembers the last focused control, which is what stops navigation resetting to the top.</summary>
+    private FormControllerNavigation _formNav => _formNavField ??= new FormControllerNavigation(this);
 
     private void StartControllerNavigation()
     {
@@ -72,7 +76,7 @@ public partial class SettingsView : UserControl
                 return;
             }
 
-            FormControllerNavigation.Apply(this, action);
+            _formNav.Apply(action);
         };
         _controller.Start();
     }

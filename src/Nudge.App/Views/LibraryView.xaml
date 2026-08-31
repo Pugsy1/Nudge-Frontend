@@ -1170,26 +1170,34 @@
       <ContentControl Style="{StaticResource Card.Neumorphic}"
                       HorizontalAlignment="Center"
                       VerticalAlignment="Center"
-                      Padding="{DynamicResource Inset.XL}">
-        <StackPanel>
-          <TextBlock Style="{StaticResource Text.Caption}"
-                     Foreground="{DynamicResource Brush.Accent}"
-                     Text="SEARCH" />
-
-          <!-- What has been typed so far, in the recessed slot the real search box uses, so it reads
-               as the same field rather than a separate preview. -->
+                      Padding="28">
+        <StackPanel Width="620">
+          <!-- What has been typed, in the same recessed slot the real search box uses so it reads as
+               that field rather than a separate preview. A caret sits after the text so an empty
+               field still looks like somewhere words will appear. -->
           <Border Background="{DynamicResource Brush.Surface.Recessed}"
                   CornerRadius="{DynamicResource CornerRadius.Button}"
-                  Padding="{DynamicResource Inset.M}"
-                  MinWidth="520"
-                  Margin="{DynamicResource Gap.Above.S}">
-            <TextBlock Style="{StaticResource Text.Body}"
-                       Text="{Binding OnScreenKeyboard.Text}"
-                       MinHeight="20" />
+                  Padding="18,14,18,14"
+                  Effect="{DynamicResource Effect.Inset.Shadow}">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="&#xE721;"
+                         FontFamily="Segoe MDL2 Assets"
+                         FontSize="13"
+                         VerticalAlignment="Center"
+                         Margin="0,0,12,0"
+                         Foreground="{DynamicResource Brush.Text.Muted}" />
+              <TextBlock Style="{StaticResource Text.Subtitle}"
+                         VerticalAlignment="Center"
+                         Text="{Binding OnScreenKeyboard.Text}" />
+              <Border Width="2" Height="20"
+                      Margin="2,0,0,0"
+                      VerticalAlignment="Center"
+                      Background="{DynamicResource Brush.Accent}" />
+            </StackPanel>
           </Border>
 
           <ItemsControl ItemsSource="{Binding OnScreenKeyboard.Keys}"
-                        Margin="{DynamicResource Gap.Above.M}">
+                        Margin="0,20,0,0">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
                 <!-- Fixed column count matching the view model's own row length, so the grid on
@@ -1199,30 +1207,88 @@
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
               <DataTemplate>
-                <Border Margin="3"
-                        MinWidth="46" MinHeight="42"
-                        CornerRadius="{DynamicResource CornerRadius.Button}"
-                        Background="{DynamicResource Brush.Control.Background}">
-                  <Border.Style>
-                    <Style TargetType="Border">
-                      <Setter Property="BorderThickness" Value="2" />
-                      <Setter Property="BorderBrush" Value="Transparent" />
-                      <Style.Triggers>
-                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                          <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
-                          <Setter Property="Background" Value="{DynamicResource Brush.Control.BackgroundHover}" />
-                        </DataTrigger>
-                      </Style.Triggers>
-                    </Style>
-                  </Border.Style>
-                  <TextBlock Text="{Binding Label}"
-                             HorizontalAlignment="Center"
-                             VerticalAlignment="Center"
-                             Style="{StaticResource Text.Body}" />
-                </Border>
+                <!-- The selected key lifts and grows slightly rather than only changing colour: on a
+                     grid of identical cells a colour change alone is easy to lose, and the scale is
+                     what makes moving around feel like something is happening. -->
+                <Grid Margin="4" RenderTransformOrigin="0.5,0.5">
+                  <Grid.RenderTransform>
+                    <ScaleTransform x:Name="KeyScale" ScaleX="1" ScaleY="1" />
+                  </Grid.RenderTransform>
+                  <Border x:Name="KeyFace"
+                          Height="48"
+                          CornerRadius="{DynamicResource CornerRadius.Button}"
+                          Background="{DynamicResource Brush.Control.Background}"
+                          Effect="{DynamicResource Effect.Button.Shadow}">
+                    <TextBlock Text="{Binding Label}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               FontFamily="{DynamicResource Font.Family.Primary}"
+                               FontSize="{DynamicResource Font.Size.Body}"
+                               FontWeight="{DynamicResource Font.Weight.Medium}"
+                               Foreground="{DynamicResource Brush.Control.Foreground}" />
+                  </Border>
+                </Grid>
+                <DataTemplate.Triggers>
+                  <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                    <Setter TargetName="KeyFace" Property="Background" Value="{DynamicResource Brush.Accent.Surface}" />
+                    <Setter TargetName="KeyFace" Property="Effect" Value="{DynamicResource Effect.Button.Shadow.Hover}" />
+                    <DataTrigger.EnterActions>
+                      <BeginStoryboard>
+                        <Storyboard>
+                          <DoubleAnimation Storyboard.TargetName="KeyScale" Storyboard.TargetProperty="ScaleX" To="1.12" Duration="0:0:0.12" />
+                          <DoubleAnimation Storyboard.TargetName="KeyScale" Storyboard.TargetProperty="ScaleY" To="1.12" Duration="0:0:0.12" />
+                        </Storyboard>
+                      </BeginStoryboard>
+                    </DataTrigger.EnterActions>
+                    <DataTrigger.ExitActions>
+                      <BeginStoryboard>
+                        <Storyboard>
+                          <DoubleAnimation Storyboard.TargetName="KeyScale" Storyboard.TargetProperty="ScaleX" To="1" Duration="0:0:0.12" />
+                          <DoubleAnimation Storyboard.TargetName="KeyScale" Storyboard.TargetProperty="ScaleY" To="1" Duration="0:0:0.12" />
+                        </Storyboard>
+                      </BeginStoryboard>
+                    </DataTrigger.ExitActions>
+                  </DataTrigger>
+                </DataTemplate.Triggers>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
+
+          <!-- Search sits on its own row below the keys, reached by pressing down from the bottom
+               row - so the letter block stays a clean rectangle instead of having an action wedged
+               into it. -->
+          <Border x:Name="SearchKey"
+                  Height="48"
+                  Margin="4,12,4,0"
+                  CornerRadius="{DynamicResource CornerRadius.Button}"
+                  Background="{DynamicResource Brush.Control.Background}"
+                  Effect="{DynamicResource Effect.Button.Shadow}">
+            <Border.Style>
+              <Style TargetType="Border">
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding OnScreenKeyboard.IsOnActionRow}" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource Brush.Accent.Surface}" />
+                    <Setter Property="Effect" Value="{DynamicResource Effect.Button.Shadow.Hover}" />
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </Border.Style>
+            <TextBlock Text="Search"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       FontFamily="{DynamicResource Font.Family.Primary}"
+                       FontSize="{DynamicResource Font.Size.Body}"
+                       FontWeight="{DynamicResource Font.Weight.SemiBold}"
+                       Foreground="{DynamicResource Brush.Control.Foreground}" />
+          </Border>
+
+          <!-- The keyboard's own actions, stated here rather than in the header legend: these are
+               the buttons that mean something different while typing, and the header strip stays
+               fixed so it never rearranges under the eye. -->
+          <ItemsControl Style="{StaticResource ControllerHintBar}"
+                        Margin="0,18,0,0"
+                        HorizontalAlignment="Center"
+                        ItemsSource="{Binding OnScreenKeyboardHints}" />
         </StackPanel>
       </ContentControl>
     </Grid>

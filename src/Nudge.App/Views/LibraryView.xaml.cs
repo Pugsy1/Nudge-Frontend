@@ -145,7 +145,6 @@ public partial class LibraryView : UserControl
                 case ControllerAction.Activate:
                 case ControllerAction.Back:
                     _adjustingSlider = null;
-                    library.ControllerHintsFor(ControllerScreen.Library);
                     break;
             }
 
@@ -280,7 +279,6 @@ public partial class LibraryView : UserControl
         if (Keyboard.FocusedElement is Slider slider)
         {
             _adjustingSlider = slider;
-            library.ControllerHintsFor(ControllerScreen.SliderAdjust);
             return;
         }
 

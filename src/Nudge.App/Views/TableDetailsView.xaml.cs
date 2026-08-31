@@ -45,6 +45,10 @@ public partial class TableDetailsView : UserControl
     private TableDetailsViewModel? Model => DataContext as TableDetailsViewModel;
 
     private ControllerNavigator? _controller;
+    private FormControllerNavigation? _formNavField;
+
+    /// <summary>One navigator per page, created lazily - it remembers the last focused control, which is what stops navigation resetting to the top.</summary>
+    private FormControllerNavigation _formNav => _formNavField ??= new FormControllerNavigation(this);
 
     /// <summary>
     /// Controller support on this page too, so arriving here with a pad isn't a dead end. Only the
@@ -81,7 +85,7 @@ public partial class TableDetailsView : UserControl
 
             // Everything else - directions - moves through the page so the video controls and the
             // buttons under the cover are all reachable.
-            FormControllerNavigation.Apply(this, action);
+            _formNav.Apply(action);
         };
         _controller.Start();
     }

@@ -27,6 +27,9 @@ public sealed partial class OnScreenKeyboardViewModel : ObservableObject
         "ZXCVBNM ,."
     ];
 
+    /// <summary>Raised when the search key is pressed, so the view can close the keyboard.</summary>
+    public event Action? Submitted;
+
     public OnScreenKeyboardViewModel()
     {
         for (int row = 0; row < Rows.Length; row++)
@@ -52,24 +55,75 @@ public sealed partial class OnScreenKeyboardViewModel : ObservableObject
     [ObservableProperty]
     private string _text = string.Empty;
 
+    /// <summary>
+    /// True when the selection has dropped onto the action row beneath the keys (Search). Kept as a
+    /// row past the end of the grid rather than as keys inside it, so the letter block stays a clean
+    /// rectangle and "down from the bottom row" reaches the actions naturally.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isOnActionRow;
+
     public void Move(int columns, int rows)
     {
+        if (IsOnActionRow)
+        {
+            // Up is the only way back into the keys; left/right have nowhere else to go, since
+            // Search is the single action.
+            if (rows < 0)
+            {
+                IsOnActionRow = false;
+                UpdateSelection();
+            }
+
+            return;
+        }
+
+        int nextRow = _row + rows;
+        if (nextRow >= Rows.Length)
+        {
+            IsOnActionRow = true;
+            foreach (OnScreenKey key in Keys)
+            {
+                key.IsSelected = false;
+            }
+
+            return;
+        }
+
         // Wraps rather than clamps: a keyboard is a small fixed grid the user can see all of at
         // once, so running off one edge and appearing at the other is quicker than reversing, and
         // never leaves a press doing nothing.
-        _row = (_row + rows + Rows.Length) % Rows.Length;
+        _row = (nextRow + Rows.Length) % Rows.Length;
         _column = (_column + columns + Columns) % Columns;
         UpdateSelection();
     }
 
-    /// <summary>Types the selected key.</summary>
+    /// <summary>Types the selected key, or submits when the selection is on the action row.</summary>
     public void TypeSelected()
     {
+        if (IsOnActionRow)
+        {
+            Submitted?.Invoke();
+            return;
+        }
+
         OnScreenKey? key = Keys.FirstOrDefault(k => k.IsSelected);
         if (key is not null)
         {
             Text += key.Character;
         }
+    }
+
+    /// <summary>
+    /// Puts the selection back on the first key. Called when the keyboard is opened, so it never
+    /// reappears sitting on Search - which would make the first A press close it again.
+    /// </summary>
+    public void ResetSelection()
+    {
+        IsOnActionRow = false;
+        _row = 0;
+        _column = 0;
+        UpdateSelection();
     }
 
     public void Backspace()

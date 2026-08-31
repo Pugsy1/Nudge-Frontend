@@ -12,6 +12,10 @@ namespace Nudge.App.Views;
 public partial class TableCustomizationView : UserControl
 {
     private ControllerNavigator? _controller;
+    private FormControllerNavigation? _formNavField;
+
+    /// <summary>One navigator per page, created lazily - it remembers the last focused control, which is what stops navigation resetting to the top.</summary>
+    private FormControllerNavigation _formNav => _formNavField ??= new FormControllerNavigation(this);
 
     public TableCustomizationView()
     {
@@ -50,7 +54,7 @@ public partial class TableCustomizationView : UserControl
         {
             library.EnterControllerMode();
 
-            if (FormControllerNavigation.Apply(this, action))
+            if (_formNav.Apply(action))
             {
                 return;
             }
