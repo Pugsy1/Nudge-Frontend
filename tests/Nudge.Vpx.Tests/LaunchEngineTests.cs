@@ -162,24 +162,31 @@ public sealed class LaunchEngineTests
         _processRunner.WasCalled.Should().BeFalse();
     }
 
+    /// <summary>
+    /// Replaces an older test asserting the opposite. Controller input is no longer something to
+    /// switch on: it sits alongside keyboard and mouse the way it does in any other game, so it
+    /// starts for every launch regardless of what the settings file says. Kept as a test rather
+    /// than simply deleted, because "always starts" is the actual contract now and a future change
+    /// re-introducing a gate should fail here.
+    /// </summary>
     [Fact]
-    public async Task Controller_translation_is_never_started_when_the_setting_is_off()
+    public async Task Controller_translation_starts_even_when_the_old_opt_in_setting_is_off()
     {
         var controllerInput = new FakeControllerInputService();
-        LaunchEngine engine = CreateEngine(enableControllerSupport: false, controllerInput);
+        LaunchEngine engine = CreateEngine(controllerInput);
         VpxInstallation installation = BuildInstallation(ExecutablePath, VpxFlavor.DirectX9);
         _processRunner.NextExitCode = 0;
 
         await engine.LaunchAsync(installation, TablePath);
 
-        controllerInput.WasStarted.Should().BeFalse();
+        controllerInput.WasStarted.Should().BeTrue();
     }
 
     [Fact]
     public async Task Controller_translation_starts_for_this_executable_and_stops_once_it_exits()
     {
         var controllerInput = new FakeControllerInputService();
-        LaunchEngine engine = CreateEngine(enableControllerSupport: true, controllerInput);
+        LaunchEngine engine = CreateEngine(controllerInput);
         VpxInstallation installation = BuildInstallation(ExecutablePath, VpxFlavor.DirectX9);
         _processRunner.NextExitCode = 0;
 
@@ -235,7 +242,6 @@ public sealed class LaunchEngineTests
     }
 
     private LaunchEngine CreateEngine(
-        bool enableControllerSupport = false,
         FakeControllerInputService? controllerInput = null,
         FakeTableWindowWatcher? tableWindowWatcher = null) => new(
         _processRunner,
@@ -243,7 +249,7 @@ public sealed class LaunchEngineTests
         new PathRedactor("TestUser"),
         controllerInput ?? new FakeControllerInputService(),
         tableWindowWatcher ?? new FakeTableWindowWatcher(),
-        new FakeSettingsService { EnableControllerSupport = enableControllerSupport },
+        new FakeSettingsService(),
         NullLogger<LaunchEngine>.Instance);
 
     private static VpxInstallation BuildInstallation(string executablePath, VpxFlavor flavor) => new()
@@ -326,19 +332,17 @@ public sealed class LaunchEngineTests
 
     private sealed class FakeSettingsService : ISettingsService
     {
-        public bool EnableControllerSupport { get; set; }
-
         public string SettingsFilePath => @"D:\Nudge\settings.json";
 
         public Task<NudgeSettings> LoadAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult(new NudgeSettings { EnableControllerSupport = EnableControllerSupport });
+            Task.FromResult(new NudgeSettings());
 
         public Task SaveAsync(NudgeSettings settings, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
 
         public Task MutateAsync(Action<NudgeSettings> mutate, CancellationToken cancellationToken = default)
         {
-            mutate(new NudgeSettings { EnableControllerSupport = EnableControllerSupport });
+            mutate(new NudgeSettings());
             return Task.CompletedTask;
         }
     }

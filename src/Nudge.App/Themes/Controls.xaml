@@ -1,6 +1,7 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                    xmlns:converters="clr-namespace:Nudge.App.Converters">
+                    xmlns:converters="clr-namespace:Nudge.App.Converters"
+                    xmlns:controls="clr-namespace:Nudge.App.Controls">
 
   <converters:SliderFillWidthConverter x:Key="SliderFillWidthConverter" />
 
@@ -27,11 +28,14 @@
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="Button">
+          <!-- CornerRadius.Button, not .Pill: these are wide text buttons, and a fully-round
+               radius stretches into a lozenge rather than reading as round. Square icon buttons
+               (Button.Icon, TileOverlayButton) keep .Pill and stay true circles. -->
           <Border x:Name="Root"
                   Background="{TemplateBinding Background}"
                   BorderBrush="{TemplateBinding BorderBrush}"
                   BorderThickness="{TemplateBinding BorderThickness}"
-                  CornerRadius="{DynamicResource CornerRadius.M}">
+                  CornerRadius="{DynamicResource CornerRadius.Button}">
             <ContentPresenter x:Name="Content"
                               Margin="{TemplateBinding Padding}"
                               HorizontalAlignment="Center"
@@ -63,6 +67,7 @@
     <Style.Triggers>
       <Trigger Property="IsMouseOver" Value="True">
         <Setter Property="Background" Value="{DynamicResource Brush.Accent.Hover}" />
+        <Setter Property="Effect" Value="{DynamicResource Effect.Button.Shadow.Hover}" />
       </Trigger>
       <Trigger Property="IsPressed" Value="True">
         <Setter Property="Background" Value="{DynamicResource Brush.Accent.Pressed}" />
@@ -71,21 +76,21 @@
     </Style.Triggers>
   </Style>
 
-  <!-- A flat satin cap: same clean, uniform-weight border every other control settled on (the
-       theme dropdown, library tiles) rather than the diagonal bevel gradient - that reads fine on
-       a large surface but looked like a stray, uneven outline on something button-sized. No shadow
-       at rest either, for the same "calm until touched" reason the tiles went shadow-less - it
-       still lifts on hover and sinks on press. -->
+  <!-- A flat, borderless pill: the shape is carried entirely by the soft shadow now, not by a
+       bevel or a uniform-weight outline - matching the clean-neumorphic reference boards, where no
+       resting control shows a visible edge at all. Shadow is present at rest (not just on hover),
+       since that's what makes it read as a raised physical cap sitting on the page rather than a
+       flat rectangle waiting to be touched. -->
   <Style x:Key="Button.Secondary" TargetType="Button" BasedOn="{StaticResource Button.Base}">
     <Setter Property="Background" Value="{DynamicResource Brush.Control.Background}" />
     <Setter Property="Foreground" Value="{DynamicResource Brush.Control.Foreground}" />
-    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Control.Border}" />
-    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Effect" Value="{DynamicResource Effect.Button.Shadow}" />
     <Style.Triggers>
       <Trigger Property="IsMouseOver" Value="True">
         <Setter Property="Background" Value="{DynamicResource Brush.Control.BackgroundHover}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource Brush.Control.BorderHover}" />
-        <Setter Property="Effect" Value="{DynamicResource Effect.Button.Shadow}" />
+        <Setter Property="Effect" Value="{DynamicResource Effect.Button.Shadow.Hover}" />
       </Trigger>
       <Trigger Property="IsPressed" Value="True">
         <Setter Property="Background" Value="{DynamicResource Brush.Control.BackgroundPressed}" />
@@ -111,7 +116,7 @@
     </Style.Triggers>
   </Style>
 
-  <!-- Icon-only, square-ish auxiliary action, e.g. the settings cog. -->
+  <!-- Icon-only, square auxiliary action, e.g. the settings cog. -->
   <Style x:Key="Button.Icon" TargetType="Button" BasedOn="{StaticResource Button.Secondary}">
     <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
     <Setter Property="FontSize" Value="15" />
@@ -119,6 +124,62 @@
     <Setter Property="Width" Value="{DynamicResource Size.IconButton}" />
     <Setter Property="Height" Value="{DynamicResource Size.IconButton}" />
     <Setter Property="Padding" Value="0" />
+    <!-- Restates Button.Base's template purely to swap CornerRadius.Button back to .Pill: this
+         one is square, so a fully-round radius makes it a true circle rather than the rounded
+         rectangle the shared wide-button template would otherwise give it. Background/Effect still
+         come from Button.Secondary's Style.Triggers via these TemplateBindings. -->
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="Root"
+                  Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="{DynamicResource CornerRadius.Pill}">
+            <ContentPresenter HorizontalAlignment="Center"
+                              VerticalAlignment="Center"
+                              RecognizesAccessKey="True" />
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsKeyboardFocused" Value="True">
+              <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
+              <Setter TargetName="Root" Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter TargetName="Root" Property="Opacity" Value="0.45" />
+              <Setter Property="Cursor" Value="Arrow" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- A small round glass button that floats over artwork - the favourite star and per-table
+       customize menu both use this. Shared here so the two always look and behave identically
+       rather than each tile template hand-rolling its own copy of the same hover/press states. -->
+  <Style x:Key="TileOverlayButton" TargetType="Button">
+    <Setter Property="Width" Value="30" />
+    <Setter Property="Height" Value="30" />
+    <Setter Property="Margin" Value="8" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Focusable" Value="False" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="OverlayRoot"
+                  Background="{DynamicResource Brush.Surface.Glass}"
+                  CornerRadius="{DynamicResource CornerRadius.Pill}">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="OverlayRoot" Property="Background" Value="{DynamicResource Brush.Control.BackgroundHover}" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
   </Style>
 
   <!-- ============================ Segmented switch (2D / VR) ============================ -->
@@ -143,7 +204,7 @@
                   Background="Transparent"
                   BorderBrush="Transparent"
                   BorderThickness="{DynamicResource BorderThickness.Thin}"
-                  CornerRadius="{DynamicResource CornerRadius.Pill}">
+                  CornerRadius="7">
             <ContentPresenter Margin="{TemplateBinding Padding}"
                               HorizontalAlignment="Center"
                               VerticalAlignment="Center" />
@@ -152,10 +213,10 @@
             <Trigger Property="IsMouseOver" Value="True">
               <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
             </Trigger>
-            <!-- Selected: the cap rises out of the slot, lit and bevelled. -->
+            <!-- Selected: the cap rises out of the slot, carried purely by a soft shadow - no
+                 visible border, matching the borderless clean-neumorphic look everywhere else. -->
             <Trigger Property="IsChecked" Value="True">
               <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.Control.Background}" />
-              <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Surface.EdgeHighlight}" />
               <Setter TargetName="Root" Property="Effect" Value="{DynamicResource Effect.Button.Shadow}" />
               <Setter Property="Foreground" Value="{DynamicResource Brush.Accent}" />
             </Trigger>
@@ -169,12 +230,19 @@
     </Setter>
   </Style>
 
-  <!-- The recessed housing the segments sit in. -->
+  <!-- The recessed housing the segments sit in - borderless, the same "shadow does the work,
+       not an outline" rule as everything else in the clean-neumorphic pass. Padding stays at
+       Inset.XS - it's part of the track/cap proportions tuned in the previous session (see
+       LibraryView.xaml's Segment.Track usage and the aspect-ratio note in AGENTS.md's handoff) -
+       so the sliding cap's own shadow (Effect.Button.Shadow) was sized down in Effects.xaml to fit
+       this space instead of the other way around. -->
   <Style x:Key="Segment.Track" TargetType="Border">
     <Setter Property="Background" Value="{DynamicResource Brush.Surface.Recessed}" />
-    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Surface.Border}" />
-    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
-    <Setter Property="CornerRadius" Value="{DynamicResource CornerRadius.Pill}" />
+    <Setter Property="BorderThickness" Value="0" />
+    <!-- A rounded rectangle rather than a full stadium, matching the settings switch and the
+         buttons: at 96x32 a fully-pilled track was the most visibly "stretched oval" shape in the
+         header. -->
+    <Setter Property="CornerRadius" Value="10" />
     <Setter Property="Padding" Value="{DynamicResource Inset.XS}" />
     <Setter Property="SnapsToDevicePixels" Value="True" />
   </Style>
@@ -198,34 +266,35 @@
                               VerticalAlignment="Center"
                               HorizontalAlignment="Left" />
 
+            <!-- 46x26 with a rounded-rectangle track, not 52x28 fully-pilled: at nearly 2:1 the old
+                 proportions plus a full stadium radius read as a stretched oval. Squaring the track
+                 off (and squaring the knob to match) keeps the switch obviously a switch while
+                 sitting in the same visual family as the rounded-rectangle buttons and inputs. -->
             <Border x:Name="Track"
                     Grid.Column="1"
-                    Width="40" Height="22"
+                    Width="46" Height="26"
                     Margin="{DynamicResource Gap.Right.S}"
                     Background="{DynamicResource Brush.Surface.Recessed}"
-                    BorderBrush="{DynamicResource Brush.Surface.Border}"
-                    BorderThickness="{DynamicResource BorderThickness.Thin}"
-                    CornerRadius="{DynamicResource CornerRadius.Pill}">
+                    BorderThickness="0"
+                    CornerRadius="9">
               <Border x:Name="Knob"
-                      Width="16" Height="16"
+                      Width="20" Height="20"
                       HorizontalAlignment="Left"
-                      Margin="2,0,0,0"
+                      Margin="3,0,0,0"
                       Background="{DynamicResource Brush.Control.Background}"
-                      BorderBrush="{DynamicResource Brush.Surface.EdgeHighlight}"
-                      BorderThickness="{DynamicResource BorderThickness.Thin}"
-                      CornerRadius="{DynamicResource CornerRadius.Pill}"
-                      Effect="{DynamicResource Effect.Button.Shadow.Pressed}" />
+                      BorderThickness="0"
+                      CornerRadius="7"
+                      Effect="{DynamicResource Effect.Button.Shadow}" />
             </Border>
           </Grid>
           <ControlTemplate.Triggers>
             <Trigger Property="IsChecked" Value="True">
               <Setter TargetName="Knob" Property="HorizontalAlignment" Value="Right" />
-              <Setter TargetName="Knob" Property="Margin" Value="0,0,2,0" />
+              <Setter TargetName="Knob" Property="Margin" Value="0,0,3,0" />
               <Setter TargetName="Knob" Property="Background" Value="{DynamicResource Brush.Accent.Surface}" />
-              <Setter TargetName="Knob" Property="BorderBrush" Value="Transparent" />
             </Trigger>
             <Trigger Property="IsMouseOver" Value="True">
-              <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource Brush.Control.BorderHover}" />
+              <Setter TargetName="Knob" Property="Effect" Value="{DynamicResource Effect.Button.Shadow.Hover}" />
             </Trigger>
             <Trigger Property="IsEnabled" Value="False">
               <Setter Property="Opacity" Value="0.45" />
@@ -246,8 +315,8 @@
     <Setter Property="Foreground" Value="{DynamicResource Brush.Control.Foreground}" />
     <Setter Property="CaretBrush" Value="{DynamicResource Brush.Accent}" />
     <Setter Property="Background" Value="{DynamicResource Brush.Surface.Recessed}" />
-    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Surface.Border}" />
-    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
     <Setter Property="Padding" Value="{DynamicResource Padding.SearchBox}" />
     <Setter Property="VerticalContentAlignment" Value="Center" />
     <Setter Property="SnapsToDevicePixels" Value="True" />
@@ -259,12 +328,89 @@
                   Background="{TemplateBinding Background}"
                   BorderBrush="{TemplateBinding BorderBrush}"
                   BorderThickness="{TemplateBinding BorderThickness}"
-                  CornerRadius="{DynamicResource CornerRadius.Pill}">
+                  CornerRadius="{DynamicResource CornerRadius.Button}">
             <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="Center" />
           </Border>
           <ControlTemplate.Triggers>
             <Trigger Property="IsKeyboardFocused" Value="True">
               <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
+              <Setter TargetName="Root" Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- A recessed slot for freeform, multi-line text (the table customization page's description and
+       how-to-play fields) - the same milled-slot material as TextBox.Search, just a rounded
+       rectangle rather than a pill (a stadium shape reads oddly once a box is tall enough to hold
+       several lines) and top-aligned rather than vertically centred. -->
+  <Style x:Key="TextBox.MultiLine" TargetType="TextBox">
+    <Setter Property="FontFamily" Value="{DynamicResource Font.Family.Primary}" />
+    <Setter Property="FontSize" Value="{DynamicResource Font.Size.Body}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Control.Foreground}" />
+    <Setter Property="CaretBrush" Value="{DynamicResource Brush.Accent}" />
+    <Setter Property="Background" Value="{DynamicResource Brush.Surface.Recessed}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="{DynamicResource Inset.M}" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+    <Setter Property="AcceptsReturn" Value="True" />
+    <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+    <Setter Property="VerticalContentAlignment" Value="Top" />
+    <Setter Property="SnapsToDevicePixels" Value="True" />
+    <Setter Property="Effect" Value="{DynamicResource Effect.Inset.Shadow}" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="TextBox">
+          <Border x:Name="Root"
+                  Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="{DynamicResource CornerRadius.M}">
+            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" />
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsKeyboardFocused" Value="True">
+              <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
+              <Setter TargetName="Root" Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- A single-line counterpart to TextBox.MultiLine - same recessed-slot material and corner
+       radius, just vertically centred and capped to one line, for short fields like the table
+       customization page's name/author/date overrides. -->
+  <Style x:Key="TextBox.SingleLine" TargetType="TextBox">
+    <Setter Property="FontFamily" Value="{DynamicResource Font.Family.Primary}" />
+    <Setter Property="FontSize" Value="{DynamicResource Font.Size.Body}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Control.Foreground}" />
+    <Setter Property="CaretBrush" Value="{DynamicResource Brush.Accent}" />
+    <Setter Property="Background" Value="{DynamicResource Brush.Surface.Recessed}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="{DynamicResource Inset.M}" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="SnapsToDevicePixels" Value="True" />
+    <Setter Property="Effect" Value="{DynamicResource Effect.Inset.Shadow}" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="TextBox">
+          <Border x:Name="Root"
+                  Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="{DynamicResource CornerRadius.M}">
+            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="Center" />
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsKeyboardFocused" Value="True">
+              <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
+              <Setter TargetName="Root" Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
             </Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
@@ -310,17 +456,18 @@
     <Setter Property="FontSize" Value="{DynamicResource Font.Size.Body}" />
     <Setter Property="Foreground" Value="{DynamicResource Brush.Control.Foreground}" />
     <Setter Property="Background" Value="{DynamicResource Brush.Control.Background}" />
-    <!-- A flat Control.Border rather than the EdgeHighlight bevel gradient every card/tile/button
-         uses: that gradient reads as a lit edge on a large extruded surface, but on a control this
-         small and this close to white (the light palettes), its bright end disappears into the
-         background and only the dark end survives, showing up as a stray partial outline down one
-         side instead of a bevel - most visible on the Settings page's own Theme picker. -->
-    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Control.Border}" />
-    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
+    <!-- Borderless, like every other control in the clean-neumorphic pass - the closed cap's own
+         soft shadow (set on the template's Cap Border below) is what reads as its raised edge. -->
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
     <Setter Property="Padding" Value="{DynamicResource Padding.Button}" />
     <Setter Property="Cursor" Value="Hand" />
     <Setter Property="SnapsToDevicePixels" Value="True" />
     <Setter Property="ItemContainerStyle" Value="{StaticResource ComboBox.Item}" />
+    <!-- Opens already scrolled to whichever item is selected, the way a real ComboBox does by
+         default - see ComboBoxBehavior's own remarks for why this fully custom template needs it
+         set explicitly. -->
+    <Setter Property="controls:ComboBoxBehavior.ScrollSelectedIntoViewOnOpen" Value="True" />
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="ComboBox">
@@ -333,13 +480,13 @@
                           IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
               <ToggleButton.Template>
                 <ControlTemplate TargetType="ToggleButton">
-                  <!-- No Effect at rest - a flat cap reads as a clean control, not a shadow/bloom
-                       sitting under a dropdown. -->
+                  <!-- Borderless pill, shadow carries the raised edge at rest - same rule as every
+                       other control in the clean-neumorphic pass. -->
                   <Border x:Name="Cap"
                           Background="{DynamicResource Brush.Control.Background}"
-                          BorderBrush="{DynamicResource Brush.Control.Border}"
-                          BorderThickness="{DynamicResource BorderThickness.Thin}"
-                          CornerRadius="{DynamicResource CornerRadius.M}">
+                          BorderThickness="0"
+                          CornerRadius="{DynamicResource CornerRadius.Button}"
+                          Effect="{DynamicResource Effect.Button.Shadow}">
                     <Grid>
                       <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -360,20 +507,25 @@
                   <ControlTemplate.Triggers>
                     <Trigger Property="IsMouseOver" Value="True">
                       <Setter TargetName="Cap" Property="Background" Value="{DynamicResource Brush.Control.BackgroundHover}" />
-                      <Setter TargetName="Cap" Property="BorderBrush" Value="{DynamicResource Brush.Control.BorderHover}" />
+                      <Setter TargetName="Cap" Property="Effect" Value="{DynamicResource Effect.Button.Shadow.Hover}" />
                     </Trigger>
                     <Trigger Property="IsChecked" Value="True">
                       <Setter TargetName="Cap" Property="Background" Value="{DynamicResource Brush.Control.BackgroundPressed}" />
+                      <Setter TargetName="Cap" Property="Effect" Value="{DynamicResource Effect.Button.Shadow.Pressed}" />
                     </Trigger>
                   </ControlTemplate.Triggers>
                 </ControlTemplate>
               </ToggleButton.Template>
 
-              <!-- Bound directly to SelectedItem.Label rather than SelectionBoxItem/Template:
+              <!-- Bound directly to SelectedItem.FullLabel rather than SelectionBoxItem/Template:
                    ComboBox only auto-generates a SelectionBoxItemTemplate from DisplayMemberPath
                    when using its own default template, not a fully custom one like this, so
-                   SelectionBoxItem was rendering the OptionItem record's ToString() instead. -->
-              <TextBlock Text="{Binding SelectedItem.Label, RelativeSource={RelativeSource TemplatedParent}}"
+                   SelectionBoxItem was rendering the OptionItem record's ToString() instead.
+                   FullLabel (not the plain Label the open list's items show) is what includes an
+                   option's category, e.g. "Dark — Jade" - once the dropdown is collapsed there's no
+                   group header left to supply that context the way the open, grouped list has. For
+                   an option with no category (Sort, Layout) FullLabel is just Label, unchanged. -->
+              <TextBlock Text="{Binding SelectedItem.FullLabel, RelativeSource={RelativeSource TemplatedParent}}"
                          Foreground="{DynamicResource Brush.Control.Foreground}"
                          VerticalAlignment="Center" />
             </ToggleButton>
@@ -386,15 +538,118 @@
                    AllowsTransparency="True"
                    PopupAnimation="Fade"
                    Focusable="False">
+              <!-- A Popup's transparent host window is sized to exactly fit this Border's own
+                   DesiredSize, Margin included - so this Margin has to be at least as big as
+                   Effect.Flyout.Shadow's own blur spread, or the shadow hits that window edge and
+                   hard-clips instead of fading out (see the note in Effects.xaml). -->
               <Border MinWidth="{Binding ActualWidth, ElementName=PART_Toggle}"
-                      Margin="10"
+                      Margin="20"
                       Background="{DynamicResource Brush.Surface.BackgroundAlt}"
-                      BorderBrush="{DynamicResource Brush.Control.Border}"
-                      BorderThickness="{DynamicResource BorderThickness.Thin}"
+                      BorderThickness="0"
                       CornerRadius="{DynamicResource CornerRadius.M}"
                       Padding="{DynamicResource Inset.XS}"
                       Effect="{DynamicResource Effect.Flyout.Shadow}">
-                <ScrollViewer MaxHeight="280">
+                <!-- CanContentScroll=False switches the mouse wheel (and drag) from the default
+                     logical, per-item scrolling - which snaps a whole ComboBoxItem at a time and is
+                     what actually read as "not smooth" - to ordinary pixel-based scrolling, the same
+                     kind every other scrollable surface in the app already uses. -->
+                <ScrollViewer MaxHeight="280" CanContentScroll="False">
+                  <ScrollViewer.Resources>
+                    <!-- A visible groove, not the app-wide scrollbar's fully transparent track - a
+                         short-lived popup benefits from showing the whole scrollable range at a
+                         glance, unlike the grid/list's own scrollbar, which stays in view the whole
+                         time you're already looking at it and doesn't need that extra context. The
+                         thumb itself is wider than the 4px app default (Size.Scrollbar), fully
+                         pill-rounded rather than the barely-rounded 2px corner every other scrollbar
+                         uses, and eases its own colour and width in on hover instead of snapping -
+                         all in service of a scrollbar that's actually pleasant to grab and drag in
+                         the moment you're looking right at it, not just functional. -->
+                    <Style x:Key="ComboBoxPopup.ScrollBar.Thumb" TargetType="Thumb">
+                      <Setter Property="OverridesDefaultStyle" Value="True" />
+                      <Setter Property="IsTabStop" Value="False" />
+                      <Setter Property="Template">
+                        <Setter.Value>
+                          <ControlTemplate TargetType="Thumb">
+                            <Grid>
+                              <!-- Swaps to a different DynamicResource brush entirely on hover (the
+                                   existing app-wide thumb's own approach) rather than animating a
+                                   Color in place - the resource here is a shared instance, and
+                                   in-place animation would either mutate every other use of that same
+                                   brush at once or throw outright if it happens to be frozen. The
+                                   width grow is genuinely animated since ScaleTransform below is this
+                                   Thumb's own private instance, not shared with anything. -->
+                              <Border x:Name="Root"
+                                      Width="6"
+                                      HorizontalAlignment="Center"
+                                      Background="{DynamicResource Brush.Scrollbar.Thumb}"
+                                      CornerRadius="{DynamicResource CornerRadius.Pill}"
+                                      RenderTransformOrigin="0.5,0.5">
+                                <Border.RenderTransform>
+                                  <ScaleTransform x:Name="Grow" ScaleX="1" />
+                                </Border.RenderTransform>
+                              </Border>
+                            </Grid>
+                            <ControlTemplate.Triggers>
+                              <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource Brush.Scrollbar.ThumbHover}" />
+                                <Trigger.EnterActions>
+                                  <BeginStoryboard>
+                                    <Storyboard>
+                                      <DoubleAnimation Storyboard.TargetName="Grow" Storyboard.TargetProperty="ScaleX"
+                                                        To="1.4" Duration="{StaticResource Duration.Hover}" />
+                                    </Storyboard>
+                                  </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                  <BeginStoryboard>
+                                    <Storyboard>
+                                      <DoubleAnimation Storyboard.TargetName="Grow" Storyboard.TargetProperty="ScaleX"
+                                                        To="1" Duration="{StaticResource Duration.Hover}" />
+                                    </Storyboard>
+                                  </BeginStoryboard>
+                                </Trigger.ExitActions>
+                              </Trigger>
+                            </ControlTemplate.Triggers>
+                          </ControlTemplate>
+                        </Setter.Value>
+                      </Setter>
+                    </Style>
+                    <!-- Defines its own complete Template rather than BasedOn-ing the app-wide
+                         ScrollBar style: a Setter's {StaticResource ...} inside a ControlTemplate
+                         resolves against the scope where that ControlTemplate is LEXICALLY
+                         declared, not wherever the resulting Style is later applied. The app-wide
+                         style's Template (declared far below, at the ResourceDictionary's own root)
+                         references "ScrollBar.Thumb" from ITS OWN scope, so basing this Style on
+                         that one and only overriding Width/Margin/Background - the previous
+                         approach - could never actually swap in the pill-shaped Thumb above no
+                         matter what key it was given; the inherited Template's Thumb reference was
+                         already resolved before this Style ever entered the picture. -->
+                    <Style TargetType="ScrollBar">
+                      <Setter Property="Width" Value="10" />
+                      <Setter Property="Margin" Value="0,4,2,4" />
+                      <Setter Property="Background" Value="{DynamicResource Brush.Surface.Recessed}" />
+                      <Setter Property="Template">
+                        <Setter.Value>
+                          <ControlTemplate TargetType="ScrollBar">
+                            <Border Background="{TemplateBinding Background}"
+                                    CornerRadius="{DynamicResource CornerRadius.Pill}">
+                              <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                <Track.Thumb>
+                                  <Thumb Style="{StaticResource ComboBoxPopup.ScrollBar.Thumb}" />
+                                </Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                  <RepeatButton Command="ScrollBar.PageDownCommand" Opacity="0" Focusable="False" />
+                                </Track.IncreaseRepeatButton>
+                                <Track.DecreaseRepeatButton>
+                                  <RepeatButton Command="ScrollBar.PageUpCommand" Opacity="0" Focusable="False" />
+                                </Track.DecreaseRepeatButton>
+                              </Track>
+                            </Border>
+                          </ControlTemplate>
+                        </Setter.Value>
+                      </Setter>
+                    </Style>
+                  </ScrollViewer.Resources>
                   <ItemsPresenter />
                 </ScrollViewer>
               </Border>
@@ -544,11 +799,10 @@
       <Setter.Value>
         <ControlTemplate TargetType="Slider">
           <Grid VerticalAlignment="Center">
-            <Border Height="8"
+            <Border Height="10"
                     Background="{DynamicResource Brush.Surface.Recessed}"
-                    BorderBrush="{DynamicResource Brush.Surface.Border}"
-                    BorderThickness="{DynamicResource BorderThickness.Thin}"
-                    CornerRadius="4" />
+                    BorderThickness="0"
+                    CornerRadius="5" />
 
             <!-- The filled portion, left edge to the thumb - reads as "how much" at a glance,
                  the way a volume slider does, rather than leaving the groove uniformly empty. Width
@@ -558,10 +812,10 @@
                  changing - drag, click, or keyboard alike. A satin gradient, the same
                  Brush.Accent.Surface every raised accent surface uses, rather than a flat fill. -->
             <Border x:Name="Fill"
-                    Height="8"
+                    Height="10"
                     HorizontalAlignment="Left"
                     Background="{DynamicResource Brush.Accent.Surface}"
-                    CornerRadius="4">
+                    CornerRadius="5">
               <Border.Width>
                 <MultiBinding Converter="{StaticResource SliderFillWidthConverter}">
                   <Binding RelativeSource="{RelativeSource TemplatedParent}" Path="Value" />
@@ -646,10 +900,11 @@
 
   <!-- ============================ Surfaces ============================ -->
 
+  <!-- Borderless - the soft Effect.Card.Shadow alone reads as a raised panel, matching the
+       clean-neumorphic reference boards where no card shows a visible outline. -->
   <Style x:Key="Surface.Card" TargetType="Border">
     <Setter Property="Background" Value="{DynamicResource Brush.Surface.Background}" />
-    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Surface.EdgeHighlight}" />
-    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
+    <Setter Property="BorderThickness" Value="0" />
     <Setter Property="CornerRadius" Value="{DynamicResource CornerRadius.L}" />
     <Setter Property="Padding" Value="{DynamicResource Padding.Card}" />
     <Setter Property="SnapsToDevicePixels" Value="True" />
@@ -659,8 +914,7 @@
   <!-- A frosted panel that lets the ambient ground glow read through it. -->
   <Style x:Key="Surface.Glass" TargetType="Border">
     <Setter Property="Background" Value="{DynamicResource Brush.Surface.Glass}" />
-    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Surface.EdgeHighlight}" />
-    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
+    <Setter Property="BorderThickness" Value="0" />
     <Setter Property="CornerRadius" Value="{DynamicResource CornerRadius.L}" />
     <Setter Property="Padding" Value="{DynamicResource Padding.Card}" />
     <Setter Property="SnapsToDevicePixels" Value="True" />
@@ -669,11 +923,48 @@
 
   <Style x:Key="Surface.Inset" TargetType="Border">
     <Setter Property="Background" Value="{DynamicResource Brush.Surface.Recessed}" />
-    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Surface.Border}" />
-    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
+    <Setter Property="BorderThickness" Value="0" />
     <Setter Property="CornerRadius" Value="{DynamicResource CornerRadius.M}" />
     <Setter Property="Padding" Value="{DynamicResource Padding.Card}" />
     <Setter Property="SnapsToDevicePixels" Value="True" />
+  </Style>
+
+  <!--
+    The raised embossed card the clean-neumorphic pass calls for on Settings/Setup pages - built
+    the way LibraryView.xaml's TableTileTemplate already does it, since WPF only allows one Effect
+    per element: a dark shadow and a light highlight each get their own identically-shaped, fully
+    opaque Border layered behind the real content, so only the blur that spills past their shared
+    edges survives, as a soft dark glow bottom-right and a soft light glow top-left.
+
+    This resolves the design question the previous UI session flagged rather than leaving it open:
+    the reference boards show raised, embossed cards throughout (never recessed), so raised is what
+    every Settings/Setup card now uses - Surface.Inset above is kept only for a genuinely recessed
+    look elsewhere, not for cards.
+  -->
+  <Style x:Key="Card.Neumorphic" TargetType="ContentControl">
+    <Setter Property="Padding" Value="{DynamicResource Padding.Card}" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    <Setter Property="Focusable" Value="False" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ContentControl">
+          <Grid>
+            <Border Background="{DynamicResource Brush.Surface.Background}"
+                    CornerRadius="{DynamicResource CornerRadius.L}"
+                    Effect="{DynamicResource Effect.Card.Shadow.Rest}" />
+            <Border Background="{DynamicResource Brush.Surface.Background}"
+                    CornerRadius="{DynamicResource CornerRadius.L}"
+                    Effect="{DynamicResource Effect.Card.Highlight.Rest}" />
+            <Border Background="{DynamicResource Brush.Surface.Background}"
+                    CornerRadius="{DynamicResource CornerRadius.L}"
+                    SnapsToDevicePixels="True">
+              <ContentPresenter Margin="{TemplateBinding Padding}"
+                                HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />
+            </Border>
+          </Grid>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
   </Style>
 
   <Style x:Key="Surface.Error" TargetType="Border">
@@ -694,12 +985,93 @@
 
   <!-- ============================ Progress ============================ -->
 
+  <!--
+    A fully custom template rather than just restyling the stock one: WPF's default indeterminate
+    ProgressBar draws the dated segmented Aero sweep, which was the single least "clean" thing on
+    the loading screens and ignored the app's material entirely. This is one soft rounded comet
+    easing across a recessed pill track.
+
+    The comet travels a fixed pixel range rather than one bound to the track's width, because a
+    Storyboard's From/To cannot be data-bound. The range comfortably exceeds every indeterminate bar
+    in the app (all 220-240 wide) and the track clips the overshoot, so the only visible effect is
+    the comet fully leaving one end before returning.
+  -->
   <Style x:Key="Progress.Indeterminate" TargetType="ProgressBar">
-    <Setter Property="Height" Value="{DynamicResource Space.XS}" />
+    <Setter Property="Height" Value="6" />
     <Setter Property="IsIndeterminate" Value="True" />
     <Setter Property="Background" Value="{DynamicResource Brush.Surface.Recessed}" />
     <Setter Property="Foreground" Value="{DynamicResource Brush.Accent}" />
     <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Focusable" Value="False" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ProgressBar">
+          <Border Background="{TemplateBinding Background}"
+                  CornerRadius="{DynamicResource CornerRadius.Pill}"
+                  ClipToBounds="True">
+            <Border x:Name="Comet"
+                    Width="96"
+                    HorizontalAlignment="Left"
+                    Background="{TemplateBinding Foreground}"
+                    CornerRadius="{DynamicResource CornerRadius.Pill}">
+              <Border.RenderTransform>
+                <TranslateTransform x:Name="CometOffset" X="-120" />
+              </Border.RenderTransform>
+            </Border>
+          </Border>
+          <ControlTemplate.Triggers>
+            <EventTrigger RoutedEvent="Loaded">
+              <BeginStoryboard>
+                <Storyboard RepeatBehavior="Forever">
+                  <!-- Eased rather than linear: a constant-speed bar reads mechanical, while easing
+                       in and out at the extremes is what makes the motion feel smooth. -->
+                  <DoubleAnimation Storyboard.TargetName="CometOffset"
+                                   Storyboard.TargetProperty="X"
+                                   From="-120" To="560"
+                                   Duration="0:0:1.5">
+                    <DoubleAnimation.EasingFunction>
+                      <SineEase EasingMode="EaseInOut" />
+                    </DoubleAnimation.EasingFunction>
+                  </DoubleAnimation>
+                </Storyboard>
+              </BeginStoryboard>
+            </EventTrigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- A determinate counterpart - a rescan reports real per-file progress (LibraryViewModel.ScanAsync
+       wires the scanner's own IProgress&lt;ScanProgress&gt; into ScanProgressPercent), so this shows
+       that real number rather than another indeterminate sweep. PART_Track/PART_Indicator are the
+       exact names ProgressBar's own code looks for at the framework level - naming them this way is
+       what lets a plain custom template get real percentage-driven sizing for free, with no extra
+       code-behind, the same as the default (unstyled) template would. -->
+  <Style x:Key="Progress.Standard" TargetType="ProgressBar">
+    <Setter Property="Height" Value="6" />
+    <Setter Property="Background" Value="{DynamicResource Brush.Surface.Recessed}" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Accent}" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Focusable" Value="False" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ProgressBar">
+          <!-- Pill-rounded rather than the old 2px CornerRadius.Scrollbar, which read as a blunt
+               rectangle at this height and matched nothing else on screen. -->
+          <Border Background="{TemplateBinding Background}"
+                  CornerRadius="{DynamicResource CornerRadius.Pill}"
+                  ClipToBounds="True">
+            <Grid x:Name="PART_Track">
+              <Border x:Name="PART_Indicator"
+                      Background="{TemplateBinding Foreground}"
+                      CornerRadius="{DynamicResource CornerRadius.Pill}"
+                      HorizontalAlignment="Left" />
+            </Grid>
+          </Border>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
   </Style>
 
 </ResourceDictionary>

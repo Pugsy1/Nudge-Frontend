@@ -29,6 +29,28 @@ public sealed class VpsDbEntry
     /// <summary>Backglass images. Checked when no table screenshot is available.</summary>
     [JsonPropertyName("b2sFiles")]
     public List<VpsDbMediaFile> B2SFiles { get; set; } = [];
+
+    /// <summary>
+    /// Community tutorial / table-overview videos, each usually a YouTube link. Absent on most
+    /// entries - 289 of 2,570 tables carry one - and the array is optional in the JSON, so an entry
+    /// without the property at all is the ordinary shape rather than a parsing failure.
+    ///
+    /// These are the only video data vps-db holds. They are overviews rather than gameplay
+    /// trailers, which is worth remembering when deciding how prominently to surface them.
+    /// </summary>
+    [JsonPropertyName("tutorialFiles")]
+    public List<VpsDbTutorialFile> TutorialFiles { get; set; } = [];
+}
+
+/// <summary>One entry under a table's "tutorialFiles" array.</summary>
+public sealed class VpsDbTutorialFile
+{
+    /// <summary>The bare YouTube video id (not a URL). Null when the entry links somewhere other than YouTube.</summary>
+    [JsonPropertyName("youtubeId")]
+    public string? YoutubeId { get; set; }
+
+    [JsonPropertyName("title")]
+    public string? Title { get; set; }
 }
 
 /// <summary>

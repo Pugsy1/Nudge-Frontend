@@ -111,13 +111,19 @@
 
   <!-- ============================ Indicator LEDs ============================ -->
 
+  <!-- Medium deliberately does NOT reuse Brush.Accent the way every other theme's Confidence.Medium
+       does (Colors.Jade.xaml etc.) - Hulk's own accent already IS a vivid green, the same colour
+       family High uses for "identified confidently", so pairing Medium to the accent made all three
+       confidence states read as "some shade of green", impossible to tell apart at a glance (or from
+       ordinary accent-coloured UI chrome nearby). An amber sits clearly between High's green and
+       Low's orange instead, and doesn't collide with anything else Hulk paints green. -->
   <SolidColorBrush x:Key="Brush.Confidence.High" Color="#5FB98A" />
-  <SolidColorBrush x:Key="Brush.Confidence.Medium" Color="#57B84C" />
+  <SolidColorBrush x:Key="Brush.Confidence.Medium" Color="#D4B23F" />
   <SolidColorBrush x:Key="Brush.Confidence.Low" Color="#D4794F" />
   <SolidColorBrush x:Key="Brush.Confidence.Unknown" Color="#71816F" />
 
   <SolidColorBrush x:Key="Brush.Confidence.High.Background" Color="#1A2A22" />
-  <SolidColorBrush x:Key="Brush.Confidence.Medium.Background" Color="#1E2C1E" />
+  <SolidColorBrush x:Key="Brush.Confidence.Medium.Background" Color="#2A2416" />
   <SolidColorBrush x:Key="Brush.Confidence.Low.Background" Color="#2A2018" />
   <SolidColorBrush x:Key="Brush.Confidence.Unknown.Background" Color="#26312A" />
 

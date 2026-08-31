@@ -189,37 +189,39 @@ public sealed partial class SetupViewModel : ObservableObject
 
         try
         {
-            NudgeSettings settings = await _settingsService.LoadAsync().ConfigureAwait(true);
-
-            settings.SelectedInstallationId = installation.Id;
-            settings.SelectedInstallationPath = installation.RootPath;
-
-            KnownInstallation? known = settings.KnownInstallations
-                .FirstOrDefault(k => string.Equals(k.Id, installation.Id, StringComparison.Ordinal));
-
-            if (known is null)
+            // MutateAsync, not a separate LoadAsync+SaveAsync - see ISettingsService's own remarks on
+            // why that pair can race against another concurrent settings write and silently lose one
+            // of the two changes.
+            await _settingsService.MutateAsync(settings =>
             {
-                settings.KnownInstallations.Add(new KnownInstallation
+                settings.SelectedInstallationId = installation.Id;
+                settings.SelectedInstallationPath = installation.RootPath;
+
+                KnownInstallation? known = settings.KnownInstallations
+                    .FirstOrDefault(k => string.Equals(k.Id, installation.Id, StringComparison.Ordinal));
+
+                if (known is null)
                 {
-                    Id = installation.Id,
-                    RootPath = installation.RootPath,
-                    DisplayName = installation.DisplayName,
-                    DateAdded = DateTimeOffset.Now,
-                    IsDefault = true
-                });
-            }
-            else
-            {
-                known.RootPath = installation.RootPath;
-                known.DisplayName = installation.DisplayName;
-            }
+                    settings.KnownInstallations.Add(new KnownInstallation
+                    {
+                        Id = installation.Id,
+                        RootPath = installation.RootPath,
+                        DisplayName = installation.DisplayName,
+                        DateAdded = DateTimeOffset.Now,
+                        IsDefault = true
+                    });
+                }
+                else
+                {
+                    known.RootPath = installation.RootPath;
+                    known.DisplayName = installation.DisplayName;
+                }
 
-            foreach (KnownInstallation entry in settings.KnownInstallations)
-            {
-                entry.IsDefault = string.Equals(entry.Id, installation.Id, StringComparison.Ordinal);
-            }
-
-            await _settingsService.SaveAsync(settings).ConfigureAwait(true);
+                foreach (KnownInstallation entry in settings.KnownInstallations)
+                {
+                    entry.IsDefault = string.Equals(entry.Id, installation.Id, StringComparison.Ordinal);
+                }
+            }).ConfigureAwait(true);
 
             Active = new InstallationViewModel(installation);
             Stage = SetupStage.Ready;
@@ -258,9 +260,7 @@ public sealed partial class SetupViewModel : ObservableObject
 
         try
         {
-            NudgeSettings settings = await _settingsService.LoadAsync().ConfigureAwait(true);
-            settings.ThemeName = next.ToString();
-            await _settingsService.SaveAsync(settings).ConfigureAwait(true);
+            await _settingsService.MutateAsync(settings => settings.ThemeName = next.ToString()).ConfigureAwait(true);
         }
         catch (Exception ex)
         {

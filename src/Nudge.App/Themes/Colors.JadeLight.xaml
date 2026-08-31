@@ -22,22 +22,27 @@
 
   <!-- ============================ Surfaces ============================ -->
 
+  <!-- Tinted jade, not the generic blue-grey Colors.Light.xaml uses - a light theme with an
+       untinted card surface under a barely-tinted wallpaper reads as "white app, green button" far
+       more than the dark palette's equivalent ever does, since near-white leaves so little room for
+       a cast to actually show. Reusing Window.Background's own three stops here (rather than
+       inventing new colours) keeps every surface in the room on the exact same hue. -->
   <LinearGradientBrush x:Key="Brush.Surface.Background" StartPoint="0,0" EndPoint="0,1">
-    <GradientStop Color="#FFFFFF" Offset="0" />
-    <GradientStop Color="#F0F2F6" Offset="1" />
+    <GradientStop Color="#EEF5F1" Offset="0" />
+    <GradientStop Color="#E4EEE8" Offset="1" />
   </LinearGradientBrush>
 
   <LinearGradientBrush x:Key="Brush.Surface.BackgroundAlt" StartPoint="0,0" EndPoint="0,1">
-    <GradientStop Color="#F6F7FA" Offset="0" />
-    <GradientStop Color="#E9EBF0" Offset="1" />
+    <GradientStop Color="#E4EEE8" Offset="0" />
+    <GradientStop Color="#D9E5DF" Offset="1" />
   </LinearGradientBrush>
 
   <LinearGradientBrush x:Key="Brush.Surface.Recessed" StartPoint="0,0" EndPoint="0,1">
-    <GradientStop Color="#DCDFE7" Offset="0" />
-    <GradientStop Color="#EDEFF3" Offset="1" />
+    <GradientStop Color="#E4EEE8" Offset="0" />
+    <GradientStop Color="#EEF5F1" Offset="1" />
   </LinearGradientBrush>
 
-  <SolidColorBrush x:Key="Brush.Surface.Border" Color="#D5D9E2" />
+  <SolidColorBrush x:Key="Brush.Surface.Border" Color="#D9E5DF" />
 
   <SolidColorBrush x:Key="Brush.Surface.Glass" Color="#B3FFFFFF" />
 
@@ -83,17 +88,17 @@
 
   <LinearGradientBrush x:Key="Brush.Control.Background" StartPoint="0,0" EndPoint="0,1">
     <GradientStop Color="#FFFFFF" Offset="0" />
-    <GradientStop Color="#EFF1F5" Offset="1" />
+    <GradientStop Color="#EEF5F1" Offset="1" />
   </LinearGradientBrush>
 
   <LinearGradientBrush x:Key="Brush.Control.BackgroundHover" StartPoint="0,0" EndPoint="0,1">
     <GradientStop Color="#FFFFFF" Offset="0" />
-    <GradientStop Color="#F7F8FB" Offset="1" />
+    <GradientStop Color="#F6FAF8" Offset="1" />
   </LinearGradientBrush>
 
   <LinearGradientBrush x:Key="Brush.Control.BackgroundPressed" StartPoint="0,0" EndPoint="0,1">
-    <GradientStop Color="#DFE2E9" Offset="0" />
-    <GradientStop Color="#EDEFF3" Offset="1" />
+    <GradientStop Color="#E4EEE8" Offset="0" />
+    <GradientStop Color="#D9E5DF" Offset="1" />
   </LinearGradientBrush>
 
   <SolidColorBrush x:Key="Brush.Control.Border" Color="#D2D6DF" />

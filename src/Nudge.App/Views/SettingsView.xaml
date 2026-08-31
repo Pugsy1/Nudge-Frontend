@@ -2,12 +2,19 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:Nudge.App.ViewModels"
+             xmlns:converters="clr-namespace:Nudge.App.Converters"
              d:DataContext="{d:DesignInstance Type=vm:SettingsViewModel}"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d">
 
-  <Grid Background="{DynamicResource Brush.Window.Background}">
+  <Grid x:Name="RootGrid" Background="{DynamicResource Brush.Window.Background}">
+    <Grid.Resources>
+      <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+      <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVisibility" />
+      <converters:NonEmptyToVisibilityConverter x:Key="NonEmptyToVisibility" />
+      <converters:BoolToPressOpacityConverter x:Key="BoolToPressOpacity" />
+    </Grid.Resources>
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
@@ -28,13 +35,140 @@
       <TextBlock Style="{StaticResource Text.Title}" Text="Settings" VerticalAlignment="Center" />
     </StackPanel>
 
-    <ScrollViewer Grid.Row="1" Padding="40,0,40,40">
-      <StackPanel MaxWidth="640" HorizontalAlignment="Left">
+    <!-- Inset lives on the inner StackPanel's Margin, NOT this ScrollViewer's Padding. A
+         ScrollViewer arranges (and clips) its content inside its own Padding, so a card's soft
+         shadow - which by design renders outside the card's layout bounds - got sliced off at a hard
+         vertical line exactly where the padding began, down the whole page. With the inset as a
+         Margin instead, the clip rect is the full ScrollViewer and that same 40px is ordinary empty
+         space the bloom can fade into naturally. -->
+    <ScrollViewer Grid.Row="1">
+      <StackPanel MaxWidth="640" HorizontalAlignment="Left" Margin="40,0,40,40">
+
+        <!-- ======================= Tables folder ======================= -->
+        <!-- Deliberately the first section: when Nudge appears to be "not detecting" tables, the
+             overwhelmingly likely cause is that it is watching a different folder than the one being
+             edited. Showing the resolved path up front makes that immediately checkable rather than
+             something to guess at. -->
+        <TextBlock Style="{StaticResource Text.SectionHeading}" Margin="{DynamicResource Gap.Below.M}" Text="TABLES FOLDER" />
+
+        <ContentControl Style="{StaticResource Card.Neumorphic}" Margin="{DynamicResource Gap.Below.XL}">
+          <StackPanel>
+            <TextBlock Style="{StaticResource Text.Body}" Text="Where Nudge looks for tables" />
+            <TextBlock Style="{StaticResource Text.BodySecondary}"
+                       TextWrapping="Wrap"
+                       Margin="{DynamicResource Gap.Above.S}"
+                       Text="Every scan and the live add/remove watch both use this exact folder, including its subfolders. If tables you add aren't showing up, check this is the folder you're actually putting them in." />
+
+            <Border Background="{DynamicResource Brush.Surface.Recessed}"
+                    CornerRadius="{DynamicResource CornerRadius.Button}"
+                    Padding="{DynamicResource Inset.M}"
+                    Margin="{DynamicResource Gap.Above.M}">
+              <TextBlock Style="{StaticResource Text.Body}"
+                         TextWrapping="Wrap"
+                         Text="{Binding Library.EffectiveTablesPathDisplay}" />
+            </Border>
+
+            <StackPanel Orientation="Horizontal" Margin="{DynamicResource Gap.Above.M}">
+              <Button Style="{StaticResource Button.Secondary}"
+                      Content="Choose folder…"
+                      Command="{Binding Library.BrowseTablesFolderCommand}" />
+              <!-- Only offered once an override actually exists - with none set there is nothing to
+                   reset back to, and a permanently-visible "Use detected folder" button reads as
+                   though something is currently wrong when nothing is. -->
+              <Button Style="{StaticResource Button.Subtle}"
+                      Content="Use detected folder"
+                      Margin="12,0,0,0"
+                      VerticalAlignment="Center"
+                      Command="{Binding Library.ClearTablesFolderCommand}"
+                      Visibility="{Binding Library.HasTablesPathOverride, Converter={StaticResource BoolToVisibility}}" />
+            </StackPanel>
+          </StackPanel>
+        </ContentControl>
+
+        <!-- ======================= Controller ======================= -->
+        <TextBlock Style="{StaticResource Text.SectionHeading}" Margin="{DynamicResource Gap.Below.M}" Text="CONTROLLER" />
+
+        <ContentControl Style="{StaticResource Card.Neumorphic}" Margin="{DynamicResource Gap.Below.XL}">
+          <StackPanel>
+            <TextBlock Style="{StaticResource Text.BodySecondary}"
+                       TextWrapping="Wrap"
+                       Text="A controller works alongside your keyboard and mouse - there's nothing to switch on. While a table is running, Nudge sends the key each button is bound to below. It only ever sends input while Visual Pinball is the active window, so it never leaks into Nudge or anything else you have open." />
+
+            <!-- Connection state, so an unplugged pad reads as "nothing connected" rather than the
+                 whole section just appearing inert. -->
+            <TextBlock Style="{StaticResource Text.BodySecondary}"
+                       Margin="{DynamicResource Gap.Above.M}"
+                       Foreground="{DynamicResource Brush.Accent}"
+                       Text="Controller connected - press a button to find its row below."
+                       Visibility="{Binding Library.IsControllerConnected, Converter={StaticResource BoolToVisibility}}" />
+            <TextBlock Style="{StaticResource Text.BodySecondary}"
+                       Margin="{DynamicResource Gap.Above.M}"
+                       Text="No controller detected. You can still set bindings up now - they'll work as soon as one is plugged in."
+                       Visibility="{Binding Library.IsControllerConnected, Converter={StaticResource InverseBoolToVisibility}}" />
+
+            <TextBlock Style="{StaticResource Text.BodySecondary}"
+                       Margin="{DynamicResource Gap.Above.S}"
+                       TextWrapping="Wrap"
+                       Foreground="{DynamicResource Brush.Accent}"
+                       Text="{Binding Library.ControllerHint}"
+                       Visibility="{Binding Library.ControllerHint, Converter={StaticResource NonEmptyToVisibility}}" />
+
+            <ItemsControl ItemsSource="{Binding Library.ControllerBindings}"
+                          Margin="{DynamicResource Gap.Above.M}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Grid Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="Auto" />
+                      <ColumnDefinition Width="150" />
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Live press indicator: lights while the physical button is held, which is how
+                         someone works out which row is the button under their finger. -->
+                    <Ellipse Grid.Column="0"
+                             Width="8" Height="8"
+                             Margin="0,0,10,0"
+                             VerticalAlignment="Center"
+                             Fill="{DynamicResource Brush.Accent}"
+                             Opacity="{Binding IsPressed, Converter={StaticResource BoolToPressOpacity}}" />
+
+                    <TextBlock Grid.Column="1"
+                               Style="{StaticResource Text.Body}"
+                               VerticalAlignment="Center"
+                               Text="{Binding ButtonLabel}" />
+
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                      <TextBlock Style="{StaticResource Text.Body}" Text="{Binding KeyLabel}" />
+                      <TextBlock Style="{StaticResource Text.Caption}"
+                                 Foreground="{DynamicResource Brush.Text.Muted}"
+                                 Text="{Binding PinballRole}" />
+                    </StackPanel>
+
+                    <Button Grid.Column="3"
+                            Style="{StaticResource Button.Subtle}"
+                            Content="Rebind"
+                            VerticalAlignment="Center"
+                            Command="{Binding DataContext.Library.StartRebindCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            CommandParameter="{Binding}" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Button Style="{StaticResource Button.Subtle}"
+                    Content="Reset all to defaults"
+                    HorizontalAlignment="Left"
+                    Margin="{DynamicResource Gap.Above.M}"
+                    Command="{Binding Library.ResetControllerBindingsCommand}" />
+          </StackPanel>
+        </ContentControl>
 
         <!-- ======================= Identification ======================= -->
         <TextBlock Style="{StaticResource Text.SectionHeading}" Margin="{DynamicResource Gap.Below.M}" Text="IDENTIFICATION" />
 
-        <Border Style="{StaticResource Surface.Inset}" Margin="{DynamicResource Gap.Below.XL}">
+        <ContentControl Style="{StaticResource Card.Neumorphic}" Margin="{DynamicResource Gap.Below.XL}">
           <StackPanel>
             <CheckBox Style="{StaticResource Switch}"
                       IsChecked="{Binding Library.ShowConfidence, Mode=TwoWay}">
@@ -45,39 +179,271 @@
                        TextWrapping="Wrap"
                        Text="Adds a small status lamp to each table's artwork showing how sure Nudge is that it identified the table correctly, and why - useful for spotting a table Nudge might have got wrong." />
           </StackPanel>
-        </Border>
+        </ContentControl>
 
-        <!-- ======================= Appearance ======================= -->
-        <TextBlock Style="{StaticResource Text.SectionHeading}" Margin="{DynamicResource Gap.Below.M}" Text="APPEARANCE" />
+        <!-- ======================= Artwork ======================= -->
+        <TextBlock Style="{StaticResource Text.SectionHeading}" Margin="{DynamicResource Gap.Below.M}" Text="ARTWORK" />
 
-        <Border Style="{StaticResource Surface.Inset}" Margin="{DynamicResource Gap.Below.XL}">
-          <Grid>
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" Style="{StaticResource Text.Body}" Text="Theme" VerticalAlignment="Center" />
-            <ComboBox Grid.Column="1"
-                      Style="{StaticResource ComboBox.Standard}"
-                      Width="220"
-                      ItemsSource="{Binding Library.ThemeOptions}"
-                      SelectedItem="{Binding Library.SelectedTheme, Mode=TwoWay}"
-                      DisplayMemberPath="Label" />
-          </Grid>
-        </Border>
+        <ContentControl Style="{StaticResource Card.Neumorphic}" Margin="{DynamicResource Gap.Below.XL}">
+          <StackPanel>
+            <CheckBox Style="{StaticResource Switch}"
+                      IsChecked="{Binding Library.FetchArtworkFromInternet, Mode=TwoWay}">
+              <TextBlock Style="{StaticResource Text.Body}" Text="Fetch missing artwork from the internet" />
+            </CheckBox>
+            <TextBlock Style="{StaticResource Text.Caption}"
+                       Margin="{DynamicResource Gap.Above.S}"
+                       TextWrapping="Wrap"
+                       Text="Off by default. When on, Nudge will contact an external source (the community vps-db dataset) to find artwork for tables that don't already have any - the only thing Nudge ever does that talks to the network at all. Leave this off for a fully offline app; tables without artwork just keep showing their placeholder tile." />
+
+            <!-- The clean, on-demand way to actually populate artwork, rather than only ever
+                 discovering it tile-by-tile as you happen to scroll past each one. Disabled until
+                 the toggle above is on (FindMissingArtworkCommand's own CanExecute) - clicking it
+                 while fetching is off would otherwise look like it silently did nothing; the one,
+                 always-the-same tooltip covers both the enabled and disabled case, so no converter
+                 is needed just to swap its text. Progress shows on the library's own status line
+                 (LibraryViewModel.StatusMessage), the same place a rescan's progress does. -->
+            <Button Style="{StaticResource Button.Secondary}"
+                    Margin="{DynamicResource Gap.Above.L}"
+                    HorizontalAlignment="Left"
+                    Content="Find missing artwork"
+                    Command="{Binding Library.FindMissingArtworkCommand}"
+                    ToolTip="Looks up artwork for every table that doesn't have any yet - needs the toggle above turned on first" />
+
+            <Border Margin="{DynamicResource Gap.Above.L}"
+                    BorderThickness="{DynamicResource BorderThickness.Bottom}"
+                    BorderBrush="{DynamicResource Brush.Surface.Border}" />
+
+            <Grid Margin="{DynamicResource Gap.Above.L}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" Style="{StaticResource Text.Body}" Text="Default source" VerticalAlignment="Center" />
+              <ComboBox Grid.Column="1"
+                        Style="{StaticResource ComboBox.Standard}"
+                        Width="180"
+                        ItemsSource="{Binding Library.ArtworkSourceOptions}"
+                        SelectedItem="{Binding Library.SelectedArtworkSource, Mode=TwoWay}"
+                        DisplayMemberPath="Label" />
+            </Grid>
+            <TextBlock Style="{StaticResource Text.Caption}"
+                       Margin="{DynamicResource Gap.Above.S}"
+                       TextWrapping="Wrap"
+                       Text="Which source Nudge tries first for a table. If it finds nothing, every other configured source is still tried automatically afterward - this only decides the order." />
+
+            <TextBlock Style="{StaticResource Text.Body}"
+                       Margin="{DynamicResource Gap.Above.L}"
+                       Text="Google Images (optional)" />
+            <TextBlock Style="{StaticResource Text.Caption}"
+                       Margin="{DynamicResource Gap.Above.S}"
+                       TextWrapping="Wrap"
+                       Text="A second artwork source, using Google's own Programmable Search Engine API - never a scraper, since Google's Terms of Service forbid that. Needs your own free API key and search engine ID from a Google Cloud project (console.cloud.google.com and programmablesearchengine.google.com); left blank, this source is simply skipped and vps-db is used on its own." />
+
+            <TextBlock Style="{StaticResource Text.Caption}"
+                       Margin="{DynamicResource Gap.Above.M}"
+                       Text="API key" />
+            <TextBox Style="{StaticResource TextBox.SingleLine}"
+                     Margin="{DynamicResource Gap.Above.S}"
+                     Text="{Binding Library.GoogleCustomSearchApiKey, Mode=TwoWay}" />
+
+            <TextBlock Style="{StaticResource Text.Caption}"
+                       Margin="{DynamicResource Gap.Above.M}"
+                       Text="Search engine ID (cx)" />
+            <TextBox Style="{StaticResource TextBox.SingleLine}"
+                     Margin="{DynamicResource Gap.Above.S}"
+                     Text="{Binding Library.GoogleCustomSearchEngineId, Mode=TwoWay}" />
+          </StackPanel>
+        </ContentControl>
+
+        <!-- ======================= Hidden tables ======================= -->
+        <TextBlock Style="{StaticResource Text.SectionHeading}" Margin="{DynamicResource Gap.Below.M}" Text="HIDDEN TABLES" />
+
+        <ContentControl Style="{StaticResource Card.Neumorphic}" Margin="{DynamicResource Gap.Below.XL}">
+          <StackPanel>
+            <TextBlock Style="{StaticResource Text.Caption}"
+                       TextWrapping="Wrap"
+                       Text="Tables hidden from their own customization page ('Hide from Nudge') collect here - uncheck one to bring it back into the grid, carousel, list and search." />
+
+            <TextBlock Style="{StaticResource Text.Caption}"
+                       Margin="{DynamicResource Gap.Above.M}"
+                       Text="No tables are currently hidden."
+                       Visibility="{Binding Library.HasHiddenTables, Converter={StaticResource InverseBoolToVisibility}}" />
+
+            <ItemsControl Margin="{DynamicResource Gap.Above.M}"
+                          ItemsSource="{Binding Library.HiddenTables}"
+                          Visibility="{Binding Library.HasHiddenTables, Converter={StaticResource BoolToVisibility}}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <!-- Always starts checked - every row here IS a currently-hidden table by
+                       construction (Library.HiddenTables), so a click always means "unhide". -->
+                  <CheckBox Style="{StaticResource Switch}"
+                            Margin="{DynamicResource Gap.Above.S}"
+                            IsChecked="True"
+                            Command="{Binding DataContext.Library.UnhideTableCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                            CommandParameter="{Binding}">
+                    <TextBlock Style="{StaticResource Text.Body}" Text="{Binding DisplayTitle}" />
+                  </CheckBox>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </ContentControl>
+
+        <!-- ======================= UI ======================= -->
+        <!-- Everything about how the app looks and feels rather than what it does, gathered under
+             one heading - theme, per-tile visual touches, hover media, and the shadow effect all live
+             here now instead of being split across an "Appearance" section and an "Effects" section
+             that drew an arbitrary line between them. Rooms reserved for future UI-adjacent settings
+             (ROM health, once Phase 7 exists) belong here too, not invented ahead of that work. -->
+        <TextBlock Style="{StaticResource Text.SectionHeading}" Margin="{DynamicResource Gap.Below.M}" Text="UI" />
+
+        <ContentControl Style="{StaticResource Card.Neumorphic}" Margin="{DynamicResource Gap.Below.XL}">
+          <StackPanel>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" Style="{StaticResource Text.Body}" Text="Theme" VerticalAlignment="Center" />
+              <!-- A plain list bound straight to Library.ThemeOptions - the same shape every other
+                   ComboBox.Standard in the app uses (Sort, Layout, artwork source) - not a
+                   CollectionViewSource with real WPF grouping, which is what an earlier pass tried for
+                   visible section headers. That CollectionView came with a real, confirmed cost: this
+                   ComboBox's closed cap would intermittently show blank instead of the actual
+                   selection, because a ComboBox bound to a CollectionView tries to keep SelectedItem
+                   synced with the view's own CurrentItem on top of the explicit SelectedItem binding
+                   below, and the two could disagree. Nothing else in the app hit this, because nothing
+                   else used a CollectionView. DisplayMemberPath="FullLabel" (not Label) is how the
+                   category still shows here, as "Dark — Amber" etc., now that there's no section
+                   header doing that job instead - see OptionItem.FullLabel and
+                   LibraryViewModel.ThemeOptions, which still orders every entry by category even
+                   though nothing groups them visually anymore. -->
+              <ComboBox Grid.Column="1"
+                        Style="{StaticResource ComboBox.Standard}"
+                        Width="220"
+                        ItemsSource="{Binding Library.ThemeOptions}"
+                        SelectedItem="{Binding Library.SelectedTheme, Mode=TwoWay}"
+                        DisplayMemberPath="FullLabel" />
+            </Grid>
+
+            <!-- Style sits directly under Theme because the two are the same decision split in half:
+                 theme picks the colour, style picks the material it's made of. Every combination of
+                 the two is valid, so they're two independent pickers rather than one flat list of
+                 every pairing. -->
+            <Grid Margin="{DynamicResource Gap.Above.M}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                <TextBlock Style="{StaticResource Text.Body}" Text="Style" />
+                <TextBlock Style="{StaticResource Text.BodySecondary}"
+                           TextWrapping="Wrap"
+                           Margin="{DynamicResource Gap.Above.S}"
+                           Text="Pin is the restrained look - modest rounding, a light shadow lifting each surface. Relief is fully sculpted - big soft squircles, deeply moulded controls, sunken slots and heavier type. Works with any theme." />
+              </StackPanel>
+              <ComboBox Grid.Column="1"
+                        Style="{StaticResource ComboBox.Standard}"
+                        Width="220"
+                        VerticalAlignment="Center"
+                        Margin="16,0,0,0"
+                        ItemsSource="{Binding Library.UiStyleOptions}"
+                        SelectedItem="{Binding Library.SelectedUiStyle, Mode=TwoWay}"
+                        DisplayMemberPath="Label" />
+            </Grid>
+
+            <!-- Layout type (Grid/Carousel/List) lives in the library header itself, not here - it's
+                 a browsing action reached for often, not a one-time preference like theme. -->
+
+            <Border Margin="{DynamicResource Gap.Above.L}"
+                    BorderThickness="{DynamicResource BorderThickness.Bottom}"
+                    BorderBrush="{DynamicResource Brush.Surface.Border}" />
+
+            <CheckBox Style="{StaticResource Switch}"
+                      Margin="{DynamicResource Gap.Above.L}"
+                      IsChecked="{Binding Library.TintTableBanner, Mode=TwoWay}">
+              <TextBlock Style="{StaticResource Text.Body}" Text="Tint the title band" />
+            </CheckBox>
+            <TextBlock Style="{StaticResource Text.Caption}"
+                       Margin="{DynamicResource Gap.Above.S}"
+                       TextWrapping="Wrap"
+                       Text="Washes the strip holding each table's title and date in a soft, low-opacity tint of the current theme's accent colour." />
+
+            <CheckBox Style="{StaticResource Switch}"
+                      Margin="{DynamicResource Gap.Above.L}"
+                      IsChecked="{Binding Library.EnableMediaTrailers, Mode=TwoWay}">
+              <TextBlock Style="{StaticResource Text.Body}" Text="Play video on hover" />
+            </CheckBox>
+            <TextBlock Style="{StaticResource Text.Caption}"
+                       Margin="{DynamicResource Gap.Above.S}"
+                       TextWrapping="Wrap"
+                       Text="Plays a table's hover video (set from that table's customization page - see the 'edit' menu on any tile) in place of its artwork while the pointer is over it in the grid or carousel. Nudge can't find these for you automatically yet, so this only does anything for tables you've pointed at a local video file." />
+
+            <CheckBox Style="{StaticResource Switch}"
+                      Margin="{DynamicResource Gap.Above.L}"
+                      IsEnabled="{Binding Library.EnableMediaTrailers}"
+                      IsChecked="{Binding Library.MuteMediaTrailers, Mode=TwoWay}">
+              <TextBlock Style="{StaticResource Text.Body}" Text="Play hover videos without sound" />
+            </CheckBox>
+            <TextBlock Style="{StaticResource Text.Caption}"
+                       Margin="{DynamicResource Gap.Above.S}"
+                       TextWrapping="Wrap"
+                       Text="On by default, so browsing a wall of tiles doesn't start a chorus of audio the moment the pointer crosses each one." />
+
+            <Border Margin="{DynamicResource Gap.Above.L}"
+                    BorderThickness="{DynamicResource BorderThickness.Bottom}"
+                    BorderBrush="{DynamicResource Brush.Surface.Border}" />
+
+            <CheckBox Style="{StaticResource Switch}"
+                      Margin="{DynamicResource Gap.Above.L}"
+                      IsChecked="{Binding Library.EnableShadows, Mode=TwoWay}">
+              <TextBlock Style="{StaticResource Text.Body}" Text="Soft shadows" />
+            </CheckBox>
+            <TextBlock Style="{StaticResource Text.Caption}"
+                       Margin="{DynamicResource Gap.Above.S}"
+                       TextWrapping="Wrap"
+                       Text="The embossed look every card, button, and tile uses. Turn off for a flatter look, or if shadows ever look wrong on your system." />
+
+            <Grid Margin="{DynamicResource Gap.Above.L}"
+                  IsEnabled="{Binding Library.EnableShadows}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0"
+                         Style="{StaticResource Text.Body}"
+                         Margin="{DynamicResource Gap.Right.M}"
+                         VerticalAlignment="Center"
+                         Text="Intensity" />
+              <Slider Grid.Column="1"
+                      Style="{StaticResource Slider.Standard}"
+                      Minimum="25"
+                      Maximum="175"
+                      TickFrequency="25"
+                      Value="{Binding Library.ShadowIntensityPercent, Mode=TwoWay}" />
+              <TextBlock Grid.Column="2"
+                         Style="{StaticResource Text.Caption}"
+                         Margin="{DynamicResource Gap.Right.S}"
+                         VerticalAlignment="Center"
+                         Width="40"
+                         Text="{Binding Library.ShadowIntensityPercent, StringFormat={}{0}%}" />
+            </Grid>
+          </StackPanel>
+        </ContentControl>
 
         <!-- ======================= Coming later ======================= -->
         <TextBlock Style="{StaticResource Text.SectionHeading}" Margin="{DynamicResource Gap.Below.M}" Text="COMING LATER" />
 
-        <Border Style="{StaticResource Surface.Inset}">
+        <ContentControl Style="{StaticResource Card.Neumorphic}">
           <StackPanel>
-            <TextBlock Style="{StaticResource Text.Body}" Text="Favourites, playtime tracking, and last-played sorting" />
+            <TextBlock Style="{StaticResource Text.Body}" Text="Playtime tracking and last-played sorting" />
             <TextBlock Style="{StaticResource Text.Caption}"
                        Margin="{DynamicResource Gap.Above.S}"
                        TextWrapping="Wrap"
-                       Text="Nudge doesn't yet record when a table was added or last played, so there's nothing here to turn on. That needs a small database change before it can work - this page is the reserved spot for it once it does." />
+                       Text="Nudge doesn't yet record when a table was added or last played, so there's nothing here to turn on. Favourites and title/year sorting are already available in the library header. Playtime tracking needs a small database change before it can work - this page is the reserved spot for it once it does." />
           </StackPanel>
-        </Border>
+        </ContentControl>
 
       </StackPanel>
     </ScrollViewer>

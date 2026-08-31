@@ -1,0 +1,156 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!--
+    Blue Raspberry palette - a DUAL-TONE theme, the counterpart to Colors.Watermelon.xaml: electric
+    blue as the primary accent with raspberry pink as the second tone, meeting in
+    Brush.Accent.Surface (blue at the top running into raspberry at the bottom) so every raised
+    accent surface shows both. The bevel and ambient ground lean blue, so the pairing reads across
+    the whole room rather than only inside accent controls.
+
+    See Colors.Dark.xaml for the underlying material language - surfaces, text and structure are
+    unchanged from it.
+  -->
+
+  <!-- ============================ Ground ============================ -->
+
+  <!-- A genuine two-tone wallpaper, not a single-hue ground with a radial hotspot in the middle -
+       dark electric blue bleeding diagonally into dark raspberry across the whole window, the same
+       pairing Brush.Accent.Surface carries, just pulled all the way down to background darkness. Only
+       two stops, straight from one hue to the other - an in-between stop of its own (an earlier pass
+       had one) reads as two flat colour zones stuck together with a seam, rather than one continuous
+       blend; letting the two real endpoints interpolate directly is what actually looks smooth. -->
+  <LinearGradientBrush x:Key="Brush.Window.Background" StartPoint="0,0" EndPoint="1,1">
+    <GradientStop Color="#1B2333" Offset="0" />
+    <GradientStop Color="#241B26" Offset="1" />
+  </LinearGradientBrush>
+
+  <SolidColorBrush x:Key="Brush.Window.BackgroundFlat" Color="#1F1F2C" />
+
+  <!-- ============================ Surfaces ============================ -->
+
+  <LinearGradientBrush x:Key="Brush.Surface.Background" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Color="#1E222C" Offset="0" />
+    <GradientStop Color="#191D25" Offset="1" />
+  </LinearGradientBrush>
+
+  <LinearGradientBrush x:Key="Brush.Surface.BackgroundAlt" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Color="#222732" Offset="0" />
+    <GradientStop Color="#1C202A" Offset="1" />
+  </LinearGradientBrush>
+
+  <LinearGradientBrush x:Key="Brush.Surface.Recessed" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Color="#13161D" Offset="0" />
+    <GradientStop Color="#181C24" Offset="1" />
+  </LinearGradientBrush>
+
+  <SolidColorBrush x:Key="Brush.Surface.Border" Color="#2E3545" />
+
+  <SolidColorBrush x:Key="Brush.Surface.Glass" Color="#B31E222C" />
+
+  <LinearGradientBrush x:Key="Brush.Surface.EdgeHighlight" StartPoint="0.15,0" EndPoint="0.85,1">
+    <GradientStop Color="#6B87B8" Offset="0" />
+    <GradientStop Color="#354158" Offset="0.5" />
+    <GradientStop Color="#0E1015" Offset="1" />
+  </LinearGradientBrush>
+
+  <LinearGradientBrush x:Key="Brush.Surface.RimLight" StartPoint="0.15,0" EndPoint="0.85,1">
+    <GradientStop Color="#8AA8D8" Offset="0" />
+    <GradientStop Color="#4A5C7C" Offset="0.5" />
+    <GradientStop Color="#14171D" Offset="1" />
+  </LinearGradientBrush>
+
+  <Color x:Key="Color.Shadow">#000000</Color>
+
+  <!-- Tinted to the blue half of the pairing, matching this palette's own RimLight. -->
+  <Color x:Key="Color.Highlight">#6B87B8</Color>
+
+  <!-- ============================ Text ============================ -->
+
+  <SolidColorBrush x:Key="Brush.Text.Primary" Color="#EDEFF4" />
+  <SolidColorBrush x:Key="Brush.Text.Secondary" Color="#A6ADBE" />
+  <SolidColorBrush x:Key="Brush.Text.Muted" Color="#6E7688" />
+
+  <!-- ============================ Accent ============================ -->
+
+  <!-- Electric blue, pulled back from full neon so it still sits in this app's muted register. -->
+  <SolidColorBrush x:Key="Brush.Accent" Color="#5BA3F0" />
+  <SolidColorBrush x:Key="Brush.Accent.Hover" Color="#76B7FA" />
+  <SolidColorBrush x:Key="Brush.Accent.Pressed" Color="#4287CE" />
+  <SolidColorBrush x:Key="Brush.Accent.Foreground" Color="#0C1622" />
+  <SolidColorBrush x:Key="Brush.Accent.Subtle" Color="#16202E" />
+
+  <!-- The dual tone itself: blue into raspberry, left to right. Horizontal, not the vertical axis an
+       earlier pass used - Brush.Accent.Surface paints controls that are mostly wide and short
+       (Button.Primary, the slider fill, the switch knob, the slider thumb - Controls.xaml), so a
+       top-to-bottom gradient had almost no vertical room to actually blend in: a 22px switch knob or
+       a 10px-tall slider fill compresses the whole transition into a handful of pixels, reading as a
+       hard two-colour split rather than a gradient at all. Running the same two stops left to right
+       instead gives it the button/bar's full width to blend across, which is where these controls
+       actually have room. -->
+  <LinearGradientBrush x:Key="Brush.Accent.Surface" StartPoint="0,0" EndPoint="1,0">
+    <GradientStop Color="#6BB0F5" Offset="0" />
+    <GradientStop Color="#D95C90" Offset="1" />
+  </LinearGradientBrush>
+
+  <!-- ============================ Controls ============================ -->
+
+  <LinearGradientBrush x:Key="Brush.Control.Background" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Color="#2A303E" Offset="0" />
+    <GradientStop Color="#222835" Offset="1" />
+  </LinearGradientBrush>
+
+  <LinearGradientBrush x:Key="Brush.Control.BackgroundHover" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Color="#333A4A" Offset="0" />
+    <GradientStop Color="#2A303E" Offset="1" />
+  </LinearGradientBrush>
+
+  <LinearGradientBrush x:Key="Brush.Control.BackgroundPressed" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Color="#171B23" Offset="0" />
+    <GradientStop Color="#1F242F" Offset="1" />
+  </LinearGradientBrush>
+
+  <SolidColorBrush x:Key="Brush.Control.Border" Color="#333A4A" />
+  <SolidColorBrush x:Key="Brush.Control.BorderHover" Color="#5A6479" />
+  <SolidColorBrush x:Key="Brush.Control.Foreground" Color="#EDEFF4" />
+  <SolidColorBrush x:Key="Brush.Control.ForegroundDisabled" Color="#5C6474" />
+
+  <SolidColorBrush x:Key="Brush.Focus" Color="#5BA3F0" />
+
+  <!-- ============================ Indicator LEDs ============================ -->
+
+  <SolidColorBrush x:Key="Brush.Confidence.High" Color="#5FB98A" />
+  <SolidColorBrush x:Key="Brush.Confidence.Medium" Color="#5BA3F0" />
+  <!-- Low reuses the raspberry half, so both tones appear in the status lamps too. -->
+  <SolidColorBrush x:Key="Brush.Confidence.Low" Color="#D95C90" />
+  <SolidColorBrush x:Key="Brush.Confidence.Unknown" Color="#6E7688" />
+
+  <SolidColorBrush x:Key="Brush.Confidence.High.Background" Color="#1A2A22" />
+  <SolidColorBrush x:Key="Brush.Confidence.Medium.Background" Color="#16202E" />
+  <SolidColorBrush x:Key="Brush.Confidence.Low.Background" Color="#2A1822" />
+  <SolidColorBrush x:Key="Brush.Confidence.Unknown.Background" Color="#232936" />
+
+  <!-- ============================ Status ============================ -->
+
+  <SolidColorBrush x:Key="Brush.Status.Error" Color="#E0705F" />
+  <SolidColorBrush x:Key="Brush.Status.Error.Background" Color="#2C1C1A" />
+  <SolidColorBrush x:Key="Brush.Status.Error.Border" Color="#573330" />
+  <SolidColorBrush x:Key="Brush.Status.Info" Color="#6FA3C8" />
+  <SolidColorBrush x:Key="Brush.Status.Info.Background" Color="#1A222C" />
+
+  <!-- ============================ Scrollbars ============================ -->
+
+  <SolidColorBrush x:Key="Brush.Scrollbar.Track" Color="#00000000" />
+  <SolidColorBrush x:Key="Brush.Scrollbar.Thumb" Color="#3B4354" />
+  <SolidColorBrush x:Key="Brush.Scrollbar.ThumbHover" Color="#5A6479" />
+
+  <!-- ============================ Window chrome ============================ -->
+
+  <LinearGradientBrush x:Key="Brush.TitleBar.Background" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Color="#1E2432" Offset="0" />
+    <GradientStop Color="#161A26" Offset="1" />
+  </LinearGradientBrush>
+
+  <SolidColorBrush x:Key="Brush.Overlay.Scrim" Color="#D9111420" />
+
+</ResourceDictionary>

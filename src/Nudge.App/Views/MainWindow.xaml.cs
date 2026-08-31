@@ -2,6 +2,7 @@
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media.Animation;
 using System.Windows.Shell;
 using Nudge.App.ViewModels;
 
@@ -43,8 +44,27 @@ public partial class MainWindow : Window
         public uint dwFlags;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct POINT
+    {
+        public int X;
+        public int Y;
+    }
+
+    /// <summary>The subset of Win32's MINMAXINFO this actually needs to rewrite - the two fields below are what WM_GETMINMAXINFO uses to decide a maximized window's position and size.</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MINMAXINFO
+    {
+        public POINT ptReserved;
+        public POINT ptMaxSize;
+        public POINT ptMaxPosition;
+        public POINT ptMinTrackSize;
+        public POINT ptMaxTrackSize;
+    }
+
+    private const int WM_GETMINMAXINFO = 0x0024;
+
     private bool _isFullscreen;
-    private WindowState _preFullscreenState;
     private Rect _preFullscreenBounds;
 
     public MainWindow(ShellViewModel shellViewModel)
@@ -57,11 +77,73 @@ public partial class MainWindow : Window
         PreviewKeyDown += OnPreviewKeyDown;
         UpdateMaximizeRestoreGlyph();
 
-        // SourceInitialized, not Loaded: the Win32 HWND (and so PresentationSource/CompositionTarget,
-        // which ApplyMonitorBounds needs for the DPI conversion) exists by this point, but the window
-        // hasn't been shown yet - so it opens directly at fullscreen bounds instead of flashing the
-        // windowed size first and then snapping to fullscreen a frame later.
-        SourceInitialized += (_, _) => ToggleFullscreen();
+        // Fixes a well-known WPF issue: a borderless window using WindowChrome, when maximized,
+        // otherwise renders a few pixels past every edge of the monitor (confirmed directly on this
+        // window - GetWindowRect returned Left=-7,Top=-7,Right=1927,Bottom=1087 on a 1920x1080
+        // screen after clicking the plain Maximize button, no fullscreen involved at all). Windows
+        // normally sizes a maximized window from WM_GETMINMAXINFO, which by default answers with the
+        // monitor's full bounds rather than its work area (excluding the taskbar) once a window
+        // removes its standard non-client border - intercepting the message and supplying the work
+        // area ourselves is the standard fix. Must be attached before ToggleFullscreen below ever
+        // touches WindowState, so it's registered first in this same SourceInitialized handler.
+        SourceInitialized += (_, _) =>
+        {
+            (PresentationSource.FromVisual(this) as HwndSource)?.AddHook(WindowProc);
+            ToggleFullscreen();
+        };
+    }
+
+    private static IntPtr WindowProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg == WM_GETMINMAXINFO)
+        {
+            ApplyMaximizedWorkArea(hwnd, lParam);
+            handled = true;
+        }
+
+        return IntPtr.Zero;
+    }
+
+    /// <summary>Rewrites the MINMAXINFO Windows is about to size a maximizing window with, so it lands exactly on the current monitor's work area instead of running past its edges.</summary>
+    private static void ApplyMaximizedWorkArea(IntPtr hwnd, IntPtr lParam)
+    {
+        IntPtr monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+        if (monitor == IntPtr.Zero)
+        {
+            return;
+        }
+
+        var monitorInfo = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+        if (!GetMonitorInfo(monitor, ref monitorInfo))
+        {
+            return;
+        }
+
+        MINMAXINFO minMaxInfo = Marshal.PtrToStructure<MINMAXINFO>(lParam);
+
+        // Both expressed relative to the monitor's own top-left, per WM_GETMINMAXINFO's contract.
+        minMaxInfo.ptMaxPosition.X = monitorInfo.rcWork.Left - monitorInfo.rcMonitor.Left;
+        minMaxInfo.ptMaxPosition.Y = monitorInfo.rcWork.Top - monitorInfo.rcMonitor.Top;
+        minMaxInfo.ptMaxSize.X = monitorInfo.rcWork.Right - monitorInfo.rcWork.Left;
+        minMaxInfo.ptMaxSize.Y = monitorInfo.rcWork.Bottom - monitorInfo.rcWork.Top;
+
+        Marshal.StructureToPtr(minMaxInfo, lParam, fDeleteOld: true);
+    }
+
+    /// <summary>
+    /// Fades the startup splash away. Called by App once startup work has genuinely finished, rather
+    /// than from a fixed timeline in the splash's own entry animation - so the loading bar sweeps for
+    /// exactly as long as there is real work left. Safe to call more than once: the storyboard simply
+    /// re-runs against an already-hidden overlay.
+    /// </summary>
+    public void DismissSplash()
+    {
+        if (FindResource("SplashFadeOut") is Storyboard fadeOut)
+        {
+            // Begun against `this` so Storyboard.TargetName resolves in MainWindow's own name scope,
+            // which is where SplashOverlay is declared.
+            fadeOut.Begin(this);
+        }
     }
 
     private void OnMinimizeClick(object sender, RoutedEventArgs e) => SystemCommands.MinimizeWindow(this);
@@ -113,8 +195,16 @@ public partial class MainWindow : Window
 
         if (_isFullscreen)
         {
-            _preFullscreenState = WindowState;
-            _preFullscreenBounds = new Rect(Left, Top, ActualWidth, ActualHeight);
+            // While WindowState is Maximized, Window.Left/Top report the pre-maximize restore
+            // position, but ActualWidth/ActualHeight report the current (maximized) rendered size -
+            // mixing the two gives a nonsensical rectangle (a windowed position paired with a
+            // maximized size) to restore into later. RestoreBounds is WPF's own answer to "what
+            // would this window's Normal bounds be right now," valid even while maximized, and is
+            // exactly what exiting fullscreen should return to instead (see the WindowState.Normal
+            // remarks in the else branch below for why this always exits to Normal, never Maximized).
+            _preFullscreenBounds = WindowState == WindowState.Maximized
+                ? RestoreBounds
+                : new Rect(Left, Top, ActualWidth, ActualHeight);
 
             // Manual bounds only apply predictably from Normal - Maximized ignores Left/Top/Width/Height.
             if (WindowState != WindowState.Normal)
@@ -142,7 +232,18 @@ public partial class MainWindow : Window
             Top = _preFullscreenBounds.Top;
             Width = _preFullscreenBounds.Width;
             Height = _preFullscreenBounds.Height;
-            WindowState = _preFullscreenState;
+
+            // Deliberately always Normal, never whatever WindowState was before entering fullscreen.
+            // Restoring into WindowState.Maximized here walks straight back into the exact
+            // WindowChrome-plus-Maximized bug this method's own remarks describe: the window comes
+            // back a few pixels wider/taller than the monitor on every side (observed directly -
+            // GetWindowRect returned Left=-7,Top=-7,Right=1927,Bottom=1087 on a 1920x1080 screen
+            // instead of 0,0,1920,1080). That only happens via Normal -> Maximize -> fullscreen ->
+            // exit fullscreen, which is why it didn't show up until someone actually used the
+            // maximize button before toggling fullscreen. The maximize button itself still works
+            // fine on its own; this just stops the fullscreen toggle from silently reintroducing the
+            // state it exists to avoid.
+            WindowState = WindowState.Normal;
         }
 
         FullscreenButton.Content = _isFullscreen ? ExitFullscreenGlyph : FullscreenGlyph;

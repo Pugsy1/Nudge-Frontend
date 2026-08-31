@@ -56,11 +56,23 @@ public sealed partial class ShellViewModel : ObservableObject
 
     private void OnLibraryPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName != nameof(LibraryViewModel.IsSettingsOpen) || Setup.Stage != SetupStage.Ready)
+        bool relevant = e.PropertyName is nameof(LibraryViewModel.IsSettingsOpen)
+                         or nameof(LibraryViewModel.EditingTableViewModel)
+                         or nameof(LibraryViewModel.DetailsTableViewModel);
+        if (!relevant || Setup.Stage != SetupStage.Ready)
         {
             return;
         }
 
-        CurrentViewModel = Library.IsSettingsOpen ? Settings : Library;
+        // EditingTableViewModel takes priority over IsSettingsOpen - the customization page opens
+        // from the library, not from Settings, so there's no real case where both are meant to be
+        // true at once, but if it ever happens, showing the more specific/recently-opened page wins.
+        // Customization before details before settings: each is opened from the one before it, so
+        // the most specific page that is currently open is always the one meant to be on screen.
+        CurrentViewModel = Library.EditingTableViewModel is not null
+            ? Library.EditingTableViewModel
+            : Library.DetailsTableViewModel is not null
+                ? Library.DetailsTableViewModel
+                : Library.IsSettingsOpen ? Settings : Library;
     }
 }

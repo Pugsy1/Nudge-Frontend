@@ -1,0 +1,142 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!--
+    Teal palette - the same dark material as Colors.Dark.xaml (surfaces, text, structure all
+    identical), with the accent recoloured from warm amber to a cool blue-green teal. See
+    Colors.Dark.xaml for the material language this follows; only the "Accent" section and
+    Confidence.Medium (which reuses the accent, same as the Dark palette does) differ from it.
+  -->
+
+  <!-- ============================ Ground ============================ -->
+
+  <!-- Tinted toward teal, unlike the neutral-grey Dark palette's ambient glow - a faint colour cast
+       across the whole room, not just the accent itself, so the theme has real presence. -->
+  <RadialGradientBrush x:Key="Brush.Window.Background" GradientOrigin="0.5,0.28" Center="0.5,0.28" RadiusX="0.9" RadiusY="0.85">
+    <GradientStop Color="#17282A" Offset="0" />
+    <GradientStop Color="#121E20" Offset="0.75" />
+    <GradientStop Color="#0E1719" Offset="1" />
+  </RadialGradientBrush>
+
+  <SolidColorBrush x:Key="Brush.Window.BackgroundFlat" Color="#161F20" />
+
+  <!-- ============================ Surfaces ============================ -->
+
+  <LinearGradientBrush x:Key="Brush.Surface.Background" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Color="#1E262C" Offset="0" />
+    <GradientStop Color="#191F25" Offset="1" />
+  </LinearGradientBrush>
+
+  <LinearGradientBrush x:Key="Brush.Surface.BackgroundAlt" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Color="#222C32" Offset="0" />
+    <GradientStop Color="#1C242A" Offset="1" />
+  </LinearGradientBrush>
+
+  <LinearGradientBrush x:Key="Brush.Surface.Recessed" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Color="#131B1D" Offset="0" />
+    <GradientStop Color="#181F24" Offset="1" />
+  </LinearGradientBrush>
+
+  <SolidColorBrush x:Key="Brush.Surface.Border" Color="#2E4245" />
+
+  <SolidColorBrush x:Key="Brush.Surface.Glass" Color="#B31E262C" />
+
+  <LinearGradientBrush x:Key="Brush.Surface.EdgeHighlight" StartPoint="0.15,0" EndPoint="0.85,1">
+    <GradientStop Color="#5DA9A3" Offset="0" />
+    <GradientStop Color="#2E4C49" Offset="0.5" />
+    <GradientStop Color="#0E1015" Offset="1" />
+  </LinearGradientBrush>
+
+  <LinearGradientBrush x:Key="Brush.Surface.RimLight" StartPoint="0.15,0" EndPoint="0.85,1">
+    <GradientStop Color="#79C4BD" Offset="0" />
+    <GradientStop Color="#42746E" Offset="0.5" />
+    <GradientStop Color="#14171D" Offset="1" />
+  </LinearGradientBrush>
+
+  <Color x:Key="Color.Shadow">#000000</Color>
+
+  <!-- The soft light-catch a neumorphic surface needs on its raised (top-left) side - see the note
+       in Colors.Dark.xaml. Tinted teal, matching this palette's own RimLight. -->
+  <Color x:Key="Color.Highlight">#5EA39D</Color>
+
+  <!-- ============================ Text ============================ -->
+
+  <SolidColorBrush x:Key="Brush.Text.Primary" Color="#EDEFF4" />
+  <SolidColorBrush x:Key="Brush.Text.Secondary" Color="#A6ADBE" />
+  <SolidColorBrush x:Key="Brush.Text.Muted" Color="#6E7688" />
+
+  <!-- ============================ Accent ============================ -->
+
+  <!-- A cool blue-green teal, kept out of neon territory so it still sits in this app's muted
+       register. -->
+  <SolidColorBrush x:Key="Brush.Accent" Color="#2FA8A0" />
+  <SolidColorBrush x:Key="Brush.Accent.Hover" Color="#45BFB6" />
+  <SolidColorBrush x:Key="Brush.Accent.Pressed" Color="#237D77" />
+  <SolidColorBrush x:Key="Brush.Accent.Foreground" Color="#0A1F1D" />
+  <SolidColorBrush x:Key="Brush.Accent.Subtle" Color="#14262A" />
+
+  <LinearGradientBrush x:Key="Brush.Accent.Surface" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Color="#3EBBB2" Offset="0" />
+    <GradientStop Color="#2A8F88" Offset="1" />
+  </LinearGradientBrush>
+
+  <!-- ============================ Controls ============================ -->
+
+  <LinearGradientBrush x:Key="Brush.Control.Background" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Color="#2A343E" Offset="0" />
+    <GradientStop Color="#222B35" Offset="1" />
+  </LinearGradientBrush>
+
+  <LinearGradientBrush x:Key="Brush.Control.BackgroundHover" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Color="#333F4A" Offset="0" />
+    <GradientStop Color="#2A343E" Offset="1" />
+  </LinearGradientBrush>
+
+  <LinearGradientBrush x:Key="Brush.Control.BackgroundPressed" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Color="#171F23" Offset="0" />
+    <GradientStop Color="#1F282F" Offset="1" />
+  </LinearGradientBrush>
+
+  <SolidColorBrush x:Key="Brush.Control.Border" Color="#333F4A" />
+  <SolidColorBrush x:Key="Brush.Control.BorderHover" Color="#5A7479" />
+  <SolidColorBrush x:Key="Brush.Control.Foreground" Color="#EDEFF4" />
+  <SolidColorBrush x:Key="Brush.Control.ForegroundDisabled" Color="#5C6474" />
+
+  <SolidColorBrush x:Key="Brush.Focus" Color="#2FA8A0" />
+
+  <!-- ============================ Indicator LEDs ============================ -->
+
+  <SolidColorBrush x:Key="Brush.Confidence.High" Color="#5FB98A" />
+  <SolidColorBrush x:Key="Brush.Confidence.Medium" Color="#2FA8A0" />
+  <SolidColorBrush x:Key="Brush.Confidence.Low" Color="#D4794F" />
+  <SolidColorBrush x:Key="Brush.Confidence.Unknown" Color="#6E7688" />
+
+  <SolidColorBrush x:Key="Brush.Confidence.High.Background" Color="#1A2A22" />
+  <SolidColorBrush x:Key="Brush.Confidence.Medium.Background" Color="#16282A" />
+  <SolidColorBrush x:Key="Brush.Confidence.Low.Background" Color="#2A1E18" />
+  <SolidColorBrush x:Key="Brush.Confidence.Unknown.Background" Color="#232936" />
+
+  <!-- ============================ Status ============================ -->
+
+  <SolidColorBrush x:Key="Brush.Status.Error" Color="#E0705F" />
+  <SolidColorBrush x:Key="Brush.Status.Error.Background" Color="#2C1C1A" />
+  <SolidColorBrush x:Key="Brush.Status.Error.Border" Color="#573330" />
+  <SolidColorBrush x:Key="Brush.Status.Info" Color="#6FA3C8" />
+  <SolidColorBrush x:Key="Brush.Status.Info.Background" Color="#1A222C" />
+
+  <!-- ============================ Scrollbars ============================ -->
+
+  <SolidColorBrush x:Key="Brush.Scrollbar.Track" Color="#00000000" />
+  <SolidColorBrush x:Key="Brush.Scrollbar.Thumb" Color="#3B4B4E" />
+  <SolidColorBrush x:Key="Brush.Scrollbar.ThumbHover" Color="#5A7479" />
+
+  <!-- ============================ Window chrome ============================ -->
+
+  <LinearGradientBrush x:Key="Brush.TitleBar.Background" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Color="#1F2B2D" Offset="0" />
+    <GradientStop Color="#172022" Offset="1" />
+  </LinearGradientBrush>
+
+  <SolidColorBrush x:Key="Brush.Overlay.Scrim" Color="#D912191A" />
+
+</ResourceDictionary>

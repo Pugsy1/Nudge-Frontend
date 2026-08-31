@@ -11,21 +11,43 @@
     while the *bevel* (Brush.Surface.EdgeHighlight, a diagonal gradient border) carries the
     directional cue. One shadow plus one gradient border per surface, rather than stacked elements,
     keeps the grid cheap at 1,000 tiles - see AGENTS.md section 8.
+
+    BlurRadius is deliberately kept small everywhere below - a DropShadowEffect renders past its
+    element's own layout bounds, and the space available for that overflow is whatever whitespace
+    happens to surround the element (a Margin, a Popup's own padding, a parent Border's padding). Go
+    much past that available space and the blur gets hard-clipped exactly at whichever boundary runs
+    out of room first - a Popup's own transparent window, a bitmap-cached layer's cache surface, or a
+    padded parent Border's content clip - which reads as a glow that just stops instead of fading, not
+    as a soft shadow. A previous pass pushed these radii much larger chasing a softer look and hit
+    exactly that on tiles, dropdowns, and the segmented switch; the values here were sized back down
+    against each control's actual available bleed room instead.
   -->
 
   <DropShadowEffect x:Key="Effect.Card.Shadow"
                      Color="{DynamicResource Color.Shadow}"
                      Direction="270"
-                     ShadowDepth="8"
-                     BlurRadius="26"
-                     Opacity="0.32"
+                     ShadowDepth="5"
+                     BlurRadius="16"
+                     Opacity="0.28"
                      RenderingBias="Performance" />
 
+  <!-- Every raised control (buttons, inputs, dropdowns) carries this at rest, not just on
+       hover/press - the clean-neumorphic reference boards read as "shadow-defined" everywhere, with
+       no visible border doing the work instead. -->
   <DropShadowEffect x:Key="Effect.Button.Shadow"
                      Color="{DynamicResource Color.Shadow}"
                      Direction="270"
                      ShadowDepth="2"
-                     BlurRadius="9"
+                     BlurRadius="7"
+                     Opacity="0.22"
+                     RenderingBias="Performance" />
+
+  <!-- Hover: lifts further off the page than the rest state. -->
+  <DropShadowEffect x:Key="Effect.Button.Shadow.Hover"
+                     Color="{DynamicResource Color.Shadow}"
+                     Direction="270"
+                     ShadowDepth="3"
+                     BlurRadius="11"
                      Opacity="0.26"
                      RenderingBias="Performance" />
 
@@ -35,7 +57,7 @@
                      Direction="270"
                      ShadowDepth="1"
                      BlurRadius="3"
-                     Opacity="0.20"
+                     Opacity="0.18"
                      RenderingBias="Performance" />
 
   <!--
@@ -50,48 +72,48 @@
                      Color="{DynamicResource Color.Shadow}"
                      Direction="315"
                      ShadowDepth="3"
-                     BlurRadius="10"
-                     Opacity="0.5"
+                     BlurRadius="8"
+                     Opacity="0.42"
                      RenderingBias="Performance" />
 
   <DropShadowEffect x:Key="Effect.Tile.Shadow.Hover"
                      Color="{DynamicResource Color.Shadow}"
                      Direction="315"
-                     ShadowDepth="7"
-                     BlurRadius="20"
-                     Opacity="0.6"
+                     ShadowDepth="6"
+                     BlurRadius="14"
+                     Opacity="0.5"
                      RenderingBias="Performance" />
 
   <DropShadowEffect x:Key="Effect.Tile.Shadow.Pressed"
                      Color="{DynamicResource Color.Shadow}"
                      Direction="315"
                      ShadowDepth="1"
-                     BlurRadius="4"
-                     Opacity="0.5"
+                     BlurRadius="3"
+                     Opacity="0.4"
                      RenderingBias="Performance" />
 
   <DropShadowEffect x:Key="Effect.Tile.Highlight.Rest"
                      Color="{DynamicResource Color.Highlight}"
                      Direction="135"
                      ShadowDepth="3"
-                     BlurRadius="10"
-                     Opacity="0.4"
+                     BlurRadius="8"
+                     Opacity="0.32"
                      RenderingBias="Performance" />
 
   <DropShadowEffect x:Key="Effect.Tile.Highlight.Hover"
                      Color="{DynamicResource Color.Highlight}"
                      Direction="135"
-                     ShadowDepth="7"
-                     BlurRadius="20"
-                     Opacity="0.5"
+                     ShadowDepth="6"
+                     BlurRadius="14"
+                     Opacity="0.4"
                      RenderingBias="Performance" />
 
   <DropShadowEffect x:Key="Effect.Tile.Highlight.Pressed"
                      Color="{DynamicResource Color.Highlight}"
                      Direction="135"
                      ShadowDepth="1"
-                     BlurRadius="4"
-                     Opacity="0.4"
+                     BlurRadius="3"
+                     Opacity="0.32"
                      RenderingBias="Performance" />
 
   <!-- Recessed controls (the search slot) - a tight shadow at rest reads as "set into" the panel. -->
@@ -103,13 +125,18 @@
                      Opacity="0.22"
                      RenderingBias="Performance" />
 
-  <!-- A floating panel (the settings flyout) sits well above the page, so it casts furthest. -->
+  <!-- A floating panel (a Popup's content) sits well above the page, so it casts furthest - but a
+       Popup's transparent host window is only ever sized to fit its child's own DesiredSize
+       (Margin included), so this still has to stay small enough to fit inside whatever Margin the
+       popup's content Border uses, or it hits that window edge and hard-clips exactly like the
+       bitmap-cache case above. Paired with a bigger Popup margin (see ComboBox.Standard in
+       Controls.xaml) rather than pushed larger on its own. -->
   <DropShadowEffect x:Key="Effect.Flyout.Shadow"
                      Color="{DynamicResource Color.Shadow}"
                      Direction="270"
-                     ShadowDepth="10"
-                     BlurRadius="34"
-                     Opacity="0.40"
+                     ShadowDepth="6"
+                     BlurRadius="18"
+                     Opacity="0.32"
                      RenderingBias="Performance" />
 
   <!-- The same true two-shadow neumorphic emboss as the library tiles (Effect.Tile.Shadow.Rest/
@@ -118,17 +145,17 @@
   <DropShadowEffect x:Key="Effect.Card.Shadow.Rest"
                      Color="{DynamicResource Color.Shadow}"
                      Direction="315"
-                     ShadowDepth="5"
-                     BlurRadius="18"
-                     Opacity="0.45"
+                     ShadowDepth="4"
+                     BlurRadius="14"
+                     Opacity="0.38"
                      RenderingBias="Performance" />
 
   <DropShadowEffect x:Key="Effect.Card.Highlight.Rest"
                      Color="{DynamicResource Color.Highlight}"
                      Direction="135"
-                     ShadowDepth="5"
-                     BlurRadius="18"
-                     Opacity="0.35"
+                     ShadowDepth="4"
+                     BlurRadius="14"
+                     Opacity="0.3"
                      RenderingBias="Performance" />
 
 </ResourceDictionary>

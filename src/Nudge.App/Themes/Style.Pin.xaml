@@ -1,0 +1,21 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!--
+    "Pin" - the original Nudge look: soft-UI / neumorphic. Pillowy corners, every raised control
+    defined by a shadow rather than an outline, and library tiles carrying a genuine two-layer
+    emboss (a dark shadow down-right paired with a light highlight up-left).
+
+    This dictionary is deliberately EMPTY. Pin's values are the base values already defined in
+    Layout.xaml and Effects.xaml, so there is nothing here to override - restating them would just
+    create a second copy to keep in sync, and they would silently drift apart the first time one was
+    edited without the other.
+
+    It still exists as a real file, rather than the style overlay simply being absent for Pin,
+    because UiStyleService swaps this slot in Application.Resources.MergedDictionaries by index: it
+    needs a Pin entry to swap *back to* when someone returns from another style, and an entry it can
+    find in order to know which slot the overlay occupies at all. See Style.Crisp.xaml for what an
+    overlay that actually changes something looks like.
+  -->
+
+</ResourceDictionary>

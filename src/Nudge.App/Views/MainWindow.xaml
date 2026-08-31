@@ -46,6 +46,31 @@
     <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
       <views:SettingsView />
     </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:TableCustomizationViewModel}">
+      <views:TableCustomizationView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:TableDetailsViewModel}">
+      <views:TableDetailsView />
+    </DataTemplate>
+
+    <!-- Begun from code (MainWindow.DismissSplash) once startup work actually completes, rather than
+         from a fixed BeginTime in the splash's own entry storyboard - see the note on SplashOverlay.
+         Collapsed only after the fade finishes: Visibility flips instantly, so doing it any earlier
+         would cut the fade short. That Visibility keyframe is also what drops the overlay out of
+         hit-testing (a Collapsed element never participates) - an earlier version tried animating
+         IsHitTestVisible for that instead, which WPF does not support at all and which threw on the
+         render thread, leaving the splash stuck on screen forever with no visible error. -->
+    <Storyboard x:Key="SplashFadeOut">
+      <DoubleAnimation Storyboard.TargetName="SplashOverlay" Storyboard.TargetProperty="Opacity"
+                        To="0" Duration="0:0:0.4">
+        <DoubleAnimation.EasingFunction>
+          <QuadraticEase EasingMode="EaseInOut" />
+        </DoubleAnimation.EasingFunction>
+      </DoubleAnimation>
+      <ObjectAnimationUsingKeyFrames Storyboard.TargetName="SplashOverlay" Storyboard.TargetProperty="Visibility" BeginTime="0:0:0.4">
+        <DiscreteObjectKeyFrame KeyTime="0:0:0" Value="{x:Static Visibility.Collapsed}" />
+      </ObjectAnimationUsingKeyFrames>
+    </Storyboard>
   </Window.Resources>
 
   <Grid>
@@ -143,11 +168,15 @@
               Click="OnCloseClick" />
     </StackPanel>
 
-    <!-- Startup splash: the first thing on screen, while Setup/Library are still initialising
-         underneath. Purely visual and time-boxed on its own Loaded trigger - it does not gate
-         ShellViewModel's own Setup/Library switch (that keeps running concurrently beneath it), so
-         whichever screen is ready is already there by the time this fades away, rather than the app
-         waiting on the animation before it can start doing real work. -->
+    <!-- Startup splash: the first thing on screen, up before any of the real startup work runs (see
+         App.xaml.cs - the window is deliberately shown before database migration and installation
+         discovery, with the slow parts pushed off the UI thread, so this is genuinely visible and
+         animating from the moment the app opens rather than appearing after a frozen pause).
+
+         The entry animation runs on Loaded, but the exit does NOT - dismissal is driven from code
+         (DismissSplash) once startup has actually finished, so the bar keeps sweeping for exactly as
+         long as there's real work left instead of running a fixed timeline that either cuts off
+         early or lingers after everything is ready. -->
     <Border x:Name="SplashOverlay"
             Grid.Row="0" Grid.RowSpan="2"
             Background="{DynamicResource Brush.Window.Background}"
@@ -158,43 +187,29 @@
             <Storyboard>
               <!-- Pop in: a slight overshoot reads as "arriving", not just fading up. -->
               <DoubleAnimation Storyboard.TargetName="SplashLogoScale" Storyboard.TargetProperty="ScaleX"
-                                From="0.8" To="1" Duration="0:0:0.45">
+                                From="0.86" To="1" Duration="0:0:0.5">
                 <DoubleAnimation.EasingFunction>
-                  <BackEase EasingMode="EaseOut" Amplitude="0.4" />
+                  <BackEase EasingMode="EaseOut" Amplitude="0.3" />
                 </DoubleAnimation.EasingFunction>
               </DoubleAnimation>
               <DoubleAnimation Storyboard.TargetName="SplashLogoScale" Storyboard.TargetProperty="ScaleY"
-                                From="0.8" To="1" Duration="0:0:0.45">
+                                From="0.86" To="1" Duration="0:0:0.5">
                 <DoubleAnimation.EasingFunction>
-                  <BackEase EasingMode="EaseOut" Amplitude="0.4" />
+                  <BackEase EasingMode="EaseOut" Amplitude="0.3" />
                 </DoubleAnimation.EasingFunction>
               </DoubleAnimation>
               <DoubleAnimation Storyboard.TargetName="SplashContent" Storyboard.TargetProperty="Opacity"
-                                From="0" To="1" Duration="0:0:0.4" />
+                                From="0" To="1" Duration="0:0:0.35" />
 
-              <!-- The loading bar's fill sweeps track-width-and-back, twice, starting once the
-                   wordmark has mostly settled rather than racing it. -->
+              <!-- Sweeps continuously for as long as the splash is up - Forever, not a fixed repeat
+                   count, since how long startup actually takes isn't known in advance. -->
               <DoubleAnimation Storyboard.TargetName="LoadingBarFillTransform" Storyboard.TargetProperty="X"
-                                From="-70" To="220" BeginTime="0:0:0.3" Duration="0:0:0.55" RepeatBehavior="2x">
+                                From="-70" To="220" BeginTime="0:0:0.25" Duration="0:0:0.9"
+                                RepeatBehavior="Forever">
                 <DoubleAnimation.EasingFunction>
                   <SineEase EasingMode="EaseInOut" />
                 </DoubleAnimation.EasingFunction>
               </DoubleAnimation>
-
-              <!-- Hold, then dissolve into whichever screen has loaded underneath. -->
-              <DoubleAnimation Storyboard.TargetName="SplashOverlay" Storyboard.TargetProperty="Opacity"
-                                From="1" To="0" Duration="0:0:0.4" BeginTime="0:0:1.15" />
-              <!-- Collapsed only after the fade finishes, not before - Visibility flips instantly,
-                   so doing it any earlier would cut the fade-out short. This alone also drops the
-                   overlay out of hit-testing (a Collapsed element never participates), which an
-                   earlier version tried to do explicitly by animating IsHitTestVisible - WPF doesn't
-                   support animating that property at all and throws AnimationException the moment
-                   the clock reaches it, which took the whole storyboard down and left the splash
-                   stuck on screen forever with no visible error (the exception landed on the render
-                   thread's dispatcher, not something a user watching the window would see). -->
-              <ObjectAnimationUsingKeyFrames Storyboard.TargetName="SplashOverlay" Storyboard.TargetProperty="Visibility" BeginTime="0:0:1.55">
-                <DiscreteObjectKeyFrame KeyTime="0:0:0" Value="{x:Static Visibility.Collapsed}" />
-              </ObjectAnimationUsingKeyFrames>
             </Storyboard>
           </BeginStoryboard>
         </EventTrigger>
@@ -204,7 +219,9 @@
         <!-- Same recolour-by-mask trick as the library wordmark: the artwork's alpha channel becomes
              a silhouette, filled with the active theme's accent instead of its own baked-in white
              gloss, so the splash always matches whatever theme is saved - including on the next
-             launch, since the theme is applied (App.xaml.cs) before this window is even constructed. -->
+             launch, since the theme is applied (App.xaml.cs) before this window is even constructed.
+             Reverted to this - the supplied "Nudge Logo Words.png" wordmark - after briefly trying a
+             plain icon+text pairing instead; the wordmark was the preferred look. -->
         <Rectangle Width="330" Height="110"
                    HorizontalAlignment="Center"
                    Fill="{DynamicResource Brush.Accent}"

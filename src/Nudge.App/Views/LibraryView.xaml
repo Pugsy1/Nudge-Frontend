@@ -14,6 +14,7 @@
 
     <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
     <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVisibility" />
+    <converters:CarouselSlotConverter x:Key="CarouselSlotConverter" />
 
     <!-- The identification-confidence lamp: a small LED behind a diffuser, tinted by how sure
          Nudge is that it identified the table correctly. Hidden unless turned on in settings. -->
@@ -35,99 +36,191 @@
     </Style>
 
     <!--
-      One tile in the grid. The root is a Button (its whole visual lives in the ControlTemplate) so
-      clicking anywhere on the card launches that table.
+      THE shared table card - one visual, used by both the grid and the carousel so the two layouts
+      genuinely cannot drift apart in appearance. Only size and which command a click runs differ
+      between them (set per-instance where the Style is applied); everything about how a card *looks*
+      lives here once.
 
-      Hover lifts the card toward the light: a small scale-up plus a deeper, longer shadow, both
-      animated over Duration.Hover. The scale is a render transform, so it never disturbs layout -
-      and Margin.Tile leaves more slack around each card than the scale consumes, so a lifted tile
-      never clips against its neighbours.
+      The root is a Button (its whole visual is this ControlTemplate) so clicking anywhere on the card
+      is the primary action. Hover lifts the card toward the light: a small scale-up plus deeper
+      shadows, animated over Duration.Hover. The scale is a render transform, so it never disturbs
+      layout - and the margin applied per-instance leaves more slack than the scale consumes, so a
+      lifted card never clips against its neighbours.
+
+      Button placement follows the explicit request: favourite star top-right, the three-line
+      customize menu bottom-right. Both are nested Buttons, which works because WPF marks their Click
+      handled before it can bubble to this card's own Button underneath. The confidence lamp sits
+      top-left, out of the star's way.
     -->
-    <DataTemplate x:Key="TableTileTemplate" DataType="{x:Type vm:TableTileViewModel}">
-      <Button Command="{Binding DataContext.LaunchTableCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-              CommandParameter="{Binding}"
-              Cursor="Hand"
-              Focusable="False"
-              RenderTransformOrigin="0.5,0.5">
-        <Button.Template>
+    <Style x:Key="TableCard" TargetType="Button">
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Focusable" Value="False" />
+      <Setter Property="Template">
+        <Setter.Value>
           <ControlTemplate TargetType="Button">
             <!--
               True neumorphic emboss: two DropShadowEffects can't live on one element, so the dark
               (bottom-right) and light (top-left) shadows are each their own same-shape Border,
               stacked behind the real content. Both are fully opaque, so with all three Borders the
               exact same size/position, each shadow layer's own flat body is entirely covered by the
-              one on top of it - only the blur that extends past the shared edges survives, as a
-              soft dark glow peeking out one corner and a soft light glow peeking out the other.
-              Kept subtle at rest (low opacity, tight blur) specifically because dozens of these sit
-              on screen together - the point is individual depth per tile, not a haze across the
-              whole grid.
+              one on top of it - only the blur that extends past the shared edges survives, as a soft
+              dark glow peeking out one corner and a soft light glow peeking out the other.
             -->
-            <Grid Margin="{DynamicResource Margin.Tile}"
-                  RenderTransformOrigin="0.5,0.5">
+            <Grid RenderTransformOrigin="0.5,0.5">
               <Grid.RenderTransform>
                 <ScaleTransform x:Name="Lift" ScaleX="1" ScaleY="1" />
               </Grid.RenderTransform>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+              </Grid.RowDefinitions>
 
-              <!-- BitmapCache on both shadow layers: each DropShadowEffect is otherwise recomputed
-                   every frame it's on screen, and with virtualization keeping 30-40 tiles realized
-                   at once during a scroll, two effects per tile is real compositing cost. Caching
-                   rasterizes each layer once and reuses that bitmap - safe here because neither
-                   layer's content ever changes (a static Background fill), only its Effect gets
-                   swapped between the Rest/Hover/Pressed resources, which still invalidates and
-                   re-caches correctly. -->
-              <Border x:Name="ShadowLayer"
+              <!-- Controller selection ring. Spans both rows so it outlines the whole card, and is
+                   drawn last (below, in z-order terms it is declared after the content) so it sits
+                   over the artwork rather than behind it. Only ever visible while the pad is the
+                   input in use - with a mouse it would be permanent clutter marking a tile nobody
+                   is looking at. -->
+              <Border x:Name="SelectionRing"
+                      Grid.Row="0" Grid.RowSpan="2"
+                      Panel.ZIndex="10"
+                      IsHitTestVisible="False"
+                      CornerRadius="{DynamicResource CornerRadius.M}"
+                      BorderThickness="3"
+                      BorderBrush="{DynamicResource Brush.Accent}"
+                      Visibility="Collapsed" />
+
+              <!-- The embossed shadow/highlight now spans BOTH rows (RowSpan=2) - one continuous
+                   silhouette behind the artwork and the title band together, so the two read as one
+                   connected card again rather than a picture with a caption floating separately
+                   below it. The artwork (Root, below) still only rounds its top corners
+                   (CornerRadius.Card.Top) and the title band only its bottom (CornerRadius.Card.Bottom,
+                   further down) - the two meeting with no gap is what makes it look like a single
+                   rounded shape rather than a card and a caption. No CacheMode on either shadow
+                   layer: a cached bitmap's surface is sized to the element's own layout bounds, not
+                   the larger area its DropShadowEffect renders into, so the blur gets hard-clipped at
+                   the card's edge instead of fading out. -->
+              <Border x:Name="ShadowLayer" Grid.Row="0" Grid.RowSpan="2"
                       Background="{DynamicResource Brush.Surface.Background}"
                       CornerRadius="{DynamicResource CornerRadius.M}"
-                      Effect="{DynamicResource Effect.Tile.Shadow.Rest}"
-                      CacheMode="BitmapCache" />
+                      Effect="{DynamicResource Effect.Tile.Shadow.Rest}" />
 
-              <Border x:Name="HighlightLayer"
+              <Border x:Name="HighlightLayer" Grid.Row="0" Grid.RowSpan="2"
                       Background="{DynamicResource Brush.Surface.Background}"
                       CornerRadius="{DynamicResource CornerRadius.M}"
-                      Effect="{DynamicResource Effect.Tile.Highlight.Rest}"
-                      CacheMode="BitmapCache" />
+                      Effect="{DynamicResource Effect.Tile.Highlight.Rest}" />
 
-              <Border x:Name="Root"
-                      Background="{DynamicResource Brush.Surface.Background}"
-                      BorderBrush="{DynamicResource Brush.Surface.EdgeHighlight}"
-                      BorderThickness="{DynamicResource BorderThickness.Tile}"
-                      CornerRadius="{DynamicResource CornerRadius.M}"
+              <!-- Artwork. An ImageBrush set as this Border's own Background rather than a layered
+                   <Image>, because a Border only clips its own fill to its CornerRadius, not
+                   arbitrary child content - an Image would show square corners poking out past the
+                   rounded artwork area. This is also Root - the artwork border and the card's own
+                   base layer are the same element, just the top part of the connected shape now
+                   that the shadow/highlight behind it spans the title band too. -->
+              <Border x:Name="Root" Grid.Row="0"
+                      CornerRadius="{DynamicResource CornerRadius.Card.Top}"
+                      ClipToBounds="True"
                       SnapsToDevicePixels="True">
+                <Border.Style>
+                  <Style TargetType="Border">
+                    <Setter Property="Background" Value="{DynamicResource Brush.Surface.Recessed}" />
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding HasArtwork}" Value="True">
+                        <Setter Property="Background">
+                          <Setter.Value>
+                            <ImageBrush ImageSource="{Binding Artwork}"
+                                        Stretch="UniformToFill"
+                                        RenderOptions.BitmapScalingMode="HighQuality" />
+                          </Setter.Value>
+                        </Setter>
+                      </DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </Border.Style>
 
-              <Grid>
-                <Grid.RowDefinitions>
-                  <RowDefinition Height="*" />
-                  <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
+                <Grid>
+                  <TextBlock Text="{Binding Initial}"
+                             HorizontalAlignment="Center"
+                             VerticalAlignment="Center"
+                             FontFamily="{DynamicResource Font.Family.Primary}"
+                             FontSize="{DynamicResource Font.Size.Display}"
+                             FontWeight="{DynamicResource Font.Weight.SemiBold}"
+                             Foreground="{DynamicResource Brush.Text.Muted}"
+                             Opacity="0.55"
+                             Visibility="{Binding HasArtwork, Converter={StaticResource InverseBoolToVisibility}}" />
 
-                <!-- Placeholder art. Nudge has no artwork pipeline yet (a later phase per
-                     AGENTS.md), so a recessed slot holding the title's initial stands in for real
-                     box art rather than pretending to be one. -->
-                <Border Grid.Row="0"
-                        Background="{DynamicResource Brush.Surface.Recessed}"
-                        CornerRadius="{DynamicResource CornerRadius.Card.Top}">
-                  <Grid>
-                    <TextBlock Text="{Binding Initial}"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center"
-                               FontFamily="{DynamicResource Font.Family.Primary}"
-                               FontSize="{DynamicResource Font.Size.Display}"
-                               FontWeight="{DynamicResource Font.Weight.SemiBold}"
-                               Foreground="{DynamicResource Brush.Text.Muted}"
-                               Opacity="0.55" />
+                  <!-- Hover video, framed by the exact same rounded/clipped border the artwork
+                       sits in - it reads as a window opening straight onto gameplay rather than a
+                       separate video widget dropped on top. Source is assigned and the fade-in
+                       started in code-behind on MouseEnter rather than bound here, so the many
+                       tables with no video never construct a media pipeline at all, and a hovered
+                       one releases its file the instant the pointer leaves. LoadedBehavior=Manual is
+                       what lets code drive Play/Stop; starting Opacity at 0 is what code-behind
+                       fades from rather than snapping the video in instantly. -->
+                  <MediaElement x:Name="TrailerPlayer"
+                                LoadedBehavior="Manual"
+                                UnloadedBehavior="Stop"
+                                Stretch="UniformToFill"
+                                Opacity="0"
+                                Visibility="Collapsed" />
 
-                    <!-- Confidence lamp, opt-in via settings. -->
-                    <Border HorizontalAlignment="Right"
-                            VerticalAlignment="Top"
-                            Margin="{DynamicResource Inset.M}"
-                            ToolTip="{Binding ConfidenceLabel}"
-                            Visibility="{Binding DataContext.ShowConfidence, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource BoolToVisibility}}">
-                      <Ellipse Style="{StaticResource ConfidenceLamp}" />
-                    </Border>
-                  </Grid>
-                </Border>
+                  <!-- Confidence lamp, opt-in via settings. Top-LEFT: the star owns top-right. -->
+                  <Border HorizontalAlignment="Left"
+                          VerticalAlignment="Top"
+                          Margin="{DynamicResource Inset.M}"
+                          ToolTip="{Binding ConfidenceLabel}"
+                          Visibility="{Binding DataContext.ShowConfidence, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource BoolToVisibility}}">
+                    <Ellipse Style="{StaticResource ConfidenceLamp}" />
+                  </Border>
 
-                <StackPanel Grid.Row="1" Margin="{DynamicResource Padding.TableCell}">
+                  <!-- Favourite: a die-cut star outline at rest, filling solid when starred. -->
+                  <Button Style="{StaticResource TileOverlayButton}"
+                          HorizontalAlignment="Right"
+                          VerticalAlignment="Top"
+                          ToolTip="Favourite"
+                          Command="{Binding DataContext.ToggleFavoriteCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                          CommandParameter="{Binding}">
+                    <Grid>
+                      <TextBlock Text="&#xE734;"
+                                 FontFamily="Segoe MDL2 Assets"
+                                 FontSize="14"
+                                 HorizontalAlignment="Center"
+                                 VerticalAlignment="Center"
+                                 Foreground="{DynamicResource Brush.Text.Secondary}"
+                                 Visibility="{Binding IsFavorite, Converter={StaticResource InverseBoolToVisibility}}" />
+                      <TextBlock Text="&#xE735;"
+                                 FontFamily="Segoe MDL2 Assets"
+                                 FontSize="14"
+                                 HorizontalAlignment="Center"
+                                 VerticalAlignment="Center"
+                                 Foreground="{DynamicResource Brush.Accent}"
+                                 Visibility="{Binding IsFavorite, Converter={StaticResource BoolToVisibility}}" />
+                    </Grid>
+                  </Button>
+                </Grid>
+              </Border>
+
+              <!-- Title band. Sits flush against the artwork's bottom edge (no gap, and
+                   CornerRadius.Card.Bottom picks up exactly where the artwork's own
+                   CornerRadius.Card.Top leaves off), so the two read as one connected card rather
+                   than a picture with a caption floating separately beneath it - sharing
+                   ShadowLayer/HighlightLayer above (both now RowSpan=2) is what actually sells that,
+                   the rounding alone would still look like two stacked pieces. The fill itself is
+                   a soft frosted scrim (the same Brush.Surface.Glass the favourite/customize buttons
+                   already use) rather than the old fully-opaque card colour, which is what keeps this
+                   "clean" rather than the heavy solid border it used to be - and, in the carousel,
+                   keeps a receding tile's title text from showing straight through the nearer one's
+                   (tiles overlap there by design - CarouselSlotConverter's arc - so literally
+                   transparent let that bleed through). BandTint sits on top of it as a separate
+                   Border rather than a background on the text's own container, so tinting it never
+                   fades the title along with it; it paints Brush.Accent at low opacity, so the tint
+                   is always whatever colour the active theme is rather than a colour of its own. -->
+              <Grid Grid.Row="1">
+                <Border Background="{DynamicResource Brush.Surface.Glass}"
+                        CornerRadius="{DynamicResource CornerRadius.Card.Bottom}" />
+                <Border x:Name="BandTint"
+                        Background="{DynamicResource Brush.Accent}"
+                        CornerRadius="{DynamicResource CornerRadius.Card.Bottom}"
+                        Opacity="0" />
+                <StackPanel Margin="{DynamicResource Padding.TableCell}">
                   <TextBlock Style="{StaticResource Text.Body}"
                              Text="{Binding DisplayTitle}"
                              Height="{DynamicResource Size.Tile.TitleHeight}"
@@ -135,77 +228,84 @@
                              TextTrimming="CharacterEllipsis" />
                   <!-- Always present, even when Subtitle is empty - an empty TextBlock still
                        reserves a line's height, so the artwork/text boundary lands at the same
-                       place on every tile whether or not it has a manufacturer and year. -->
+                       place on every card whether or not it has a manufacturer and year. -->
                   <TextBlock Style="{StaticResource Text.Caption}"
                              Text="{Binding Subtitle}"
                              TextWrapping="NoWrap"
                              TextTrimming="CharacterEllipsis" />
                 </StackPanel>
 
-                <!-- Favourite: a die-cut star outline at rest, filling solid when starred. A
-                     nested Button works fine here, same as the VR badge used to - WPF marks its
-                     Click handled before it can bubble to the tile's own Button underneath. -->
-                <Button Grid.Row="0" Grid.RowSpan="2"
-                        HorizontalAlignment="Right"
-                        VerticalAlignment="Bottom"
-                        Margin="8"
-                        Width="30" Height="30"
-                        Cursor="Hand"
-                        Focusable="False"
-                        ToolTip="Favourite"
-                        Command="{Binding DataContext.ToggleFavoriteCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                        CommandParameter="{Binding}">
-                  <Button.Template>
-                    <ControlTemplate TargetType="Button">
-                      <Border x:Name="StarRoot"
-                              Background="{DynamicResource Brush.Surface.Glass}"
-                              CornerRadius="{DynamicResource CornerRadius.Pill}">
-                        <Grid>
-                          <TextBlock Text="&#xE734;"
-                                     FontFamily="Segoe MDL2 Assets"
-                                     FontSize="14"
-                                     HorizontalAlignment="Center"
-                                     VerticalAlignment="Center"
-                                     Foreground="{DynamicResource Brush.Text.Secondary}"
-                                     Visibility="{Binding IsFavorite, Converter={StaticResource InverseBoolToVisibility}}" />
-                          <TextBlock Text="&#xE735;"
-                                     FontFamily="Segoe MDL2 Assets"
-                                     FontSize="14"
-                                     HorizontalAlignment="Center"
-                                     VerticalAlignment="Center"
-                                     Foreground="{DynamicResource Brush.Accent}"
-                                     Visibility="{Binding IsFavorite, Converter={StaticResource BoolToVisibility}}" />
-                        </Grid>
-                      </Border>
-                      <ControlTemplate.Triggers>
-                        <Trigger Property="IsMouseOver" Value="True">
-                          <Setter TargetName="StarRoot" Property="Background" Value="{DynamicResource Brush.Control.BackgroundHover}" />
-                        </Trigger>
-                      </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                  </Button.Template>
-                </Button>
+                <!-- Details and Customize, bottom-right of the title band - the card's own overall
+                     bottom-right corner, where the star used to sit. Details sits left of Customize
+                     because it is the one people reach for far more often: reading about a table is
+                     ordinary browsing, whereas changing its settings is occasional. -->
+                <StackPanel Orientation="Horizontal"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Bottom">
+                  <Button Style="{StaticResource TileOverlayButton}"
+                          Margin="0,0,6,0"
+                          ToolTip="Details and video"
+                          Command="{Binding DataContext.OpenTableDetailsCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                          CommandParameter="{Binding}">
+                    <TextBlock Text="&#xE946;"
+                               FontFamily="Segoe MDL2 Assets"
+                               FontSize="14"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource Brush.Text.Secondary}" />
+                  </Button>
+                  <Button Style="{StaticResource TileOverlayButton}"
+                          ToolTip="Customize this table"
+                          Command="{Binding DataContext.OpenTableCustomizationCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                          CommandParameter="{Binding}">
+                    <TextBlock Text="&#xE700;"
+                               FontFamily="Segoe MDL2 Assets"
+                               FontSize="14"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource Brush.Text.Secondary}" />
+                  </Button>
+                </StackPanel>
               </Grid>
-              </Border>
             </Grid>
 
             <ControlTemplate.Triggers>
+              <!-- Both conditions: the tile is the selected one AND the pad is what is being used.
+                   Selection is remembered even while using the mouse, so gating on controller mode
+                   is what stops a stale ring sitting on screen after switching back to pointing. -->
+              <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                  <Condition Binding="{Binding IsSelected}" Value="True" />
+                  <Condition Binding="{Binding DataContext.IsControllerMode, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Value="True" />
+                </MultiDataTrigger.Conditions>
+                <Setter TargetName="SelectionRing" Property="Visibility" Value="Visible" />
+              </MultiDataTrigger>
+              <DataTrigger Binding="{Binding DataContext.TintTableBanner, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Value="True">
+                <Setter TargetName="BandTint" Property="Opacity" Value="0.22" />
+              </DataTrigger>
               <Trigger Property="IsMouseOver" Value="True">
                 <!-- Lifted: both shadow layers deepen and spread together. -->
                 <Setter TargetName="ShadowLayer" Property="Effect" Value="{DynamicResource Effect.Tile.Shadow.Hover}" />
                 <Setter TargetName="HighlightLayer" Property="Effect" Value="{DynamicResource Effect.Tile.Highlight.Hover}" />
-                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Surface.RimLight}" />
                 <Trigger.EnterActions>
                   <BeginStoryboard>
                     <Storyboard>
                       <DoubleAnimation Storyboard.TargetName="Lift"
                                        Storyboard.TargetProperty="ScaleX"
                                        To="{StaticResource Scale.Tile.Hover}"
-                                       Duration="{StaticResource Duration.Hover}" />
+                                       Duration="{StaticResource Duration.Hover}">
+                        <DoubleAnimation.EasingFunction>
+                          <QuadraticEase EasingMode="EaseOut" />
+                        </DoubleAnimation.EasingFunction>
+                      </DoubleAnimation>
                       <DoubleAnimation Storyboard.TargetName="Lift"
                                        Storyboard.TargetProperty="ScaleY"
                                        To="{StaticResource Scale.Tile.Hover}"
-                                       Duration="{StaticResource Duration.Hover}" />
+                                       Duration="{StaticResource Duration.Hover}">
+                        <DoubleAnimation.EasingFunction>
+                          <QuadraticEase EasingMode="EaseOut" />
+                        </DoubleAnimation.EasingFunction>
+                      </DoubleAnimation>
                     </Storyboard>
                   </BeginStoryboard>
                 </Trigger.EnterActions>
@@ -215,17 +315,25 @@
                       <DoubleAnimation Storyboard.TargetName="Lift"
                                        Storyboard.TargetProperty="ScaleX"
                                        To="1"
-                                       Duration="{StaticResource Duration.Hover}" />
+                                       Duration="{StaticResource Duration.Hover}">
+                        <DoubleAnimation.EasingFunction>
+                          <QuadraticEase EasingMode="EaseOut" />
+                        </DoubleAnimation.EasingFunction>
+                      </DoubleAnimation>
                       <DoubleAnimation Storyboard.TargetName="Lift"
                                        Storyboard.TargetProperty="ScaleY"
                                        To="1"
-                                       Duration="{StaticResource Duration.Hover}" />
+                                       Duration="{StaticResource Duration.Hover}">
+                        <DoubleAnimation.EasingFunction>
+                          <QuadraticEase EasingMode="EaseOut" />
+                        </DoubleAnimation.EasingFunction>
+                      </DoubleAnimation>
                     </Storyboard>
                   </BeginStoryboard>
                 </Trigger.ExitActions>
               </Trigger>
               <Trigger Property="IsPressed" Value="True">
-                <!-- Pressed: both shadows tighten toward nothing, as though the tile sank flush
+                <!-- Pressed: both shadows tighten toward nothing, as though the card sank flush
                      with the page instead of standing proud of it. -->
                 <Setter TargetName="ShadowLayer" Property="Effect" Value="{DynamicResource Effect.Tile.Shadow.Pressed}" />
                 <Setter TargetName="HighlightLayer" Property="Effect" Value="{DynamicResource Effect.Tile.Highlight.Pressed}" />
@@ -235,6 +343,158 @@
                 <Setter Property="Cursor" Value="Arrow" />
               </Trigger>
             </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- The grid's own card: the shared visual above, sized by the panel, launching on click. -->
+    <DataTemplate x:Key="TableTileTemplate" DataType="{x:Type vm:TableTileViewModel}">
+      <Button Style="{StaticResource TableCard}"
+              Margin="{DynamicResource Margin.Tile}"
+              Command="{Binding DataContext.LaunchTableCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+              CommandParameter="{Binding}"
+              Loaded="OnTileLoaded"
+              Unloaded="OnTileUnloaded"
+              MouseEnter="OnTileMouseEnter"
+              MouseLeave="OnTileMouseLeave" />
+    </DataTemplate>
+
+    <!-- The Compact layout's card - the exact same TableCard visual as the grid, just with a
+         tighter Margin to match its own smaller tile size (Size.Tile.CompactWidth/Height, set on the
+         panel below, not here - TableCard's own ControlTemplate has no fixed size of its own, so it
+         simply fills whatever the panel arranges it at). -->
+    <DataTemplate x:Key="TableTileCompactTemplate" DataType="{x:Type vm:TableTileViewModel}">
+      <Button Style="{StaticResource TableCard}"
+              Margin="{DynamicResource Margin.Tile.Compact}"
+              Command="{Binding DataContext.LaunchTableCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+              CommandParameter="{Binding}"
+              Loaded="OnTileLoaded"
+              Unloaded="OnTileUnloaded"
+              MouseEnter="OnTileMouseEnter"
+              MouseLeave="OnTileMouseLeave" />
+    </DataTemplate>
+
+    <!--
+      One row in the List layout: a small square thumbnail, title/subtitle, and a favourite star -
+      the same information as a grid tile, just laid out for density (many rows visible at once)
+      rather than for browsing by artwork. Uses WPF's own VirtualizingStackPanel (set on the
+      ItemsControl below), not the custom VirtualizingWrapPanel the grid needs - a single column
+      needs none of that panel's per-row wrapping/column-fitting logic.
+    -->
+    <DataTemplate x:Key="TableListRowTemplate" DataType="{x:Type vm:TableTileViewModel}">
+      <Button Command="{Binding DataContext.LaunchTableCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+              CommandParameter="{Binding}"
+              Cursor="Hand"
+              Focusable="True"
+              HorizontalContentAlignment="Stretch"
+              Margin="{DynamicResource Gap.Below.S}"
+              Loaded="OnTileLoaded"
+              Unloaded="OnTileUnloaded">
+        <Button.Template>
+          <ControlTemplate TargetType="Button">
+            <Border Background="{DynamicResource Brush.Surface.Background}"
+                    CornerRadius="{DynamicResource CornerRadius.S}"
+                    Effect="{DynamicResource Effect.Button.Shadow}">
+              <Grid Margin="{DynamicResource Inset.S}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Same ImageBrush-as-Background trick as the grid/ring tiles - see
+                     TableTileTemplate's own note for why an <Image> element would show square
+                     corners here instead of respecting this Border's rounding. -->
+                <Border Grid.Column="0"
+                        Width="56" Height="56"
+                        Margin="{DynamicResource Gap.Right.M}"
+                        CornerRadius="{DynamicResource CornerRadius.S}">
+                  <Border.Style>
+                    <Style TargetType="Border">
+                      <Setter Property="Background" Value="{DynamicResource Brush.Surface.Recessed}" />
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding HasArtwork}" Value="True">
+                          <Setter Property="Background">
+                            <Setter.Value>
+                              <ImageBrush ImageSource="{Binding Artwork}"
+                                          Stretch="UniformToFill"
+                                          RenderOptions.BitmapScalingMode="HighQuality" />
+                            </Setter.Value>
+                          </Setter>
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </Border.Style>
+                  <TextBlock Text="{Binding Initial}"
+                             HorizontalAlignment="Center"
+                             VerticalAlignment="Center"
+                             FontFamily="{DynamicResource Font.Family.Primary}"
+                             FontSize="{DynamicResource Font.Size.Subtitle}"
+                             FontWeight="{DynamicResource Font.Weight.SemiBold}"
+                             Foreground="{DynamicResource Brush.Text.Muted}"
+                             Opacity="0.55"
+                             Visibility="{Binding HasArtwork, Converter={StaticResource InverseBoolToVisibility}}" />
+                </Border>
+
+                <StackPanel Grid.Column="1"
+                            Margin="{DynamicResource Gap.Right.M}"
+                            VerticalAlignment="Center">
+                  <TextBlock Style="{StaticResource Text.Body}"
+                             Text="{Binding DisplayTitle}"
+                             TextTrimming="CharacterEllipsis" />
+                  <TextBlock Style="{StaticResource Text.Caption}"
+                             Text="{Binding Subtitle}"
+                             TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+
+                <!-- Both use the same TileOverlayButton style the grid/carousel cards do, so a
+                     "clean" row means the exact same glass-pill look everywhere else in the app,
+                     not a third bespoke button style just for this layout. Transparent background
+                     at rest reads better sitting directly on the row's own flat surface than the
+                     frosted-glass look those cards use over artwork. -->
+                <Button Grid.Column="2"
+                        Style="{StaticResource TileOverlayButton}"
+                        Margin="0"
+                        VerticalAlignment="Center"
+                        ToolTip="Favourite"
+                        Command="{Binding DataContext.ToggleFavoriteCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                        CommandParameter="{Binding}">
+                  <Button.Resources>
+                    <SolidColorBrush x:Key="Brush.Surface.Glass" Color="Transparent" />
+                  </Button.Resources>
+                  <Grid>
+                    <TextBlock Text="&#xE734;"
+                               FontFamily="Segoe MDL2 Assets"
+                               FontSize="14"
+                               Foreground="{DynamicResource Brush.Text.Secondary}"
+                               Visibility="{Binding IsFavorite, Converter={StaticResource InverseBoolToVisibility}}" />
+                    <TextBlock Text="&#xE735;"
+                               FontFamily="Segoe MDL2 Assets"
+                               FontSize="14"
+                               Foreground="{DynamicResource Brush.Accent}"
+                               Visibility="{Binding IsFavorite, Converter={StaticResource BoolToVisibility}}" />
+                  </Grid>
+                </Button>
+
+                <Button Grid.Column="3"
+                        Style="{StaticResource TileOverlayButton}"
+                        Margin="8,0,0,0"
+                        VerticalAlignment="Center"
+                        ToolTip="Customize this table"
+                        Command="{Binding DataContext.OpenTableCustomizationCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                        CommandParameter="{Binding}">
+                  <Button.Resources>
+                    <SolidColorBrush x:Key="Brush.Surface.Glass" Color="Transparent" />
+                  </Button.Resources>
+                  <TextBlock Text="&#xE700;"
+                             FontFamily="Segoe MDL2 Assets"
+                             FontSize="14"
+                             Foreground="{DynamicResource Brush.Text.Secondary}" />
+                </Button>
+              </Grid>
+            </Border>
           </ControlTemplate>
         </Button.Template>
       </Button>
@@ -268,7 +528,7 @@
                  ToolTip="{Binding InstallationDisplayName}"
                  Fill="{DynamicResource Brush.Accent}">
         <Rectangle.OpacityMask>
-          <ImageBrush ImageSource="pack://application:,,,/Assets/Library.png"
+          <ImageBrush ImageSource="pack://application:,,,/Nudge;component/Assets/Library.png"
                       Stretch="Uniform"
                       RenderOptions.BitmapScalingMode="HighQuality" />
         </Rectangle.OpacityMask>
@@ -297,7 +557,7 @@
                     Width="44" Height="24"
                     HorizontalAlignment="Left"
                     Background="{DynamicResource Brush.Accent.Surface}"
-                    CornerRadius="{DynamicResource CornerRadius.Pill}"
+                    CornerRadius="7"
                     Effect="{DynamicResource Effect.Button.Shadow}"
                     RenderTransformOrigin="0.5,0.5">
               <Border.RenderTransform>
@@ -412,9 +672,27 @@
                   DisplayMemberPath="Label"
                   ToolTip="Sort the library" />
 
+        <!-- Layout: which arrangement the tables draw in. Back to a dropdown (was briefly a Grid/Ring
+             segmented pill) now that there are three options - a two-position sliding-pill switch
+             has no good way to represent a third choice, where a plain list of options scales
+             cleanly regardless of how many layouts eventually exist. -->
+        <ComboBox Style="{StaticResource ComboBox.Standard}"
+                  Width="150"
+                  Margin="{DynamicResource Gap.Right.M}"
+                  ItemsSource="{Binding LayoutModeOptions}"
+                  SelectedItem="{Binding SelectedLayoutMode, Mode=TwoWay}"
+                  DisplayMemberPath="Label"
+                  ToolTip="Layout" />
+
         <!-- Grid density: how many tiles fit per row, 3 (fewest, largest tiles) to 8 (most, smallest
-             tiles). Bound straight through to VirtualizingWrapPanel.Columns via TablesPerRow. -->
-        <StackPanel Orientation="Horizontal" Margin="{DynamicResource Gap.Right.M}" VerticalAlignment="Center" ToolTip="Tiles per row">
+             tiles). Bound straight through to VirtualizingWrapPanel.Columns via TablesPerRow. Only
+             meaningful for the grid layout - the other layouts show their own fixed arrangement
+             regardless, so this hides itself outside Grid rather than sitting there doing nothing. -->
+        <StackPanel Orientation="Horizontal"
+                    Margin="{DynamicResource Gap.Right.M}"
+                    VerticalAlignment="Center"
+                    ToolTip="Tiles per row"
+                    Visibility="{Binding IsGridLayout, Converter={StaticResource BoolToVisibility}}">
           <TextBlock Text="&#xE80A;"
                      FontFamily="Segoe MDL2 Assets"
                      FontSize="14"
@@ -432,6 +710,15 @@
                      Width="14"
                      VerticalAlignment="Center" />
         </StackPanel>
+
+        <!-- "Surprise me": the answer to standing in front of a wall of tables unable to pick one.
+             An icon button rather than a labelled one - it sits beside Rescan, and two text buttons
+             competing in the header would pull attention away from the library itself. -->
+        <Button Style="{StaticResource Button.Icon}"
+                Margin="{DynamicResource Gap.Right.M}"
+                ToolTip="Pick a table for me"
+                Content="&#xE8B1;"
+                Command="{Binding PickRandomTableCommand}" />
 
         <Button Style="{StaticResource Button.Secondary}"
                 Margin="{DynamicResource Gap.Right.M}"
@@ -453,11 +740,22 @@
     </Grid>
 
     <!-- Status line: scan progress, or a summary of anything that failed to read. -->
-    <TextBlock Grid.Row="1"
-               Style="{StaticResource Text.Caption}"
-               Margin="40,0,40,16"
-               Text="{Binding StatusMessage}"
-               Visibility="{Binding ShowStatusLine, Converter={StaticResource BoolToVisibility}}" />
+    <StackPanel Grid.Row="1" Margin="40,0,40,16">
+      <TextBlock Style="{StaticResource Text.Caption}"
+                 Text="{Binding StatusMessage}"
+                 Visibility="{Binding ShowStatusLine, Converter={StaticResource BoolToVisibility}}" />
+
+      <!-- The rescan animation bar - real progress (LibraryViewModel.ScanProgressPercent), not just
+           a spinner, so it visibly reflects the scanner actually walking the Tables folder rather
+           than a canned animation that would run the same whether the scan is doing real work or
+           not. Only for a RESCAN of a library that already has tables on screen - the very first
+           scan (nothing loaded yet) already gets its own big centred indeterminate bar below. -->
+      <ProgressBar Style="{StaticResource Progress.Standard}"
+                   Margin="{DynamicResource Gap.Above.S}"
+                   Minimum="0" Maximum="100"
+                   controls:ProgressBarBehavior.SmoothValue="{Binding ScanProgressPercent, Mode=OneWay}"
+                   Visibility="{Binding IsRescanning, Converter={StaticResource BoolToVisibility}}" />
+    </StackPanel>
 
     <!-- ======================= First scan in progress ======================= -->
     <StackPanel Grid.Row="2"
@@ -622,13 +920,16 @@
     </StackPanel>
 
     <!-- ======================= The grid ======================= -->
+    <!-- Inset as the ItemsControl's Margin rather than this ScrollViewer's Padding - see the note on
+         SettingsView's own ScrollViewer for why (Padding becomes the clip rect, which slices tile
+         shadows off at a hard line instead of letting them fade). -->
     <ScrollViewer Grid.Row="2"
                   CanContentScroll="True"
-                  Padding="{DynamicResource Padding.Grid}"
-                  Visibility="{Binding HasVisibleTables, Converter={StaticResource BoolToVisibility}}">
-      <ItemsControl ItemsSource="{Binding TablesView}"
+                  Visibility="{Binding ShowGrid, Converter={StaticResource BoolToVisibility}}">
+      <ItemsControl x:Name="GridTiles" ItemsSource="{Binding TablesView}"
                     ItemTemplate="{StaticResource TableTileTemplate}"
                     Focusable="False"
+                    Margin="{DynamicResource Padding.Grid}"
                     VirtualizingPanel.IsVirtualizing="True"
                     VirtualizingPanel.ScrollUnit="Pixel">
         <ItemsControl.ItemsPanel>
@@ -636,6 +937,192 @@
             <controls:VirtualizingWrapPanel ItemWidth="{DynamicResource Size.Tile.Width}"
                                             ItemHeight="{DynamicResource Size.Tile.Height}"
                                             Columns="{Binding DataContext.TablesPerRow, RelativeSource={RelativeSource AncestorType=ItemsControl}}" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+      </ItemsControl>
+    </ScrollViewer>
+
+    <!-- ======================= Compact ======================= -->
+    <!-- Same card, same virtualized panel, just Size.Tile.CompactWidth/Height and no explicit
+         Columns - VirtualizingWrapPanel's own "Columns unset" behaviour is "as many
+         CompactWidth-sized columns as fit", which is exactly what a denser layout wants: more
+         columns simply because each one takes up less room, not a manually-chosen count the way
+         the Grid's own density slider works. -->
+    <ScrollViewer Grid.Row="2"
+                  CanContentScroll="True"
+                  Visibility="{Binding ShowCompact, Converter={StaticResource BoolToVisibility}}">
+      <ItemsControl x:Name="CompactTiles" ItemsSource="{Binding TablesView}"
+                    ItemTemplate="{StaticResource TableTileCompactTemplate}"
+                    Focusable="False"
+                    Margin="{DynamicResource Padding.Grid}"
+                    VirtualizingPanel.IsVirtualizing="True"
+                    VirtualizingPanel.ScrollUnit="Pixel">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <controls:VirtualizingWrapPanel ItemWidth="{DynamicResource Size.Tile.CompactWidth}"
+                                            ItemHeight="{DynamicResource Size.Tile.CompactHeight}" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+      </ItemsControl>
+    </ScrollViewer>
+
+    <!-- ======================= The ring (carousel layout) =======================
+         An alternative to the grid, opted into via Settings > Layout type. Only ever holds a small
+         window of tiles (LibraryViewModel.CarouselWindow), each positioned on a shallow arc by
+         CarouselSlotConverter rather than by ordinary panel layout - see that converter's own
+         remarks for the geometry, and the "Not built here" note on LibraryViewModel for why this
+         doesn't try to show all 1,000 tables the way the grid's own virtualization does. -->
+    <!-- ClipToBounds - a plain Grid does not clip its own children by default, so an oversized or
+         risen tile could otherwise render past this row's own allocated space and visibly overlap
+         the header above it (confirmed directly - happened when the card size below was tuned too
+         large for the space actually available). This is the hard safety net; the card/arc sizes
+         below are also chosen to comfortably fit without ever touching this clip in the first
+         place, so it should never actually engage in normal use. -->
+    <Grid Grid.Row="2"
+          Background="Transparent"
+          ClipToBounds="True"
+          MouseWheel="OnCarouselMouseWheel"
+          Visibility="{Binding ShowCarousel, Converter={StaticResource BoolToVisibility}}">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="*" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+
+      <!-- Every slot lives in the same single Grid cell; RenderTransform is what actually spreads
+           them out along the arc, via the Style below. Margin, not Padding or a tighter clip rect -
+           the same fix already applied to every other bloom-cutoff spot this session (SettingsView's
+           and LibraryView's own ScrollViewers). RenderTransform never changes an element's own
+           measured/arranged bounds, only where it's painted - so this ItemsControl's actual layout
+           box is small and sits wherever centering puts it, while the transformed cards balloon out
+           from that point far past it. A symmetric Margin here guarantees real clearance between
+           that anchor point and the outer Grid's ClipToBounds edge on every side, which is what
+           actually stops a card's shadow blur - or, at the extremes of the arc, the card itself -
+           from ever reaching the clip in ordinary use. Before this, the clip line most visibly
+           showed up as a hard edge along the top of the row, right where a centred, risen tile's
+           shadow blur reached closest to it. -->
+      <ItemsControl Grid.Row="0"
+                    Margin="70,60,70,60"
+                    ItemsSource="{Binding CarouselWindow}"
+                    AlternationCount="{Binding CarouselWindow.Count}"
+                    Focusable="False"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <Grid />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+
+        <ItemsControl.ItemContainerStyle>
+          <Style TargetType="ContentPresenter">
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
+            <Setter Property="Panel.ZIndex">
+              <Setter.Value>
+                <MultiBinding Converter="{StaticResource CarouselSlotConverter}" ConverterParameter="ZIndex">
+                  <Binding RelativeSource="{RelativeSource Self}" Path="(ItemsControl.AlternationIndex)" />
+                  <Binding Path="DataContext.CarouselWindowStart" RelativeSource="{RelativeSource AncestorType=ItemsControl}" />
+                  <Binding Path="DataContext.CarouselPosition" RelativeSource="{RelativeSource AncestorType=ItemsControl}" />
+                </MultiBinding>
+              </Setter.Value>
+            </Setter>
+            <Setter Property="Opacity">
+              <Setter.Value>
+                <MultiBinding Converter="{StaticResource CarouselSlotConverter}" ConverterParameter="Opacity">
+                  <Binding RelativeSource="{RelativeSource Self}" Path="(ItemsControl.AlternationIndex)" />
+                  <Binding Path="DataContext.CarouselWindowStart" RelativeSource="{RelativeSource AncestorType=ItemsControl}" />
+                  <Binding Path="DataContext.CarouselPosition" RelativeSource="{RelativeSource AncestorType=ItemsControl}" />
+                </MultiBinding>
+              </Setter.Value>
+            </Setter>
+            <Setter Property="RenderTransform">
+              <Setter.Value>
+                <MultiBinding Converter="{StaticResource CarouselSlotConverter}" ConverterParameter="Transform">
+                  <Binding RelativeSource="{RelativeSource Self}" Path="(ItemsControl.AlternationIndex)" />
+                  <Binding Path="DataContext.CarouselWindowStart" RelativeSource="{RelativeSource AncestorType=ItemsControl}" />
+                  <Binding Path="DataContext.CarouselPosition" RelativeSource="{RelativeSource AncestorType=ItemsControl}" />
+                </MultiBinding>
+              </Setter.Value>
+            </Setter>
+          </Style>
+        </ItemsControl.ItemContainerStyle>
+
+        <ItemsControl.ItemTemplate>
+          <DataTemplate DataType="{x:Type vm:TableTileViewModel}">
+            <Grid>
+              <!-- A soft ambient glow behind the card, visible only on whichever tile is genuinely
+                   centred (or very close to it mid-scroll) - driven by CarouselSlotConverter's
+                   "Glow" case, the same sharply-peaked falloff behind the rise/scale boost, so it
+                   grows and fades in step with that rise rather than as an unrelated effect. Reads
+                   the container's own AlternationIndex via AncestorType=ContentPresenter rather than
+                   RelativeSource=Self, since - unlike the ItemContainerStyle Setters above, which
+                   target the container directly - this element lives inside the tile's own content,
+                   one level further from that attached property. -->
+              <Ellipse Width="440" Height="440" Fill="{DynamicResource Brush.Accent}">
+                <Ellipse.Style>
+                  <Style TargetType="Ellipse">
+                    <Setter Property="Opacity">
+                      <Setter.Value>
+                        <MultiBinding Converter="{StaticResource CarouselSlotConverter}" ConverterParameter="Glow">
+                          <Binding RelativeSource="{RelativeSource AncestorType=ContentPresenter}" Path="(ItemsControl.AlternationIndex)" />
+                          <Binding Path="DataContext.CarouselWindowStart" RelativeSource="{RelativeSource AncestorType=ItemsControl}" />
+                          <Binding Path="DataContext.CarouselPosition" RelativeSource="{RelativeSource AncestorType=ItemsControl}" />
+                        </MultiBinding>
+                      </Setter.Value>
+                    </Setter>
+                  </Style>
+                </Ellipse.Style>
+                <Ellipse.OpacityMask>
+                  <RadialGradientBrush>
+                    <GradientStop Color="#66FFFFFF" Offset="0" />
+                    <GradientStop Color="#00FFFFFF" Offset="1" />
+                  </RadialGradientBrush>
+                </Ellipse.OpacityMask>
+              </Ellipse>
+
+              <!-- Same TableCard visual the grid uses, at the grid's own tile size - a table's card
+                   no longer looks or is sized differently depending which layout you're looking at
+                   it in, only its arrangement (arc vs grid) changes. Only the click command differs:
+                   centred tiles launch, off-centre ones ease themselves to centre first
+                   (CarouselTileClickCommand's own remarks). -->
+              <Button Style="{StaticResource TableCard}"
+                      Width="{DynamicResource Size.Tile.Width}"
+                      Height="{DynamicResource Size.Tile.Height}"
+                      ToolTip="{Binding DisplayTitle}"
+                      Command="{Binding DataContext.CarouselTileClickCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                      CommandParameter="{Binding}"
+                      Loaded="OnTileLoaded"
+                      Unloaded="OnTileUnloaded"
+                      MouseEnter="OnTileMouseEnter"
+                      MouseLeave="OnTileMouseLeave" />
+            </Grid>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+
+      <!-- Position readout only - no Prev/Next buttons. Navigation is mouse-wheel-only per explicit
+           request (OnCarouselMouseWheel in the code-behind); clicking a visible side tile still also
+           brings it to centre (CarouselTileClickCommand), so the ring is never actually unreachable
+           without a wheel, just not button-driven. -->
+      <TextBlock Grid.Row="1"
+                 Style="{StaticResource Text.Caption}"
+                 HorizontalAlignment="Center"
+                 Margin="{DynamicResource Gap.Above.XL}"
+                 Text="{Binding CarouselPositionLabel}" />
+    </Grid>
+
+    <!-- ======================= The list ======================= -->
+    <ScrollViewer Grid.Row="2"
+                  CanContentScroll="True"
+                  Visibility="{Binding ShowList, Converter={StaticResource BoolToVisibility}}">
+      <ItemsControl x:Name="ListTiles" ItemsSource="{Binding TablesView}"
+                    ItemTemplate="{StaticResource TableListRowTemplate}"
+                    Focusable="False"
+                    Margin="{DynamicResource Padding.Grid}"
+                    VirtualizingPanel.IsVirtualizing="True"
+                    VirtualizingPanel.ScrollUnit="Pixel">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <VirtualizingStackPanel Orientation="Vertical" />
           </ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
       </ItemsControl>
@@ -656,6 +1143,144 @@
                    Text="{Binding StatusMessage}" />
       </StackPanel>
     </Border>
+
+    <!-- ======================= Random table picker ======================= -->
+    <!-- A full-bleed scrim over the whole window rather than a small popup: this is a "decide what
+         to play" moment, so the library behind it is deliberately pushed back rather than left
+         competing for attention. -->
+    <Grid Grid.Row="0"
+          Grid.RowSpan="3"
+          Background="{DynamicResource Brush.Overlay.Scrim}"
+          Visibility="{Binding IsRandomPickerOpen, Converter={StaticResource BoolToVisibility}}">
+      <Grid.Style>
+        <Style TargetType="Grid">
+          <Style.Triggers>
+            <DataTrigger Binding="{Binding IsRandomPickerOpen}" Value="True">
+              <DataTrigger.EnterActions>
+                <BeginStoryboard>
+                  <Storyboard>
+                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.18" />
+                  </Storyboard>
+                </BeginStoryboard>
+              </DataTrigger.EnterActions>
+            </DataTrigger>
+          </Style.Triggers>
+        </Style>
+      </Grid.Style>
+
+      <!-- Clicking the scrim dismisses, the way any modal should. -->
+      <Rectangle Fill="Transparent">
+        <Rectangle.InputBindings>
+          <MouseBinding MouseAction="LeftClick" Command="{Binding CloseRandomPickerCommand}" />
+        </Rectangle.InputBindings>
+      </Rectangle>
+
+      <!-- Style comes from the Style element below (BasedOn Card.Neumorphic) rather than an
+           attribute here - WPF allows Style to be set only once, and the element form is needed to
+           carry the entrance animation's trigger. -->
+      <ContentControl HorizontalAlignment="Center"
+                      VerticalAlignment="Center"
+                      MaxWidth="720"
+                      Padding="{DynamicResource Inset.XL}">
+        <ContentControl.RenderTransform>
+          <ScaleTransform ScaleX="1" ScaleY="1" />
+        </ContentControl.RenderTransform>
+        <ContentControl.Style>
+          <Style TargetType="ContentControl" BasedOn="{StaticResource Card.Neumorphic}">
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding IsRandomPickerOpen}" Value="True">
+                <DataTrigger.EnterActions>
+                  <BeginStoryboard>
+                    <Storyboard>
+                      <!-- Settles in from slightly small, so the card reads as arriving rather than
+                           being switched on. Targets the card's own RenderTransform by property
+                           path rather than by name: a Setter inside a Style cannot carry a
+                           TargetName, since the style has no view of the names around it. -->
+                      <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX"
+                                       From="0.94" To="1" Duration="0:0:0.22">
+                        <DoubleAnimation.EasingFunction>
+                          <BackEase EasingMode="EaseOut" Amplitude="0.4" />
+                        </DoubleAnimation.EasingFunction>
+                      </DoubleAnimation>
+                      <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY"
+                                       From="0.94" To="1" Duration="0:0:0.22">
+                        <DoubleAnimation.EasingFunction>
+                          <BackEase EasingMode="EaseOut" Amplitude="0.4" />
+                        </DoubleAnimation.EasingFunction>
+                      </DoubleAnimation>
+                    </Storyboard>
+                  </BeginStoryboard>
+                </DataTrigger.EnterActions>
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </ContentControl.Style>
+
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+
+          <!-- The cover, at the same proportions the grid uses so it reads as the same object. -->
+          <Border Grid.Column="0"
+                  Width="220" Height="400"
+                  CornerRadius="{DynamicResource CornerRadius.M}"
+                  Background="{DynamicResource Brush.Surface.Recessed}"
+                  Effect="{DynamicResource Effect.Card.Shadow}"
+                  ClipToBounds="True">
+            <Grid>
+              <TextBlock Text="{Binding RandomTable.Initial}"
+                         HorizontalAlignment="Center"
+                         VerticalAlignment="Center"
+                         FontSize="{DynamicResource Font.Size.Display}"
+                         Foreground="{DynamicResource Brush.Text.Muted}"
+                         Opacity="0.5" />
+              <Image Source="{Binding RandomTable.Artwork}" Stretch="UniformToFill" />
+            </Grid>
+          </Border>
+
+          <StackPanel Grid.Column="1"
+                      Margin="{DynamicResource Inset.XL}"
+                      VerticalAlignment="Center">
+            <TextBlock Style="{StaticResource Text.Caption}"
+                       Foreground="{DynamicResource Brush.Accent}"
+                       Text="TONIGHT'S PICK" />
+
+            <TextBlock Style="{StaticResource Text.Title}"
+                       Margin="{DynamicResource Gap.Above.S}"
+                       TextWrapping="Wrap"
+                       Text="{Binding RandomTable.DisplayTitle}" />
+
+            <TextBlock Style="{StaticResource Text.BodySecondary}"
+                       Margin="{DynamicResource Gap.Above.S}"
+                       Text="{Binding RandomTable.Subtitle}" />
+
+            <StackPanel Orientation="Horizontal" Margin="{DynamicResource Gap.Above.XL}">
+              <Button Style="{StaticResource Button.Primary}"
+                      Content="Play"
+                      Margin="{DynamicResource Gap.Right.S}"
+                      Command="{Binding PlayRandomTableCommand}" />
+              <Button Style="{StaticResource Button.Secondary}"
+                      Content="Choose another"
+                      Margin="{DynamicResource Gap.Right.S}"
+                      Command="{Binding PickRandomTableCommand}" />
+              <Button Style="{StaticResource Button.Subtle}"
+                      Content="Details"
+                      VerticalAlignment="Center"
+                      Command="{Binding OpenRandomTableDetailsCommand}" />
+            </StackPanel>
+
+            <Button Style="{StaticResource Button.Subtle}"
+                    Content="Close"
+                    HorizontalAlignment="Left"
+                    Margin="{DynamicResource Gap.Above.M}"
+                    Command="{Binding CloseRandomPickerCommand}" />
+          </StackPanel>
+        </Grid>
+      </ContentControl>
+    </Grid>
 
   </Grid>
 </UserControl>

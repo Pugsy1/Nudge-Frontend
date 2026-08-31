@@ -56,6 +56,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<IVpxInstallationDiscovery, VpxInstallationDiscovery>();
 
         services.TryAddSingleton<IOleTableInfoReader, OleTableInfoReader>();
+        services.TryAddSingleton<ITableVideoLocator, Media.TableVideoLocator>();
         services.TryAddSingleton<ITableFilenameParser, TableFilenameParser>();
         services.TryAddSingleton<ITableFileReader, VpxTableFileReader>();
 

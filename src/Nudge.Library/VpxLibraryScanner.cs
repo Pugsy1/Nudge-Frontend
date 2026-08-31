@@ -112,11 +112,32 @@ public sealed class VpxLibraryScanner : IVpxLibraryScanner
             };
         }
 
+        // The SearchOption overload enumerates in "Compatible" mode, where one inaccessible
+        // subdirectory anywhere under the tree (a locked folder, a cloud-placeholder stub, a
+        // permissions quirk) throws and aborts the whole walk - discarding every file already
+        // found, so a rescan silently reports zero removals and nothing already in the database
+        // ever gets cleaned up. IgnoreInaccessible=true skips the bad entry and keeps walking the
+        // rest of the tree instead.
+        // AttributesToSkip=0 overrides EnumerationOptions' own default (Hidden | System) - the old
+        // SearchOption.AllDirectories "Compatible" mode this replaced never skipped files by
+        // attribute at all, and plenty of real .vpx files end up marked Hidden or System without the
+        // user ever choosing that (some VPX table installers/extractors set it, and so does at least
+        // one common cloud-sync client for files not yet fully downloaded) - silently excluding those
+        // from every future scan would look identical to "Nudge isn't picking up files I added",
+        // which is exactly the failure mode this whole rewrite exists to close, not reopen a new way
+        // to hit.
+        var enumerationOptions = new EnumerationOptions
+        {
+            RecurseSubdirectories = true,
+            IgnoreInaccessible = true,
+            AttributesToSkip = 0
+        };
+
         List<string> files;
         try
         {
             files = _fileSystem.Directory
-                .EnumerateFiles(tablesPath, "*.vpx", SearchOption.AllDirectories)
+                .EnumerateFiles(tablesPath, "*.vpx", enumerationOptions)
                 .ToList();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

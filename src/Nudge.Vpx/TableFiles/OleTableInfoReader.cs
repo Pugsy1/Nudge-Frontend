@@ -75,6 +75,7 @@ public sealed class OleTableInfoReader : IOleTableInfoReader
     private Result<TableInfoMetadata> Read(string path)
     {
         RootStorage rootStorage;
+        System.IO.Stream fileStream = _fileSystem.File.OpenRead(path);
         try
         {
             // Opened through IFileSystem, then handed to OpenMcdf as a stream, rather than letting
@@ -82,11 +83,17 @@ public sealed class OleTableInfoReader : IOleTableInfoReader
             // OLE compound file access needs random-access seeking, which a real FileStream and a
             // MockFileSystem's in-memory stream both support equally well, so this works against
             // fake filesystems in tests exactly as it does against a real disk.
-            System.IO.Stream fileStream = _fileSystem.File.OpenRead(path);
             rootStorage = RootStorage.Open(fileStream, StorageModeFlags.None);
         }
         catch (Exception ex)
         {
+            // RootStorage.Open only takes ownership of fileStream once it succeeds - on failure the
+            // stream is still ours to close. Without this, every mis-named or corrupt file a user has
+            // in their Tables folder leaks a FileStream handle on every single scan, forever (the
+            // scanner never records a fingerprint for a file it failed to read, so it looks "new"
+            // again next time and gets reopened rather than skipped).
+            fileStream.Dispose();
+
             // OpenMcdf's failure modes for "this is not an OLE compound document" are not narrowly
             // documented, and the input here is an arbitrary file a user pointed Nudge at - it could
             // be anything. Any failure to open means Nudge cannot read this as a .vpx file; that is

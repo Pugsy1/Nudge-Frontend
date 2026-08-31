@@ -1,0 +1,513 @@
+<UserControl x:Class="Nudge.App.Views.TableCustomizationView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:Nudge.App.ViewModels"
+             xmlns:converters="clr-namespace:Nudge.App.Converters"
+             d:DataContext="{d:DesignInstance Type=vm:TableCustomizationViewModel}"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+  <UserControl.Resources>
+    <converters:TableCustomizationPreviewConverter x:Key="PreviewConverter" />
+    <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+  </UserControl.Resources>
+
+  <Grid Background="{DynamicResource Brush.Window.Background}">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+
+    <!-- Header - same Focusable="False" reasoning as SettingsView's own back button: without it,
+         this becomes the page's first focusable control and grabs an unwanted keyboard-focus ring
+         the instant the "..." button that opened this page leaves the visual tree. -->
+    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="{DynamicResource Padding.Header}" VerticalAlignment="Center">
+      <Button Style="{StaticResource Button.Icon}"
+              Content="&#xE72B;"
+              Margin="{DynamicResource Gap.Right.L}"
+              ToolTip="Back to your library"
+              Command="{Binding BackCommand}"
+              Focusable="False" />
+      <StackPanel>
+        <TextBlock Style="{StaticResource Text.Title}" Text="Customize table" />
+        <TextBlock Style="{StaticResource Text.BodySecondary}"
+                   Margin="{DynamicResource Gap.Above.S}"
+                   Text="{Binding Tile.DisplayTitle}" />
+      </StackPanel>
+    </StackPanel>
+
+    <!-- Inset as the StackPanel's Margin, not this ScrollViewer's Padding - see SettingsView's own
+         ScrollViewer note for why (Padding becomes the clip rect and slices card shadows). -->
+    <ScrollViewer Grid.Row="1">
+      <StackPanel MaxWidth="640" HorizontalAlignment="Left" Margin="40,0,40,40">
+
+        <!-- ======================= Requirements ======================= -->
+        <!-- Just PinMAME ROM availability for now (IRomNameReader/IRomAvailabilityChecker, both
+             already in Nudge.Core - see TableCustomizationViewModel.RunRomCheckAsync). A single
+             on-demand read for whichever one table this page is open for, not something every table
+             in the library gets checked for during a scan - GameStg is too large to read for all of
+             them at once (IRomNameReader's own remarks). -->
+        <TextBlock Style="{StaticResource Text.SectionHeading}" Margin="{DynamicResource Gap.Below.M}" Text="REQUIREMENTS" />
+
+        <ContentControl Style="{StaticResource Card.Neumorphic}" Margin="{DynamicResource Gap.Below.XL}">
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Ellipse Grid.Column="0"
+                     Width="10" Height="10"
+                     Margin="{DynamicResource Gap.Right.M}"
+                     VerticalAlignment="Top"
+                     Fill="{DynamicResource Brush.Confidence.Unknown}">
+              <Ellipse.Style>
+                <Style TargetType="Ellipse">
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding RomLooksGood}" Value="True">
+                      <Setter Property="Fill" Value="{DynamicResource Brush.Confidence.High}" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding RomLooksMissing}" Value="True">
+                      <Setter Property="Fill" Value="{DynamicResource Brush.Confidence.Low}" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </Ellipse.Style>
+            </Ellipse>
+
+            <TextBlock Grid.Column="1"
+                       Style="{StaticResource Text.Body}"
+                       TextWrapping="Wrap"
+                       Text="{Binding RomStatusMessage}" />
+          </Grid>
+        </ContentControl>
+
+        <!-- ======================= Artwork ======================= -->
+        <TextBlock Style="{StaticResource Text.SectionHeading}" Margin="{DynamicResource Gap.Below.M}" Text="ARTWORK" />
+
+        <ContentControl Style="{StaticResource Card.Neumorphic}" Margin="{DynamicResource Gap.Below.XL}">
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- The picked file (live preview) wins over whatever's already loaded on the tile - see
+                 TableCustomizationPreviewConverter. An ImageBrush as this Border's own Background,
+                 not a layered <Image>, so it actually respects the rounded corners (WPF does not
+                 clip arbitrary child content to a Border's CornerRadius, only the Border's own
+                 fill). -->
+            <Border Grid.Column="0"
+                    Width="140" Height="140"
+                    CornerRadius="{DynamicResource CornerRadius.M}">
+              <Border.Background>
+                <ImageBrush Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality">
+                  <ImageBrush.ImageSource>
+                    <MultiBinding Converter="{StaticResource PreviewConverter}">
+                      <Binding Path="CustomImagePath" />
+                      <Binding Path="Tile.Artwork" />
+                    </MultiBinding>
+                  </ImageBrush.ImageSource>
+                </ImageBrush>
+              </Border.Background>
+              <!-- Only shown when the same two inputs the ImageBrush above reads (via the same
+                   converter, just asked a different question - see its own remarks) resolve to no
+                   image at all. Previously unconditional, so it sat rendered on top of a real preview
+                   image the whole time instead of only appearing when there wasn't one. -->
+              <TextBlock Text="No image yet"
+                         Style="{StaticResource Text.Caption}"
+                         HorizontalAlignment="Center"
+                         VerticalAlignment="Center"
+                         TextAlignment="Center"
+                         TextWrapping="Wrap">
+                <TextBlock.Visibility>
+                  <MultiBinding Converter="{StaticResource PreviewConverter}" ConverterParameter="PlaceholderVisibility">
+                    <Binding Path="CustomImagePath" />
+                    <Binding Path="Tile.Artwork" />
+                  </MultiBinding>
+                </TextBlock.Visibility>
+              </TextBlock>
+            </Border>
+
+            <StackPanel Grid.Column="1"
+                        Margin="{DynamicResource Gap.Right.L}"
+                        VerticalAlignment="Center">
+              <TextBlock Style="{StaticResource Text.Caption}"
+                         TextWrapping="Wrap"
+                         Text="Pick a local image to use for this table instead of whatever Nudge finds automatically." />
+              <StackPanel Orientation="Horizontal" Margin="{DynamicResource Gap.Above.M}">
+                <Button Style="{StaticResource Button.Secondary}"
+                        Margin="{DynamicResource Gap.Right.S}"
+                        Content="Choose image…"
+                        Command="{Binding PickImageCommand}" />
+                <Button Style="{StaticResource Button.Subtle}"
+                        Content="Clear"
+                        Command="{Binding ClearImageCommand}" />
+              </StackPanel>
+            </StackPanel>
+          </Grid>
+        </ContentControl>
+
+        <!-- Not liking the automatically-matched image is exactly what this is for - "click the three
+             lines and select between the [scraping] providers... hand select a good image" - browses
+             one named source at a time via IArtworkBrowser (Nudge.Media), which returns lightweight
+             candidates (a URL and a short description, nothing downloaded yet) for a gallery like this
+             one; only the one actually picked gets downloaded, resized and cached
+             (SelectArtworkCandidateCommand). -->
+        <ContentControl Style="{StaticResource Card.Neumorphic}" Margin="{DynamicResource Gap.Below.XL}">
+          <StackPanel>
+            <TextBlock Style="{StaticResource Text.Body}" Text="Don't like the picture above?" />
+            <TextBlock Style="{StaticResource Text.Caption}"
+                       Margin="{DynamicResource Gap.Above.S}"
+                       TextWrapping="Wrap"
+                       Text="Search a specific source and hand-pick the image yourself instead." />
+
+            <StackPanel Orientation="Horizontal" Margin="{DynamicResource Gap.Above.M}">
+              <ComboBox Style="{StaticResource ComboBox.Standard}"
+                        Width="180"
+                        Margin="{DynamicResource Gap.Right.S}"
+                        ItemsSource="{Binding ArtworkSourceOptions}"
+                        SelectedItem="{Binding SelectedBrowseSource, Mode=TwoWay}"
+                        DisplayMemberPath="Label" />
+              <Button Style="{StaticResource Button.Secondary}"
+                      Content="Scrape"
+                      Command="{Binding BrowseArtworkCommand}"
+                      ToolTip="Looks up candidate images from the selected source for this table" />
+            </StackPanel>
+
+            <ProgressBar Style="{StaticResource Progress.Indeterminate}"
+                         Margin="{DynamicResource Gap.Above.M}"
+                         Visibility="{Binding IsBrowsingArtwork, Converter={StaticResource BoolToVisibility}}" />
+
+            <TextBlock Style="{StaticResource Text.Caption}"
+                       Margin="{DynamicResource Gap.Above.M}"
+                       TextWrapping="Wrap"
+                       Visibility="{Binding HasBrowseStatusMessage, Converter={StaticResource BoolToVisibility}}"
+                       Text="{Binding BrowseStatusMessage}" />
+
+            <ItemsControl Margin="{DynamicResource Gap.Above.M}" ItemsSource="{Binding ArtworkCandidates}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <!-- Portrait, like the real artwork it's a candidate for, not a small square crop -
+                       and its own little card (rounded, shadowed, a caption underneath) rather than a
+                       bare thumbnail, so picking between several looks like a deliberate choice
+                       instead of clicking blind squares. The image previews straight from
+                       ArtworkCandidate.ImageUrl - nothing is downloaded/cached until this one is
+                       actually clicked; WPF's BitmapImage loads an http(s) source directly, the same
+                       as a local file. -->
+                  <StackPanel Margin="0,0,12,12" Width="120">
+                    <Button Width="120" Height="170"
+                            Cursor="Hand"
+                            ToolTip="{Binding Description}"
+                            Command="{Binding DataContext.SelectArtworkCandidateCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                            CommandParameter="{Binding}">
+                      <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                          <!-- RenderTransform (and its x:Name) has to live inside this Grid, not on
+                               the Button element the template is applied to - a name given to a
+                               Button property from outside the template lives in the surrounding
+                               DataTemplate's own name scope, which the Storyboard below (built as
+                               part of THIS ControlTemplate's content) cannot see at all. Naming it
+                               here, inside the template's own visual tree, is what actually lets
+                               Storyboard.TargetName="Lift" resolve - confirmed the hard way: setting
+                               it on the Button instead threw "'Lift' name cannot be found in the name
+                               scope of ControlTemplate" the moment the mouse entered one of these. -->
+                          <Grid RenderTransformOrigin="0.5,0.5">
+                            <Grid.RenderTransform>
+                              <ScaleTransform x:Name="Lift" ScaleX="1" ScaleY="1" />
+                            </Grid.RenderTransform>
+                            <Border x:Name="Root"
+                                    CornerRadius="{DynamicResource CornerRadius.M}"
+                                    Background="{DynamicResource Brush.Surface.Recessed}"
+                                    BorderThickness="2"
+                                    BorderBrush="Transparent"
+                                    Effect="{DynamicResource Effect.Card.Shadow}">
+                              <Border CornerRadius="{DynamicResource CornerRadius.M}" ClipToBounds="True">
+                                <Image Stretch="UniformToFill" Source="{Binding ImageUrl}" />
+                              </Border>
+                            </Border>
+
+                            <!-- A clear "pick me" affordance on hover, rather than expecting a bare
+                                 image to read as clickable on its own. -->
+                            <Border x:Name="PickBadge"
+                                    Width="30" Height="30"
+                                    Margin="8"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Top"
+                                    CornerRadius="{DynamicResource CornerRadius.Pill}"
+                                    Background="{DynamicResource Brush.Accent.Surface}"
+                                    Opacity="0">
+                              <TextBlock Text="&#xE73E;"
+                                         FontFamily="Segoe MDL2 Assets"
+                                         FontSize="14"
+                                         HorizontalAlignment="Center"
+                                         VerticalAlignment="Center"
+                                         Foreground="{DynamicResource Brush.Accent.Foreground}" />
+                            </Border>
+                          </Grid>
+                          <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                              <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
+                              <Setter TargetName="PickBadge" Property="Opacity" Value="1" />
+                              <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                  <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetName="Lift" Storyboard.TargetProperty="ScaleX"
+                                                      To="{StaticResource Scale.Tile.Hover}" Duration="{StaticResource Duration.Hover}" />
+                                    <DoubleAnimation Storyboard.TargetName="Lift" Storyboard.TargetProperty="ScaleY"
+                                                      To="{StaticResource Scale.Tile.Hover}" Duration="{StaticResource Duration.Hover}" />
+                                  </Storyboard>
+                                </BeginStoryboard>
+                              </Trigger.EnterActions>
+                              <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                  <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetName="Lift" Storyboard.TargetProperty="ScaleX"
+                                                      To="1" Duration="{StaticResource Duration.Hover}" />
+                                    <DoubleAnimation Storyboard.TargetName="Lift" Storyboard.TargetProperty="ScaleY"
+                                                      To="1" Duration="{StaticResource Duration.Hover}" />
+                                  </Storyboard>
+                                </BeginStoryboard>
+                              </Trigger.ExitActions>
+                            </Trigger>
+                          </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                      </Button.Template>
+                    </Button>
+                    <TextBlock Style="{StaticResource Text.Caption}"
+                               Margin="{DynamicResource Gap.Above.S}"
+                               HorizontalAlignment="Center"
+                               TextAlignment="Center"
+                               TextTrimming="CharacterEllipsis"
+                               Text="{Binding Description}" />
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </ContentControl>
+
+        <!-- ======================= Visibility ======================= -->
+        <TextBlock Style="{StaticResource Text.SectionHeading}" Margin="{DynamicResource Gap.Below.M}" Text="VISIBILITY" />
+
+        <ContentControl Style="{StaticResource Card.Neumorphic}" Margin="{DynamicResource Gap.Below.XL}">
+          <StackPanel>
+            <CheckBox Style="{StaticResource Switch}" IsChecked="{Binding IsHidden, Mode=TwoWay}">
+              <TextBlock Style="{StaticResource Text.Body}" Text="Hide from Nudge" />
+            </CheckBox>
+            <TextBlock Style="{StaticResource Text.Caption}"
+                       Margin="{DynamicResource Gap.Above.S}"
+                       TextWrapping="Wrap"
+                       Text="Removes this table from the grid, carousel, list and search entirely - the scanned file and its database row are untouched, so nothing is lost. Find it again anytime under Settings' hidden-tables list." />
+          </StackPanel>
+        </ContentControl>
+
+        <!-- ======================= Video ======================= -->
+        <TextBlock Style="{StaticResource Text.SectionHeading}" Margin="{DynamicResource Gap.Below.M}" Text="HOVER VIDEO" />
+
+        <ContentControl Style="{StaticResource Card.Neumorphic}" Margin="{DynamicResource Gap.Below.XL}">
+          <StackPanel>
+            <TextBlock Style="{StaticResource Text.Body}" Text="{Binding VideoFileName}" TextTrimming="CharacterEllipsis" />
+            <TextBlock Style="{StaticResource Text.Caption}"
+                       Margin="{DynamicResource Gap.Above.S}"
+                       TextWrapping="Wrap"
+                       Text="A trailer or gameplay capture to play over this table's artwork while you hover it in the grid or carousel. A local file always wins over a scraped one - it's usually real gameplay rather than an overview video." />
+            <StackPanel Orientation="Horizontal" Margin="{DynamicResource Gap.Above.M}">
+              <Button Style="{StaticResource Button.Secondary}"
+                      Margin="{DynamicResource Gap.Right.S}"
+                      Content="Choose video…"
+                      Command="{Binding PickVideoCommand}" />
+              <Button Style="{StaticResource Button.Subtle}"
+                      Content="Clear"
+                      Command="{Binding ClearVideoCommand}" />
+            </StackPanel>
+
+            <Border Height="1"
+                    Margin="{DynamicResource Gap.Above.L}"
+                    Background="{DynamicResource Brush.Surface.Border}"
+                    Opacity="0.5" />
+
+            <!-- Trailer search, mirroring the artwork picker above it: search, then pick from what
+                 came back. Only ever run on demand - most tables have no video, and searching every
+                 table automatically would be a lot of network traffic for mostly-empty results. -->
+            <TextBlock Style="{StaticResource Text.Body}"
+                       Margin="{DynamicResource Gap.Above.L}"
+                       Text="No video of your own?" />
+            <TextBlock Style="{StaticResource Text.Caption}"
+                       Margin="{DynamicResource Gap.Above.S}"
+                       TextWrapping="Wrap"
+                       Text="Nudge can look for a video of this table and play it through YouTube's own player. Videos are never downloaded, so they need a connection to play." />
+
+            <StackPanel Orientation="Horizontal" Margin="{DynamicResource Gap.Above.M}">
+              <Button Style="{StaticResource Button.Secondary}"
+                      Margin="{DynamicResource Gap.Right.S}"
+                      Content="Search for a trailer"
+                      Command="{Binding SearchTrailersCommand}" />
+              <Button Style="{StaticResource Button.Subtle}"
+                      Content="Clear trailer"
+                      VerticalAlignment="Center"
+                      Command="{Binding ClearTrailerCommand}"
+                      Visibility="{Binding HasSelectedTrailer, Converter={StaticResource BoolToVisibility}}" />
+            </StackPanel>
+
+            <ProgressBar Style="{StaticResource Progress.Indeterminate}"
+                         Width="200"
+                         HorizontalAlignment="Left"
+                         Margin="{DynamicResource Gap.Above.M}"
+                         Visibility="{Binding IsSearchingTrailers, Converter={StaticResource BoolToVisibility}}" />
+
+            <TextBlock Style="{StaticResource Text.Caption}"
+                       Margin="{DynamicResource Gap.Above.M}"
+                       TextWrapping="Wrap"
+                       Foreground="{DynamicResource Brush.Text.Secondary}"
+                       Text="{Binding TrailerStatusMessage}"
+                       Visibility="{Binding HasTrailerStatusMessage, Converter={StaticResource BoolToVisibility}}" />
+
+            <!-- The currently chosen video, so the page shows what is actually set rather than only
+                 offering to change it. -->
+            <StackPanel Orientation="Horizontal"
+                        Margin="{DynamicResource Gap.Above.M}"
+                        Visibility="{Binding HasSelectedTrailer, Converter={StaticResource BoolToVisibility}}">
+              <Border Width="128" Height="72"
+                      CornerRadius="{DynamicResource CornerRadius.Button}"
+                      ClipToBounds="True">
+                <Image Source="{Binding SelectedTrailerThumbnailUrl}" Stretch="UniformToFill" />
+              </Border>
+              <TextBlock Style="{StaticResource Text.Caption}"
+                         Margin="12,0,0,0"
+                         VerticalAlignment="Center"
+                         Foreground="{DynamicResource Brush.Accent}"
+                         Text="Currently set for this table" />
+            </StackPanel>
+
+            <ItemsControl Margin="{DynamicResource Gap.Above.M}" ItemsSource="{Binding TrailerCandidates}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <!-- Landscape here, unlike the portrait artwork cards: these are 16:9 videos, and
+                       showing them in a tall frame would crop away most of the thumbnail exactly
+                       where the title text usually sits. -->
+                  <StackPanel Margin="0,0,12,12" Width="176">
+                    <Button Width="176" Height="99"
+                            Cursor="Hand"
+                            ToolTip="{Binding Title}"
+                            Command="{Binding DataContext.SelectTrailerCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                            CommandParameter="{Binding}">
+                      <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                          <Grid RenderTransformOrigin="0.5,0.5">
+                            <Grid.RenderTransform>
+                              <ScaleTransform x:Name="Lift" ScaleX="1" ScaleY="1" />
+                            </Grid.RenderTransform>
+                            <Border x:Name="Root"
+                                    CornerRadius="{DynamicResource CornerRadius.Button}"
+                                    BorderThickness="2"
+                                    BorderBrush="Transparent"
+                                    ClipToBounds="True"
+                                    Background="{DynamicResource Brush.Surface.Recessed}">
+                              <Image Source="{Binding ThumbnailUrl}" Stretch="UniformToFill" />
+                            </Border>
+                          </Grid>
+                          <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                              <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
+                              <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                  <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetName="Lift" Storyboard.TargetProperty="ScaleX" To="1.04" Duration="{StaticResource Duration.Hover}" />
+                                    <DoubleAnimation Storyboard.TargetName="Lift" Storyboard.TargetProperty="ScaleY" To="1.04" Duration="{StaticResource Duration.Hover}" />
+                                  </Storyboard>
+                                </BeginStoryboard>
+                              </Trigger.EnterActions>
+                              <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                  <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetName="Lift" Storyboard.TargetProperty="ScaleX" To="1" Duration="{StaticResource Duration.Hover}" />
+                                    <DoubleAnimation Storyboard.TargetName="Lift" Storyboard.TargetProperty="ScaleY" To="1" Duration="{StaticResource Duration.Hover}" />
+                                  </Storyboard>
+                                </BeginStoryboard>
+                              </Trigger.ExitActions>
+                            </Trigger>
+                          </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                      </Button.Template>
+                    </Button>
+                    <TextBlock Style="{StaticResource Text.Caption}"
+                               Margin="{DynamicResource Gap.Above.S}"
+                               TextWrapping="Wrap"
+                               MaxHeight="32"
+                               TextTrimming="CharacterEllipsis"
+                               Text="{Binding Title}" />
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </ContentControl>
+
+        <!-- ======================= Details ======================= -->
+        <TextBlock Style="{StaticResource Text.SectionHeading}" Margin="{DynamicResource Gap.Below.M}" Text="DETAILS" />
+
+        <ContentControl Style="{StaticResource Card.Neumorphic}" Margin="{DynamicResource Gap.Below.XL}">
+          <StackPanel>
+            <TextBlock Style="{StaticResource Text.Caption}"
+                       Margin="{DynamicResource Gap.Below.S}"
+                       Text="{Binding Tile.Table.DisplayTitle, StringFormat='Table name (currently \{0\})'}" />
+            <TextBox Style="{StaticResource TextBox.SingleLine}"
+                     Text="{Binding CustomTitle, UpdateSourceTrigger=PropertyChanged}" />
+
+            <StackPanel Orientation="Horizontal" Margin="{DynamicResource Gap.Above.L}">
+              <StackPanel Margin="{DynamicResource Gap.Right.L}">
+                <TextBlock Style="{StaticResource Text.Caption}" Margin="{DynamicResource Gap.Below.S}" Text="Made by" />
+                <TextBox Style="{StaticResource TextBox.SingleLine}" Width="220" Text="{Binding CustomAuthor, UpdateSourceTrigger=PropertyChanged}" />
+              </StackPanel>
+              <StackPanel>
+                <TextBlock Style="{StaticResource Text.Caption}" Margin="{DynamicResource Gap.Below.S}" Text="Date made" />
+                <TextBox Style="{StaticResource TextBox.SingleLine}" Width="220" Text="{Binding CustomDate, UpdateSourceTrigger=PropertyChanged}" />
+              </StackPanel>
+            </StackPanel>
+          </StackPanel>
+        </ContentControl>
+
+        <!-- ======================= Description ======================= -->
+        <TextBlock Style="{StaticResource Text.SectionHeading}" Margin="{DynamicResource Gap.Below.M}" Text="DESCRIPTION" />
+
+        <ContentControl Style="{StaticResource Card.Neumorphic}" Margin="{DynamicResource Gap.Below.XL}">
+          <TextBox Style="{StaticResource TextBox.MultiLine}"
+                    Height="110"
+                    Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}" />
+        </ContentControl>
+
+        <!-- ======================= How to play ======================= -->
+        <TextBlock Style="{StaticResource Text.SectionHeading}" Margin="{DynamicResource Gap.Below.M}" Text="HOW TO PLAY" />
+
+        <ContentControl Style="{StaticResource Card.Neumorphic}" Margin="{DynamicResource Gap.Below.XL}">
+          <TextBox Style="{StaticResource TextBox.MultiLine}"
+                    Height="110"
+                    Text="{Binding HowToPlay, UpdateSourceTrigger=PropertyChanged}" />
+        </ContentControl>
+
+        <StackPanel Orientation="Horizontal">
+          <Button Style="{StaticResource Button.Primary}"
+                  Margin="{DynamicResource Gap.Right.M}"
+                  Content="Save"
+                  Command="{Binding SaveCommand}" />
+          <Button Style="{StaticResource Button.Secondary}"
+                  Content="Cancel"
+                  Command="{Binding BackCommand}" />
+        </StackPanel>
+
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

@@ -46,7 +46,10 @@ public sealed class JsonSettingsService : ISettingsService
 
     public string SettingsFilePath { get; }
 
-    public async Task<NudgeSettings> LoadAsync(CancellationToken cancellationToken = default)
+    public Task<NudgeSettings> LoadAsync(CancellationToken cancellationToken = default) =>
+        LoadUnlockedAsync(cancellationToken);
+
+    private async Task<NudgeSettings> LoadUnlockedAsync(CancellationToken cancellationToken)
     {
         try
         {
@@ -101,6 +104,39 @@ public sealed class JsonSettingsService : ISettingsService
         await _writeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            await SaveUnlockedAsync(settings, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _writeLock.Release();
+        }
+    }
+
+    public async Task MutateAsync(Action<NudgeSettings> mutate, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(mutate);
+
+        // The whole load-mutate-save cycle happens under one lock acquisition, not just the save at
+        // the end - see the interface doc for why a separate LoadAsync-then-SaveAsync pair (even
+        // though SaveAsync's own lock stops two writes corrupting each other) can still silently lose
+        // one caller's change to another's race.
+        await _writeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            NudgeSettings settings = await LoadUnlockedAsync(cancellationToken).ConfigureAwait(false);
+            mutate(settings);
+            await SaveUnlockedAsync(settings, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _writeLock.Release();
+        }
+    }
+
+    private async Task SaveUnlockedAsync(NudgeSettings settings, CancellationToken cancellationToken)
+    {
+        try
+        {
             string? directory = _fileSystem.Path.GetDirectoryName(SettingsFilePath);
             if (!string.IsNullOrWhiteSpace(directory) && !_fileSystem.Directory.Exists(directory))
             {
@@ -123,10 +159,6 @@ public sealed class JsonSettingsService : ISettingsService
                 ex,
                 "Could not save settings to {SettingsPath}.",
                 _redactor.Redact(SettingsFilePath));
-        }
-        finally
-        {
-            _writeLock.Release();
         }
     }
 }

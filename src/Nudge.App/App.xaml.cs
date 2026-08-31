@@ -11,6 +11,7 @@ using Nudge.App.Views;
 using Nudge.Core.Diagnostics;
 using Nudge.Data.DependencyInjection;
 using Nudge.Library.DependencyInjection;
+using Nudge.Media.DependencyInjection;
 using Nudge.Vpx.DependencyInjection;
 using Nudge.Vpx.Platform;
 using Serilog;
@@ -49,27 +50,52 @@ public partial class App : Application
             _host = BuildHost(environment, redactor);
             await _host.StartAsync().ConfigureAwait(true);
 
-            // Creates the database file and brings its schema up to date. Cheap and safe to run
-            // on every startup - a no-op when there is nothing pending.
-            await _host.Services.MigrateNudgeDatabaseAsync().ConfigureAwait(true);
-
             // Restore the saved theme before anything is shown, so the window never flashes the
-            // wrong palette on start.
+            // wrong palette on start. Reading the settings file is small and quick; the genuinely
+            // slow startup work is deliberately deferred until after the window is up (below).
             var themeService = _host.Services.GetRequiredService<IThemeService>();
+            var uiStyleService = _host.Services.GetRequiredService<IUiStyleService>();
+            var shadowEffectService = _host.Services.GetRequiredService<IShadowEffectService>();
             var settings = _host.Services.GetRequiredService<Core.Abstractions.ISettingsService>();
             Core.Models.NudgeSettings saved = await settings.LoadAsync().ConfigureAwait(true);
             themeService.Apply(themeService.Parse(saved.ThemeName));
+            // After the palette, before anything is shown: the style overlay shadows radius/effect
+            // keys, so applying it up front avoids the window rendering one style then restyling.
+            uiStyleService.Apply(uiStyleService.Parse(saved.UiStyleName));
+            shadowEffectService.Apply(saved.EnableShadows, saved.ShadowIntensityPercent);
 
+            // Shown before database migration and discovery, not after: the splash is the whole
+            // point of this ordering, and it can only actually animate if it is on screen while
+            // that work happens rather than after it. Previously everything below ran first, so the
+            // window appeared already-frozen mid-startup, then animated briefly, then vanished.
             var window = _host.Services.GetRequiredService<MainWindow>();
             MainWindow = window;
             window.Show();
 
-            // Discovery runs after the window is up, so the user sees something immediately.
+            var splashClock = System.Diagnostics.Stopwatch.StartNew();
+
+            // Task.Run, not a bare await: EF Core's migrator is largely synchronous under its async
+            // surface, so awaiting it directly still blocks the UI thread - which stalls the splash's
+            // own animations, the exact "freezes, then loads" behaviour this ordering exists to fix.
+            // Nothing here touches UI state, so moving it off the UI thread is safe.
+            await Task.Run(() => _host.Services.MigrateNudgeDatabaseAsync()).ConfigureAwait(true);
+
             // ShellViewModel.InitialiseAsync delegates to SetupViewModel and then, once an
-            // installation is confirmed, switches the window to the library screen itself.
+            // installation is confirmed, switches the window to the library screen underneath.
             await _host.Services.GetRequiredService<ShellViewModel>()
                 .InitialiseAsync()
                 .ConfigureAwait(true);
+
+            // A floor, not a fixed duration: on a warm start the work above can finish in a few
+            // hundred milliseconds, and dismissing that fast reads as a flicker rather than a splash.
+            const int MinimumSplashMilliseconds = 1100;
+            int remaining = MinimumSplashMilliseconds - (int)splashClock.ElapsedMilliseconds;
+            if (remaining > 0)
+            {
+                await Task.Delay(remaining).ConfigureAwait(true);
+            }
+
+            window.DismissSplash();
         }
         catch (Exception ex)
         {
@@ -121,9 +147,28 @@ public partial class App : Application
         builder.Services.AddNudgeData(databasePath);
         builder.Services.AddNudgeLibrary();
 
+        // The vps-db artwork lookup/cache, behind IArtworkProvider. Shares dataDirectory's parent
+        // rather than the database path itself - it's its own subfolder (index + cached images), not
+        // part of the SQLite file.
+        string artworkCacheDirectory = Path.Combine(dataDirectory, "artwork");
+        Directory.CreateDirectory(artworkCacheDirectory);
+        builder.Services.AddNudgeMedia(artworkCacheDirectory);
+
+        // Hand-picked covers live beside the scraped cache but in their own subfolder, so clearing
+        // one never takes the other with it - a scraped image can always be re-fetched, whereas a
+        // user's own picture is the only copy Nudge has once the original moves.
+        string customArtworkDirectory = Path.Combine(artworkCacheDirectory, "custom");
+        builder.Services.AddSingleton<ICustomArtworkStore>(sp =>
+            new CustomArtworkStore(
+                customArtworkDirectory,
+                sp.GetRequiredService<ILogger<CustomArtworkStore>>()));
+
         // UI services.
         builder.Services.AddSingleton<IThemeService, ThemeService>();
+        builder.Services.AddSingleton<IUiStyleService, UiStyleService>();
+        builder.Services.AddSingleton<IShadowEffectService, ShadowEffectService>();
         builder.Services.AddSingleton<IFolderPickerService, FolderPickerService>();
+        builder.Services.AddSingleton<IFilePickerService, FilePickerService>();
 
         builder.Services.AddSingleton<SetupViewModel>();
         builder.Services.AddSingleton<LibraryViewModel>();

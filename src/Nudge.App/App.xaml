@@ -21,6 +21,15 @@
         <ResourceDictionary Source="pack://application:,,,/Themes/Layout.xaml" />
         <!-- Depends on Color.Shadow from the palette above, so it must come after it. -->
         <ResourceDictionary Source="pack://application:,,,/Themes/Effects.xaml" />
+        <!--
+          The interface style overlay, swapped at runtime by UiStyleService. It shadows a subset of
+          the radius and effect keys defined just above, so it MUST stay after Layout/Effects and
+          before Controls.xaml: WPF resolves a duplicate key to the last merged dictionary that
+          defines it, and Controls.xaml's templates read all of them via DynamicResource.
+          Style.Pin.xaml is intentionally empty - Pin is the base look, so its overlay overrides
+          nothing (see that file's own header).
+        -->
+        <ResourceDictionary Source="pack://application:,,,/Themes/Style.Pin.xaml" />
         <ResourceDictionary Source="pack://application:,,,/Themes/Controls.xaml" />
       </ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>

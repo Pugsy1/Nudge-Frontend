@@ -53,8 +53,8 @@
        corner; less clearance than this let the two visibly collide. -->
   <Thickness x:Key="Padding.Header">40,26,40,16</Thickness>
   <Thickness x:Key="Padding.Grid">32,8,32,32</Thickness>
-  <Thickness x:Key="Padding.Card">20</Thickness>
-  <Thickness x:Key="Padding.Button">18,9,18,9</Thickness>
+  <Thickness x:Key="Padding.Card">26</Thickness>
+  <Thickness x:Key="Padding.Button">18,11,18,11</Thickness>
   <Thickness x:Key="Padding.TableCell">14,10,14,12</Thickness>
   <Thickness x:Key="Padding.Badge">8,3,8,3</Thickness>
   <Thickness x:Key="Padding.Flyout">20</Thickness>
@@ -74,24 +74,42 @@
   <Thickness x:Key="BorderThickness.Tile">1,0,1,0</Thickness>
 
   <!-- Rounder than the original scale, on purpose - soft, pillowy corners are the single biggest
-       ingredient in reading as neumorphic "soft UI" rather than flat material design. -->
-  <CornerRadius x:Key="CornerRadius.S">12</CornerRadius>
-  <CornerRadius x:Key="CornerRadius.M">18</CornerRadius>
-  <CornerRadius x:Key="CornerRadius.L">26</CornerRadius>
+       ingredient in reading as neumorphic "soft UI" rather than flat material design. Bumped again
+       for the clean-neumorphic pass, chasing the fully-pill controls and large-radius cards in the
+       reference boards (calendar/booking widgets, smart-home panel, light "Aa" component sheet). -->
+  <CornerRadius x:Key="CornerRadius.S">16</CornerRadius>
+  <CornerRadius x:Key="CornerRadius.M">24</CornerRadius>
+  <CornerRadius x:Key="CornerRadius.L">32</CornerRadius>
 
-  <!-- Larger than any control it's used on is tall, so it always renders as a full stadium/pill. -->
-  <CornerRadius x:Key="CornerRadius.Pill">22</CornerRadius>
+  <!-- "Fully round this, whatever size it is." Deliberately oversized: WPF clamps a Border's
+       CornerRadius to half its own smaller dimension, so this always resolves to the maximum
+       possible curve. Reserved for elements that are square or genuinely short - icon buttons and
+       tile overlay buttons (which become true circles), the switch knob and track, the 2D/VR track
+       and its sliding cap, and scrollbar thumbs.
+
+       NOT for wide elements: a 96x40 text button under this rule is a stretched lozenge, not a
+       circle - the "too ovally" look. Those use CornerRadius.Button instead. -->
+  <CornerRadius x:Key="CornerRadius.Pill">999</CornerRadius>
+
+  <!-- Wide controls whose width far exceeds their height - text buttons, the search field, the
+       theme dropdown's closed cap. A fixed, moderate curve keeps them reading as a soft rounded
+       rectangle; going fully round only stretches the semicircular end caps into an oval. -->
+  <CornerRadius x:Key="CornerRadius.Button">14</CornerRadius>
 
   <!-- Rounds only the top corners, matching CornerRadius.M, for a tile's artwork area so it reads
        as one continuous rounded shape with the card around it. -->
-  <CornerRadius x:Key="CornerRadius.Card.Top">18,18,0,0</CornerRadius>
+  <CornerRadius x:Key="CornerRadius.Card.Top">24,24,0,0</CornerRadius>
+
+  <!-- The complementary bottom-only rounding, for a tile's title band tint layer sitting under the
+       artwork's Card.Top. -->
+  <CornerRadius x:Key="CornerRadius.Card.Bottom">0,0,24,24</CornerRadius>
 
   <!-- Half of Size.Scrollbar, so the thumb's ends are always fully rounded. -->
   <CornerRadius x:Key="CornerRadius.Scrollbar">2</CornerRadius>
 
   <!-- Fixed dimensions -->
   <system:Double x:Key="Size.Scrollbar">4</system:Double>
-  <system:Double x:Key="Size.MinButtonWidth">96</system:Double>
+  <system:Double x:Key="Size.MinButtonWidth">84</system:Double>
   <system:Double x:Key="Size.IconButton">38</system:Double>
   <system:Double x:Key="Size.Window.MinWidth">940</system:Double>
   <system:Double x:Key="Size.Window.MinHeight">600</system:Double>
@@ -102,10 +120,22 @@
     The library grid. Tiles are wide and breathable, with a loose gutter (Margin.Tile is applied on
     all four sides of every tile, so the visible gap between two tiles is twice this).
   -->
+  <!-- Taller than a first pass at this size (296) - vps-db artwork is strongly portrait (mostly
+       270x480, roughly a 9:16 playfield shot), and the shorter card forced UniformToFill to crop
+       heavily off the top and bottom of nearly every table's artwork to fill a squarer box. Sized
+       up so the artwork area alone comes much closer to that same portrait ratio, at the cost of a
+       taller tile overall - a direct trade in favour of showing more of the actual table. -->
   <system:Double x:Key="Size.Tile.Width">208</system:Double>
-  <system:Double x:Key="Size.Tile.Height">296</system:Double>
+  <system:Double x:Key="Size.Tile.Height">380</system:Double>
   <system:Double x:Key="Size.Tile.TitleHeight">36</system:Double>
   <Thickness x:Key="Margin.Tile">10</Thickness>
+
+  <!-- The Compact layout's own tile size - the same TableCard visual (LibraryView.xaml reuses it
+       verbatim), just scaled down to roughly the same width:height ratio as Size.Tile.Width/Height
+       so it still reads as "the same card, smaller" rather than a differently-proportioned one. -->
+  <system:Double x:Key="Size.Tile.CompactWidth">140</system:Double>
+  <system:Double x:Key="Size.Tile.CompactHeight">255</system:Double>
+  <Thickness x:Key="Margin.Tile.Compact">6</Thickness>
 
   <!-- How far a tile scales up on hover. Small on purpose - a lift, not a jump. -->
   <system:Double x:Key="Scale.Tile.Hover">1.035</system:Double>

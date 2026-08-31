@@ -1,0 +1,192 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:system="clr-namespace:System;assembly=System.Runtime">
+
+  <!--
+    "Relief" - full-strength sculpted neumorphism.
+
+    Pin is restrained soft-UI: gently rounded, a light shadow suggesting a raised surface. Relief is
+    the same material taken to its conclusion - the look of the smart-home panels and component
+    sheets this was modelled on. Everything reads as physically moulded out of the page: controls
+    are deeply extruded with a hard dark shadow falling down-right and a matching light one lifting
+    up-left, recessed slots are genuinely sunken, and corners are big soft squircles rather than
+    modest rounding.
+
+    Deliberately expressed through DEPTH, GEOMETRY and WEIGHT only - never hardcoded colours. Every
+    shadow here is built from the palette's own Color.Shadow / Color.Highlight via DynamicResource,
+    so all forty themes keep their own hues and Relief simply sculpts whatever surface they define.
+    Hardcoding a grey here would have flattened every theme into the same two-tone slab.
+  -->
+
+  <!-- ============================ Geometry ============================ -->
+
+  <!--
+    Much larger than Pin's 16/24/32. The reference boards lean on big, soft squircles - the corner
+    radius is doing as much of the "moulded, not drawn" work as the shadows are.
+  -->
+  <CornerRadius x:Key="CornerRadius.S">20</CornerRadius>
+  <CornerRadius x:Key="CornerRadius.M">30</CornerRadius>
+  <CornerRadius x:Key="CornerRadius.L">40</CornerRadius>
+
+  <!-- Wide text buttons, the search field and the dropdown cap: pill-adjacent but still a squircle,
+       so they read as moulded caps rather than stretched ovals. -->
+  <CornerRadius x:Key="CornerRadius.Button">20</CornerRadius>
+
+  <!-- Tracks CornerRadius.M, or the artwork's top corners stop agreeing with the card outline. -->
+  <CornerRadius x:Key="CornerRadius.Card.Top">30,30,0,0</CornerRadius>
+  <CornerRadius x:Key="CornerRadius.Card.Bottom">0,0,30,30</CornerRadius>
+
+  <!-- ============================ Depth ============================ -->
+
+  <!--
+    Roughly double Pin's extrusion, and noticeably more opaque. A raised control in the references
+    casts a genuinely hard shadow, not a hint of one - this is the single biggest thing separating
+    the two styles at a glance.
+  -->
+  <DropShadowEffect x:Key="Effect.Button.Shadow"
+                    Color="{DynamicResource Color.Shadow}"
+                    Direction="315"
+                    ShadowDepth="5"
+                    BlurRadius="14"
+                    Opacity="0.45"
+                    RenderingBias="Performance" />
+
+  <DropShadowEffect x:Key="Effect.Button.Shadow.Hover"
+                    Color="{DynamicResource Color.Shadow}"
+                    Direction="315"
+                    ShadowDepth="8"
+                    BlurRadius="22"
+                    Opacity="0.52"
+                    RenderingBias="Performance" />
+
+  <!-- Pressed collapses almost to nothing: the cap is being pushed back down flush with the panel,
+       which is what sells these as physical controls rather than tinted rectangles. -->
+  <DropShadowEffect x:Key="Effect.Button.Shadow.Pressed"
+                    Color="{DynamicResource Color.Shadow}"
+                    Direction="315"
+                    ShadowDepth="1"
+                    BlurRadius="3"
+                    Opacity="0.30"
+                    RenderingBias="Performance" />
+
+  <!-- Cards: the two-Border emboss (dark down-right, light up-left) driven hard. -->
+  <DropShadowEffect x:Key="Effect.Card.Shadow"
+                    Color="{DynamicResource Color.Shadow}"
+                    Direction="315"
+                    ShadowDepth="9"
+                    BlurRadius="26"
+                    Opacity="0.48"
+                    RenderingBias="Performance" />
+
+  <DropShadowEffect x:Key="Effect.Card.Shadow.Rest"
+                    Color="{DynamicResource Color.Shadow}"
+                    Direction="315"
+                    ShadowDepth="9"
+                    BlurRadius="26"
+                    Opacity="0.48"
+                    RenderingBias="Performance" />
+
+  <DropShadowEffect x:Key="Effect.Card.Highlight.Rest"
+                    Color="{DynamicResource Color.Highlight}"
+                    Direction="135"
+                    ShadowDepth="8"
+                    BlurRadius="24"
+                    Opacity="0.42"
+                    RenderingBias="Performance" />
+
+  <!--
+    Tiles carry the emboss furthest, since a wall of them is most of what the library screen is.
+    Kept within the bleed room each tile actually has (see Effects.xaml's own header on clipping) -
+    pushed past roughly this and the glow hits the parent's content clip and stops dead instead of
+    fading, which reads as a hard edge rather than depth.
+  -->
+  <DropShadowEffect x:Key="Effect.Tile.Shadow.Rest"
+                    Color="{DynamicResource Color.Shadow}"
+                    Direction="315"
+                    ShadowDepth="6"
+                    BlurRadius="16"
+                    Opacity="0.55"
+                    RenderingBias="Performance" />
+
+  <DropShadowEffect x:Key="Effect.Tile.Shadow.Hover"
+                    Color="{DynamicResource Color.Shadow}"
+                    Direction="315"
+                    ShadowDepth="10"
+                    BlurRadius="24"
+                    Opacity="0.62"
+                    RenderingBias="Performance" />
+
+  <DropShadowEffect x:Key="Effect.Tile.Shadow.Pressed"
+                    Color="{DynamicResource Color.Shadow}"
+                    Direction="315"
+                    ShadowDepth="1"
+                    BlurRadius="4"
+                    Opacity="0.4"
+                    RenderingBias="Performance" />
+
+  <DropShadowEffect x:Key="Effect.Tile.Highlight.Rest"
+                    Color="{DynamicResource Color.Highlight}"
+                    Direction="135"
+                    ShadowDepth="5"
+                    BlurRadius="14"
+                    Opacity="0.45"
+                    RenderingBias="Performance" />
+
+  <DropShadowEffect x:Key="Effect.Tile.Highlight.Hover"
+                    Color="{DynamicResource Color.Highlight}"
+                    Direction="135"
+                    ShadowDepth="9"
+                    BlurRadius="22"
+                    Opacity="0.52"
+                    RenderingBias="Performance" />
+
+  <DropShadowEffect x:Key="Effect.Tile.Highlight.Pressed"
+                    Color="{DynamicResource Color.Highlight}"
+                    Direction="135"
+                    ShadowDepth="1"
+                    BlurRadius="4"
+                    Opacity="0.4"
+                    RenderingBias="Performance" />
+
+  <!-- Recessed slots are properly sunken here, not just tinted - the counterpart to how far the
+       raised controls now stand out. -->
+  <DropShadowEffect x:Key="Effect.Inset.Shadow"
+                    Color="{DynamicResource Color.Shadow}"
+                    Direction="315"
+                    ShadowDepth="2"
+                    BlurRadius="10"
+                    Opacity="0.45"
+                    RenderingBias="Performance" />
+
+  <!-- ============================ Type and density ============================ -->
+
+  <!--
+    Heavier and slightly larger. Deeply moulded surfaces swallow thin type - the reference panels
+    all use confident, weighty labels, and Regular-weight text on a strongly embossed cap reads as
+    washed out.
+  -->
+  <FontWeight x:Key="Font.Weight.Regular">Medium</FontWeight>
+  <FontWeight x:Key="Font.Weight.Medium">SemiBold</FontWeight>
+
+  <system:Double x:Key="Font.Size.Body">14</system:Double>
+  <system:Double x:Key="Font.Size.BodyLarge">16</system:Double>
+  <system:Double x:Key="Font.Size.Subtitle">20</system:Double>
+  <system:Double x:Key="Font.Size.Title">28</system:Double>
+  <system:Double x:Key="Font.Size.Display">36</system:Double>
+
+  <!--
+    Everything needs more room to breathe: a deep shadow needs empty space around it to actually be
+    seen, and at Pin's tighter spacing the extra depth just collides with the neighbouring control.
+  -->
+  <Thickness x:Key="Inset.M">16</Thickness>
+  <Thickness x:Key="Inset.L">22</Thickness>
+  <Thickness x:Key="Inset.XL">30</Thickness>
+  <Thickness x:Key="Padding.Button">22,13,22,13</Thickness>
+
+  <!-- Chunkier, more physical tiles to match the heavier moulding. -->
+  <system:Double x:Key="Size.Tile.Width">216</system:Double>
+  <system:Double x:Key="Size.Tile.Height">396</system:Double>
+  <system:Double x:Key="Size.Tile.TitleHeight">42</system:Double>
+  <system:Double x:Key="Size.IconButton">42</system:Double>
+
+</ResourceDictionary>

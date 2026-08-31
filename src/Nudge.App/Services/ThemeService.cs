@@ -26,7 +26,40 @@ public enum AppTheme
     ChromeLight,
     Hulk,
     HulkLight,
-    Oled
+    Oled,
+    Amethyst,
+    AmethystLight,
+    Rose,
+    RoseLight,
+    Teal,
+    TealLight,
+    Coral,
+    CoralLight,
+    Indigo,
+    IndigoLight,
+    Lime,
+    LimeLight,
+    Magenta,
+    MagentaLight,
+    Slate,
+    SlateLight,
+    Copper,
+    CopperLight,
+    OledRed,
+    OledBlue,
+    OledGreen,
+    OledPurple,
+
+    // Calm, deliberately low-energy palettes - desaturated accents that recede behind the artwork.
+    Sage,
+    Dune,
+
+    // Dual-tone: two accent hues at once rather than one (see any of these files' own header for
+    // how the pair is carried through Accent.Surface, the bevel and the status lamps).
+    Watermelon,
+    BlueRaspberry,
+    Citrus,
+    Cosmic
 }
 
 /// <summary>Switches the application between the available palettes.</summary>
@@ -67,7 +100,35 @@ public sealed class ThemeService : IThemeService
         [AppTheme.ChromeLight] = "Colors.ChromeLight.xaml",
         [AppTheme.Hulk] = "Colors.Hulk.xaml",
         [AppTheme.HulkLight] = "Colors.HulkLight.xaml",
-        [AppTheme.Oled] = "Colors.Oled.xaml"
+        [AppTheme.Oled] = "Colors.Oled.xaml",
+        [AppTheme.Amethyst] = "Colors.Amethyst.xaml",
+        [AppTheme.AmethystLight] = "Colors.AmethystLight.xaml",
+        [AppTheme.Rose] = "Colors.Rose.xaml",
+        [AppTheme.RoseLight] = "Colors.RoseLight.xaml",
+        [AppTheme.Teal] = "Colors.Teal.xaml",
+        [AppTheme.TealLight] = "Colors.TealLight.xaml",
+        [AppTheme.Coral] = "Colors.Coral.xaml",
+        [AppTheme.CoralLight] = "Colors.CoralLight.xaml",
+        [AppTheme.Indigo] = "Colors.Indigo.xaml",
+        [AppTheme.IndigoLight] = "Colors.IndigoLight.xaml",
+        [AppTheme.Lime] = "Colors.Lime.xaml",
+        [AppTheme.LimeLight] = "Colors.LimeLight.xaml",
+        [AppTheme.Magenta] = "Colors.Magenta.xaml",
+        [AppTheme.MagentaLight] = "Colors.MagentaLight.xaml",
+        [AppTheme.Slate] = "Colors.Slate.xaml",
+        [AppTheme.SlateLight] = "Colors.SlateLight.xaml",
+        [AppTheme.Copper] = "Colors.Copper.xaml",
+        [AppTheme.CopperLight] = "Colors.CopperLight.xaml",
+        [AppTheme.OledRed] = "Colors.OledRed.xaml",
+        [AppTheme.OledBlue] = "Colors.OledBlue.xaml",
+        [AppTheme.OledGreen] = "Colors.OledGreen.xaml",
+        [AppTheme.OledPurple] = "Colors.OledPurple.xaml",
+        [AppTheme.Sage] = "Colors.Sage.xaml",
+        [AppTheme.Dune] = "Colors.Dune.xaml",
+        [AppTheme.Watermelon] = "Colors.Watermelon.xaml",
+        [AppTheme.BlueRaspberry] = "Colors.BlueRaspberry.xaml",
+        [AppTheme.Citrus] = "Colors.Citrus.xaml",
+        [AppTheme.Cosmic] = "Colors.Cosmic.xaml"
     };
 
     public AppTheme Current { get; private set; } = AppTheme.Dark;

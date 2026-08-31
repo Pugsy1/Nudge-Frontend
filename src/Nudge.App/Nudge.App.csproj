@@ -19,6 +19,7 @@
     <ProjectReference Include="..\Nudge.Vpx\Nudge.Vpx.csproj" />
     <ProjectReference Include="..\Nudge.Data\Nudge.Data.csproj" />
     <ProjectReference Include="..\Nudge.Library\Nudge.Library.csproj" />
+    <ProjectReference Include="..\Nudge.Media\Nudge.Media.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -35,6 +36,7 @@
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4191.47" />
     <PackageReference Include="Serilog" Version="4.2.0" />
     <PackageReference Include="Serilog.Extensions.Hosting" Version="9.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />

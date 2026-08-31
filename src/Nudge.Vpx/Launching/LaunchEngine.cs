@@ -84,15 +84,19 @@ public sealed class LaunchEngine : ILaunchEngine
 
         NudgeSettings settings = await _settingsService.LoadAsync(cancellationToken).ConfigureAwait(false);
 
+        // Always started, never gated on a preference: a controller sits alongside keyboard and
+        // mouse the way it does in any other game, rather than being a mode to switch on. With no
+        // controller plugged in this costs one XInput poll that reports "nothing connected", and
+        // players who prefer the keyboard simply never touch a pad - so there is nothing an on/off
+        // switch would actually protect them from.
+        //
         // Translating controller input to key presses only matters while Visual Pinball itself has
         // focus (see IControllerInputService's remarks) - started right before the process runs and
         // disposed the moment it exits, so a controller is never left translating into whatever
         // regains focus afterward (Nudge's own UI, most likely).
-        using IDisposable? controllerSession = settings.EnableControllerSupport
-            ? _controllerInput.StartTranslating(
-                _fileSystem.Path.GetFileNameWithoutExtension(executable.FileName),
-                ControllerMapping.FromOverrides(settings.ControllerButtonOverrides))
-            : null;
+        using IDisposable? controllerSession = _controllerInput.StartTranslating(
+            _fileSystem.Path.GetFileNameWithoutExtension(executable.FileName),
+            ControllerMapping.FromOverrides(settings.ControllerButtonOverrides));
 
         var stopwatch = Stopwatch.StartNew();
         int exitCode;

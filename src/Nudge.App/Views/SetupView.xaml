@@ -237,7 +237,7 @@
                    Margin="{DynamicResource Gap.Above.S}"
                    Text="{Binding Active.DisplayName}" />
         <TextBlock Style="{StaticResource Text.Mono}"
-                   Margin="{DynamicResource Gap.Above.XS}"
+                   Margin="{DynamicResource Gap.Above.S}"
                    Text="{Binding Active.RootPath}" />
 
         <!-- Confidence indicators are hidden for now, pending a settings toggle to turn them back on. -->
@@ -251,19 +251,19 @@
                   Click="OnToggleActiveDetails" />
         </StackPanel>
 
-        <Border Style="{StaticResource Surface.Inset}"
-                Margin="{DynamicResource Gap.Above.L}"
-                DataContext="{Binding Active}"
-                Visibility="{Binding IsEvidenceVisible, Converter={StaticResource BoolToVisibility}}">
+        <ContentControl Style="{StaticResource Card.Neumorphic}"
+                        Margin="{DynamicResource Gap.Above.L}"
+                        DataContext="{Binding Active}"
+                        Visibility="{Binding IsEvidenceVisible, Converter={StaticResource BoolToVisibility}}">
           <ContentControl Content="{Binding}" ContentTemplate="{StaticResource DetailsTemplate}" Focusable="False" />
-        </Border>
+        </ContentControl>
 
-        <Border Style="{StaticResource Surface.Inset}"
-                Margin="{DynamicResource Gap.Above.XL}">
+        <ContentControl Style="{StaticResource Card.Neumorphic}"
+                        Margin="{DynamicResource Gap.Above.XL}">
           <TextBlock Style="{StaticResource Text.Caption}"
                      TextWrapping="Wrap"
                      Text="This is as far as Phase 1 goes. Nudge now knows where Visual Pinball is, but does not yet browse your tables or launch anything - that comes in a later update." />
-        </Border>
+        </ContentControl>
 
       </StackPanel>
     </ScrollViewer>

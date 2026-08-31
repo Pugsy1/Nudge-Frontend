@@ -40,6 +40,11 @@ public static class ServiceCollectionExtensions
                 provider.GetRequiredService<ILogger<VpsDbIndex>>());
         });
 
+        services.TryAddSingleton<ITableTrailerProvider>(provider =>
+            new VpsDb.VpsDbTrailerProvider(
+                provider.GetRequiredService<VpsDb.IVpsDbIndex>(),
+                provider.GetRequiredService<ILogger<VpsDb.VpsDbTrailerProvider>>()));
+
         services.TryAddSingleton<IArtworkCache>(provider =>
         {
             IFileSystem fileSystem = provider.GetRequiredService<IFileSystem>();

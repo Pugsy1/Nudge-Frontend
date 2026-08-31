@@ -112,13 +112,16 @@
 
   <!-- ============================ Indicator LEDs ============================ -->
 
+  <!-- Medium deliberately does NOT reuse Brush.Accent - see Colors.Hulk.xaml's own note on why an
+       accent that's already green can't also stand in for Medium confidence without becoming
+       indistinguishable from High. -->
   <SolidColorBrush x:Key="Brush.Confidence.High" Color="#2A7A52" />
-  <SolidColorBrush x:Key="Brush.Confidence.Medium" Color="#2F8A28" />
+  <SolidColorBrush x:Key="Brush.Confidence.Medium" Color="#9C7F1E" />
   <SolidColorBrush x:Key="Brush.Confidence.Low" Color="#A2512A" />
   <SolidColorBrush x:Key="Brush.Confidence.Unknown" Color="#6E7688" />
 
   <SolidColorBrush x:Key="Brush.Confidence.High.Background" Color="#E6F2EA" />
-  <SolidColorBrush x:Key="Brush.Confidence.Medium.Background" Color="#E6F3E4" />
+  <SolidColorBrush x:Key="Brush.Confidence.Medium.Background" Color="#F5EFDC" />
   <SolidColorBrush x:Key="Brush.Confidence.Low.Background" Color="#FAEDE5" />
   <SolidColorBrush x:Key="Brush.Confidence.Unknown.Background" Color="#ECEEF2" />
 
