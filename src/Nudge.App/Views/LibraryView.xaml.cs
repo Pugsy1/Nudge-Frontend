@@ -57,13 +57,34 @@ public partial class LibraryView : UserControl
 
         library.SelectionMoved += OnSelectionMoved;
 
+        // The Compact layout asks its panel for "as many columns as fit" rather than a fixed count,
+        // so how many tiles are in a row is only knowable after a layout pass. Reported back on every
+        // one, since resizing the window changes it.
+        LayoutUpdated += (_, _) => ReportRealizedColumns(library);
+
         // Real movement only - WPF raises MouseMove for all sorts of reasons while the pointer sits
         // still (layout changes under it, scrolling), and any of those would kick the UI straight
         // back out of controller mode mid-navigation.
+        //
+        // Measured in SCREEN coordinates, not coordinates relative to this view. An element-relative
+        // position changes whenever the layout moves under a stationary cursor, which is exactly what
+        // opening a dropdown does - so opening sort or layout on a pad read as "the mouse moved",
+        // dropped controller mode, and took the button legend off the header with it. The physical
+        // pointer is the only thing that can say whether the user reached for the mouse.
         PreviewMouseMove += (_, e) =>
         {
-            Point position = e.GetPosition(this);
-            if (_lastMousePosition is { } last && (position - last).Length < 2)
+            Point position = PointToScreen(e.GetPosition(this));
+
+            // No baseline yet: record where the pointer is and wait for it to actually move. Treating
+            // the first event as movement would hand control back on whatever synthetic move happens
+            // to arrive first.
+            if (_lastMousePosition is not { } last)
+            {
+                _lastMousePosition = position;
+                return;
+            }
+
+            if ((position - last).Length < 2)
             {
                 return;
             }
@@ -75,6 +96,53 @@ public partial class LibraryView : UserControl
 
     private Point? _lastMousePosition;
 
+    private VirtualizingWrapPanel? _compactPanel;
+
+    /// <summary>
+    /// Tells the view model how many tiles the Compact layout is actually fitting per row. Only the
+    /// Grid's count is a setting; Compact asks its panel for as many columns as the window allows, so
+    /// the real number exists only after a layout pass - and using the grid's density slider there
+    /// made one press of down jump several rows at a time.
+    /// </summary>
+    private void ReportRealizedColumns(LibraryViewModel library)
+    {
+        if (!library.ShowCompact)
+        {
+            return;
+        }
+
+        // Cached, but re-found if the panel has been torn down and rebuilt - switching layouts away
+        // and back replaces it, and LayoutUpdated fires far too often to walk the tree every time.
+        if (_compactPanel is not { IsLoaded: true })
+        {
+            _compactPanel = FindWrapPanel(CompactTiles);
+        }
+
+        if (_compactPanel is { } panel)
+        {
+            library.RealizedColumns = panel.RealizedColumns;
+        }
+    }
+
+    private static VirtualizingWrapPanel? FindWrapPanel(DependencyObject node)
+    {
+        if (node is VirtualizingWrapPanel panel)
+        {
+            return panel;
+        }
+
+        int count = VisualTreeHelper.GetChildrenCount(node);
+        for (int i = 0; i < count; i++)
+        {
+            if (FindWrapPanel(VisualTreeHelper.GetChild(node, i)) is { } found)
+            {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
     private void OnControllerAction(ControllerAction action)
     {
         if (DataContext is not LibraryViewModel library)
@@ -85,6 +153,23 @@ public partial class LibraryView : UserControl
         // Any pad input switches the UI into controller mode and guarantees a selection exists, so
         // the very first press does something visible instead of appearing to be ignored.
         library.EnterControllerMode();
+
+        // The exit prompt is checked first of all the modals: it is the last thing opened whenever it
+        // is up, and nothing else should be able to act underneath a question about closing the app.
+        if (library.IsExitPromptOpen)
+        {
+            switch (action)
+            {
+                case ControllerAction.Activate:
+                    library.ConfirmExitCommand.Execute(null);
+                    break;
+                case ControllerAction.Back:
+                    library.CancelExitCommand.Execute(null);
+                    break;
+            }
+
+            return;
+        }
 
         // The random picker is modal, so it owns the pad while it is up - otherwise the directions
         // would be scrolling the library invisibly behind it.
@@ -200,10 +285,12 @@ public partial class LibraryView : UserControl
                 library.ToggleSettingsCommand.Execute(null);
                 break;
 
-            // Back is deliberately unhandled here. This is the root screen, so there is nowhere to
-            // go; the tempting alternative - dropping out of controller mode - would take the
-            // selection highlight away and read as the button having broken something.
+            // The root screen, so there is nowhere to go back TO - which for a long time meant B did
+            // nothing at all here, and a pad had no way to close Nudge. It now asks, rather than
+            // quitting: B is "back" everywhere else, and the one screen where it cannot go back is
+            // the worst possible place for it to be an unguarded way out of the program.
             case ControllerAction.Back:
+                library.PromptExitCommand.Execute(null);
                 break;
         }
     }

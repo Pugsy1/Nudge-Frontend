@@ -53,6 +53,10 @@
   <!-- ============================ Buttons ============================ -->
 
   <Style x:Key="Button.Base" TargetType="Button">
+    <!-- Every button states its own foreground. Without one here, a style that forgets to set it
+         inherits WPF's default instead - which is black, and stays black on a dark palette. That is
+         what the Rebind and "Reset all to defaults" buttons were. -->
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
     <Setter Property="FontFamily" Value="{DynamicResource Font.Family.Primary}" />
     <Setter Property="FontSize" Value="{DynamicResource Font.Size.Body}" />
     <Setter Property="FontWeight" Value="{DynamicResource Font.Weight.Medium}" />
@@ -137,6 +141,9 @@
 
   <!-- Low-emphasis inline action. Flush with the page until hovered. -->
   <Style x:Key="Button.Subtle" TargetType="Button" BasedOn="{StaticResource Button.Base}">
+    <!-- A shade back from body text at rest, full strength on hover - low emphasis is the point of
+         this style, and the IsMouseOver trigger below already brightens it. -->
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderBrush" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
@@ -158,6 +165,9 @@
     without a second button face appearing behind it.
   -->
   <Style x:Key="Button.Bare" TargetType="Button">
+    <!-- Not BasedOn Button.Base - this style deliberately shares none of its chrome - so it has to
+         state its own foreground, or it inherits WPF's black. -->
+    <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="Padding" Value="0" />

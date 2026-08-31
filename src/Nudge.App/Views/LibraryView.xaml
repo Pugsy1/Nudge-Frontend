@@ -386,16 +386,20 @@
       needs none of that panel's per-row wrapping/column-fitting logic.
     -->
     <DataTemplate x:Key="TableListRowTemplate" DataType="{x:Type vm:TableTileViewModel}">
+      <!-- Focusable="False", like every other tile: the pad drives the library by an explicit
+           selection index, not by focus (focus traversal cannot reach containers a virtualizing panel
+           has not realized), so a focusable row is a tab stop that shows nothing and does nothing. -->
       <Button Command="{Binding DataContext.LaunchTableCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
               CommandParameter="{Binding}"
               Cursor="Hand"
-              Focusable="True"
+              Focusable="False"
               HorizontalContentAlignment="Stretch"
               Margin="{DynamicResource Gap.Below.S}"
               Loaded="OnTileLoaded"
               Unloaded="OnTileUnloaded">
         <Button.Template>
           <ControlTemplate TargetType="Button">
+            <Grid>
             <Border Background="{DynamicResource Brush.Surface.Background}"
                     CornerRadius="{DynamicResource CornerRadius.S}"
                     Effect="{DynamicResource Effect.Button.Shadow}">
@@ -498,6 +502,29 @@
                 </Button>
               </Grid>
             </Border>
+
+              <!-- The same controller selection ring the grid, compact and carousel cards carry. The
+                   List layout was the one arrangement without it, so navigating a list on a pad moved
+                   an invisible selection - the rows scrolled past with nothing marking which one was
+                   about to launch. -->
+              <Border x:Name="SelectionRing"
+                      IsHitTestVisible="False"
+                      Panel.ZIndex="10"
+                      CornerRadius="{DynamicResource CornerRadius.S}"
+                      BorderThickness="3"
+                      BorderBrush="{DynamicResource Brush.Accent}"
+                      Visibility="Collapsed" />
+            </Grid>
+            <ControlTemplate.Triggers>
+              <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                  <Condition Binding="{Binding IsSelected}" Value="True" />
+                  <Condition Binding="{Binding DataContext.IsControllerMode, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Value="True" />
+                  <Condition Binding="{Binding DataContext.IsHeaderFocused, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Value="False" />
+                </MultiDataTrigger.Conditions>
+                <Setter TargetName="SelectionRing" Property="Visibility" Value="Visible" />
+              </MultiDataTrigger>
+            </ControlTemplate.Triggers>
           </ControlTemplate>
         </Button.Template>
       </Button>
@@ -1437,6 +1464,108 @@
                     Command="{Binding CloseRandomPickerCommand}" />
           </StackPanel>
         </Grid>
+      </ContentControl>
+    </Grid>
+
+    <!-- ======================= Close Nudge? ======================= -->
+    <!-- B at the library. Every other screen has somewhere for B to go back to; this one does not,
+         so rather than leaving the button dead - which left a pad with no way at all to close the
+         app - it asks. Asks rather than quits, because a back button that sometimes ends the program
+         is not something you want to press by reflex. -->
+    <Grid Grid.Row="0"
+          Grid.RowSpan="3"
+          Background="{DynamicResource Brush.Overlay.Scrim}"
+          Visibility="{Binding IsExitPromptOpen, Converter={StaticResource BoolToVisibility}}">
+      <Grid.Style>
+        <Style TargetType="Grid">
+          <Style.Triggers>
+            <DataTrigger Binding="{Binding IsExitPromptOpen}" Value="True">
+              <DataTrigger.EnterActions>
+                <BeginStoryboard>
+                  <Storyboard>
+                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.18" />
+                  </Storyboard>
+                </BeginStoryboard>
+              </DataTrigger.EnterActions>
+            </DataTrigger>
+          </Style.Triggers>
+        </Style>
+      </Grid.Style>
+
+      <!-- Clicking the scrim keeps Nudge open, the way dismissing any modal means "no". -->
+      <Rectangle Fill="Transparent">
+        <Rectangle.InputBindings>
+          <MouseBinding MouseAction="LeftClick" Command="{Binding CancelExitCommand}" />
+        </Rectangle.InputBindings>
+      </Rectangle>
+
+      <ContentControl HorizontalAlignment="Center"
+                      VerticalAlignment="Center"
+                      MinWidth="460"
+                      Padding="{DynamicResource Inset.XL}">
+        <ContentControl.RenderTransform>
+          <ScaleTransform ScaleX="1" ScaleY="1" />
+        </ContentControl.RenderTransform>
+        <ContentControl.Style>
+          <Style TargetType="ContentControl" BasedOn="{StaticResource Card.Neumorphic}">
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding IsExitPromptOpen}" Value="True">
+                <DataTrigger.EnterActions>
+                  <BeginStoryboard>
+                    <Storyboard>
+                      <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX"
+                                       From="0.94" To="1" Duration="0:0:0.22">
+                        <DoubleAnimation.EasingFunction>
+                          <BackEase EasingMode="EaseOut" Amplitude="0.4" />
+                        </DoubleAnimation.EasingFunction>
+                      </DoubleAnimation>
+                      <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY"
+                                       From="0.94" To="1" Duration="0:0:0.22">
+                        <DoubleAnimation.EasingFunction>
+                          <BackEase EasingMode="EaseOut" Amplitude="0.4" />
+                        </DoubleAnimation.EasingFunction>
+                      </DoubleAnimation>
+                    </Storyboard>
+                  </BeginStoryboard>
+                </DataTrigger.EnterActions>
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </ContentControl.Style>
+
+        <StackPanel>
+          <TextBlock Style="{StaticResource Text.Caption}"
+                     Foreground="{DynamicResource Brush.Accent}"
+                     Text="CLOSE NUDGE" />
+
+          <TextBlock Style="{StaticResource Text.Title}"
+                     Margin="{DynamicResource Gap.Above.S}"
+                     TextWrapping="Wrap"
+                     Text="Finished playing?" />
+
+          <TextBlock Style="{StaticResource Text.BodySecondary}"
+                     Margin="{DynamicResource Gap.Above.S}"
+                     TextWrapping="Wrap"
+                     Text="Nudge will close. Your library, artwork and settings are all saved." />
+
+          <StackPanel Orientation="Horizontal" Margin="{DynamicResource Gap.Above.XL}">
+            <Button Style="{StaticResource Button.Primary}"
+                    Content="Close Nudge"
+                    Margin="{DynamicResource Gap.Right.S}"
+                    Command="{Binding ConfirmExitCommand}" />
+            <Button Style="{StaticResource Button.Secondary}"
+                    Content="Keep playing"
+                    Command="{Binding CancelExitCommand}" />
+          </StackPanel>
+
+          <!-- Stated in the card, not in the header legend - A and B mean something different here
+               to what they mean in the library behind it, and the header strip stays fixed. -->
+          <ItemsControl Style="{StaticResource ControllerHintBar}"
+                        Margin="{DynamicResource Gap.Above.M}"
+                        ItemsSource="{Binding ExitPromptHints}"
+                        Visibility="{Binding IsControllerMode, Converter={StaticResource BoolToVisibility}}" />
+        </StackPanel>
       </ContentControl>
     </Grid>
 

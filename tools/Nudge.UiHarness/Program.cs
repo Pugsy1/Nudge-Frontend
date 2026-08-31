@@ -52,6 +52,8 @@ internal static class Program
         failed += CheckHeaderStops();
         failed += CheckEveryStopShowsFocus();
         failed += CheckOpenDropDownNavigation();
+        failed += CheckEveryLayoutHasASelectionRing();
+        failed += CheckNoButtonRendersBlack();
 
         Console.WriteLine();
         Console.WriteLine(failed == 0 ? "ALL CHECKS PASSED" : $"{failed} CHECK(S) FAILED");
@@ -113,6 +115,132 @@ internal static class Program
         }
 
         Console.WriteLine($"View load: {views.Length} views x {themes.Length} themes = {checks} checks, {failed} failed");
+        return failed;
+    }
+
+    /// <summary>
+    /// Every layout must be able to show the controller selection. The pad drives the library by an
+    /// explicit selection index rather than by focus, so the ring IS the cursor - a layout whose card
+    /// has no ring lets the selection move invisibly. The List layout was exactly that: its rows are
+    /// a template of their own rather than the shared card, and it never got one.
+    ///
+    /// Checked against the templates directly rather than by rendering each layout, since only one
+    /// layout is ever visible at a time.
+    /// </summary>
+    private static int CheckEveryLayoutHasASelectionRing()
+    {
+        LibraryView view = new();
+        Window host = new() { Width = 1920, Height = 1080, Content = view };
+        host.Show();
+        host.UpdateLayout();
+
+        // Grid, Compact and Carousel all instantiate the shared TableCard; List has its own row.
+        string[] templateKeys = ["TableTileTemplate", "TableTileCompactTemplate", "TableListRowTemplate"];
+
+        int failed = 0;
+        foreach (string key in templateKeys)
+        {
+            if (view.TryFindResource(key) is not DataTemplate template)
+            {
+                failed++;
+                Console.WriteLine($"FAIL  selection ring: template {key} not found");
+                continue;
+            }
+
+            ContentPresenter probe = new()
+            {
+                ContentTemplate = template,
+                Content = null
+            };
+
+            Window probeHost = new() { Width = 600, Height = 600, Content = probe };
+            probeHost.Show();
+            probeHost.UpdateLayout();
+
+            if (!HasNamed(probe, "SelectionRing"))
+            {
+                failed++;
+                Console.WriteLine($"FAIL  selection ring: {key} has no SelectionRing");
+            }
+
+            probeHost.Close();
+        }
+
+        if (failed == 0)
+        {
+            Console.WriteLine($"Selection ring: all {templateKeys.Length} tile templates carry one");
+        }
+
+        host.Close();
+        return failed;
+
+        static bool HasNamed(DependencyObject node, string name)
+        {
+            if (node is FrameworkElement element && element.Name == name)
+            {
+                return true;
+            }
+
+            int count = VisualTreeHelper.GetChildrenCount(node);
+            for (int i = 0; i < count; i++)
+            {
+                if (HasNamed(VisualTreeHelper.GetChild(node, i), name))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// No button may render with WPF's default foreground. It is black, it stays black on a dark
+    /// palette, and it is what a style gets by simply not mentioning Foreground - which is how the
+    /// Rebind and "Reset all to defaults" buttons ended up unreadable.
+    /// </summary>
+    private static int CheckNoButtonRendersBlack()
+    {
+        int failed = 0;
+
+        foreach (UserControl page in new UserControl[] { new SettingsView(), new LibraryView() })
+        {
+            Window host = new() { Width = 1920, Height = 1080, Content = page };
+            host.Show();
+            host.UpdateLayout();
+
+            List<Button> black = [];
+            Collect(host);
+
+            if (black.Count > 0)
+            {
+                failed++;
+                Console.WriteLine($"FAIL  {page.GetType().Name}: {black.Count} button(s) with a black foreground: " +
+                                  string.Join(", ", black.Select(b => b.Content?.ToString() ?? "<no content>").Distinct()));
+            }
+            else
+            {
+                Console.WriteLine($"Button foreground: {page.GetType().Name} - no button renders black");
+            }
+
+            host.Close();
+
+            void Collect(DependencyObject node)
+            {
+                if (node is Button button
+                    && button.Foreground is SolidColorBrush { Color.R: 0, Color.G: 0, Color.B: 0, Color.A: 255 })
+                {
+                    black.Add(button);
+                }
+
+                int count = VisualTreeHelper.GetChildrenCount(node);
+                for (int i = 0; i < count; i++)
+                {
+                    Collect(VisualTreeHelper.GetChild(node, i));
+                }
+            }
+        }
+
         return failed;
     }
 

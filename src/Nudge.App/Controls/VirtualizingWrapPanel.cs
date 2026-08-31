@@ -70,6 +70,15 @@ public sealed class VirtualizingWrapPanel : VirtualizingPanel, IScrollInfo
         set => SetValue(ColumnsProperty, value);
     }
 
+    /// <summary>
+    /// How many columns the last measure pass actually used. Not the same as <see cref="Columns"/>:
+    /// that is a request, and 0 means "as many as fit", which is exactly what the Compact layout
+    /// asks for. Controller navigation needs the real number to know what "the tile below this one"
+    /// is - stepping by the grid's density setting in a layout that fits twice as many per row
+    /// jumped several rows at a time.
+    /// </summary>
+    public int RealizedColumns => _columns;
+
     protected override Size MeasureOverride(Size availableSize)
     {
         int itemCount = ItemsControl.GetItemsOwner(this)?.Items.Count ?? 0;

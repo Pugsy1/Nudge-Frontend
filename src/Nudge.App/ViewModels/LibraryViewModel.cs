@@ -662,6 +662,19 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _isControllerMode;
 
+    /// <summary>
+    /// Hides the pointer while the pad is driving, and brings it straight back the moment the mouse
+    /// moves. A cursor stranded in the middle of the screen on a cabinet or a TV is the clearest
+    /// remaining sign that the app is "really" a desktop program being driven by a pad.
+    ///
+    /// Mouse.OverrideCursor is process-wide, which is what we want - every Nudge window, including
+    /// the settings and details pages, follows the same input mode - and it cannot leak past this
+    /// process. Not a setting: the same reasoning as the selection ring, the UI simply follows
+    /// whichever input is actually in use.
+    /// </summary>
+    partial void OnIsControllerModeChanged(bool value) =>
+        Mouse.OverrideCursor = value ? Cursors.None : null;
+
     /// <summary>The tile the controller is currently on.</summary>
     [ObservableProperty]
     private TableTileViewModel? _selectedTile;
@@ -682,7 +695,8 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
         new("X", "Details"),
         new("Y", "Customize"),
         new("LB", "Favourite"),
-        new("Start", "Settings")
+        new("Start", "Settings"),
+        new("B", "Exit")
     ];
 
     /// <summary>
@@ -696,6 +710,13 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
         new("X", "Backspace"),
         new("LB", "Clear"),
         new("B", "Done")
+    ];
+
+    /// <summary>Same reasoning as the keyboard's: A and B mean something else inside this prompt.</summary>
+    public IReadOnlyList<ControllerHint> ExitPromptHints { get; } =
+    [
+        new("A", "Close Nudge"),
+        new("B", "Keep playing")
     ];
 
     /// <summary>
@@ -785,6 +806,24 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
     private List<TableTileViewModel> VisibleTables() => TablesView.Cast<TableTileViewModel>().ToList();
 
     /// <summary>
+    /// How many tiles the layout on screen actually puts in a row, reported by the view after each
+    /// layout pass. Only the Grid layout's count is a setting (TablesPerRow); Compact fits as many
+    /// small tiles as the window allows, so its real count is not knowable from here - and using the
+    /// grid's density there made up/down step several rows at once.
+    /// </summary>
+    public int RealizedColumns { get; set; } = 1;
+
+    /// <summary>The row width the pad should step by, per layout.</summary>
+    private int TilesPerRow => SelectedLayoutMode?.Value switch
+    {
+        LibraryLayoutMode.Grid => Math.Max(1, TablesPerRow),
+        LibraryLayoutMode.Compact => Math.Max(1, RealizedColumns),
+
+        // List is a single column, and the carousel never gets here (MoveSelection handles it first).
+        _ => 1
+    };
+
+    /// <summary>
     /// Whether the selection is on the first row, so pressing up should leave the grid and reach the
     /// header rather than doing nothing. Being unable to get to the search box and the 2D/VR switch
     /// without a mouse is what makes a pad feel like a partial input rather than a real one.
@@ -800,22 +839,34 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
                 return true;
             }
 
-            int perRow = SelectedLayoutMode?.Value is LibraryLayoutMode.Grid or LibraryLayoutMode.Compact
-                ? Math.Max(1, TablesPerRow)
-                : 1;
+            // The carousel is one horizontal row by definition, so up always leaves it for the
+            // header - waiting until the ring happens to be on the first table would make the header
+            // unreachable from almost everywhere in a layout that wraps anyway.
+            if (IsCarouselLayout)
+            {
+                return true;
+            }
 
-            return index < perRow;
+            return index < TilesPerRow;
         }
     }
 
     private void SelectFirstVisible()
     {
         List<TableTileViewModel> items = VisibleTables();
-        if (items.Count > 0)
+        if (items.Count == 0)
         {
-            SelectedTile = items[0];
-            SelectionMoved?.Invoke(items[0]);
+            return;
         }
+
+        // In the carousel the ring is already sitting somewhere; starting at the first table would
+        // yank the highlight away from whatever is centred on screen.
+        TableTileViewModel first = IsCarouselLayout
+            ? items[WrapIndex((int)Math.Round(CarouselPosition), items.Count)]
+            : items[0];
+
+        SelectedTile = first;
+        SelectionMoved?.Invoke(first);
     }
 
     /// <summary>
@@ -831,6 +882,16 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
             return;
         }
 
+        // The carousel does not lay its tables out in a panel at all - it draws a window of them
+        // along an arc positioned by CarouselPosition, so moving the selection there means moving the
+        // ring rather than picking a different container. Without this the pad changed SelectedTile
+        // while the carousel stayed exactly where it was.
+        if (IsCarouselLayout)
+        {
+            StepCarousel(columns);
+            return;
+        }
+
         int index = SelectedTile is null ? -1 : items.IndexOf(SelectedTile);
         if (index < 0)
         {
@@ -838,13 +899,9 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
             return;
         }
 
-        // The list and carousel layouts are a single column, so a horizontal step there should move
-        // one item rather than doing nothing.
-        int perRow = SelectedLayoutMode?.Value is LibraryLayoutMode.Grid or LibraryLayoutMode.Compact
-            ? Math.Max(1, TablesPerRow)
-            : 1;
-
-        int next = index + columns + (rows * perRow);
+        // The list layout is a single column, so a horizontal step there should move one item rather
+        // than doing nothing.
+        int next = index + columns + (rows * TilesPerRow);
 
         // Clamped rather than wrapped: running off the end of the grid and reappearing at the start
         // is disorienting when you cannot see where the selection went.
@@ -857,6 +914,61 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
         SelectedTile = items[next];
         SelectionMoved?.Invoke(items[next]);
     }
+
+    /// <summary>
+    /// Eases the carousel one table along and moves the selection ring with it, reusing the same
+    /// explicit-target machinery a clicked side tile uses - so a pad step glides exactly the way a
+    /// click does rather than snapping.
+    ///
+    /// Wraps rather than clamping, because the carousel itself wraps: stopping dead at the last table
+    /// in a ring that visibly continues past it would look broken.
+    /// </summary>
+    private void StepCarousel(int delta)
+    {
+        List<TableTileViewModel> items = VisibleTables();
+        if (items.Count == 0 || delta == 0)
+        {
+            return;
+        }
+
+        // Measured from where the ring is HEADING, not where it currently is, so pressing twice in
+        // quick succession advances two tables instead of the second press re-targeting the same one
+        // while the first is still gliding.
+        double from = _carouselExplicitTarget ?? Math.Round(CarouselPosition);
+        int target = (int)from + delta;
+
+        _carouselVelocity = 0;
+        _carouselExplicitTarget = target;
+        if (!_carouselMotionTicker.IsEnabled)
+        {
+            _carouselMotionTicker.Start();
+        }
+
+        SelectedTile = items[WrapIndex(target, items.Count)];
+    }
+
+    // ---------------------------------------------------------------- Quitting
+
+    /// <summary>
+    /// True while the "close Nudge?" prompt is up. B at the library asks rather than quitting
+    /// outright: B is the back button everywhere else in the app, so on the one screen with nothing
+    /// to go back to it must not be a trapdoor out of the program.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isExitPromptOpen;
+
+    /// <summary>
+    /// Asked for by B at the library, which until now did nothing there - leaving a pad with no way
+    /// at all to close the app.
+    /// </summary>
+    [RelayCommand]
+    private void PromptExit() => IsExitPromptOpen = true;
+
+    [RelayCommand]
+    private void CancelExit() => IsExitPromptOpen = false;
+
+    [RelayCommand]
+    private void ConfirmExit() => Application.Current?.Shutdown();
 
     // ---------------------------------------------------------------- Random pick
 
