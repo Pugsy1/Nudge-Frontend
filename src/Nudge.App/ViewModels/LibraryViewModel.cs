@@ -1242,6 +1242,20 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void SetLaunchMode(string mode) => IsVrMode = mode == "Vr";
 
+    /// <summary>
+    /// Flips 2D/VR. A mouse aims at the half it wants; a controller has no cursor, so pressing A on
+    /// the switch has to mean "the other one" - which is unambiguous with exactly two positions.
+    /// Does nothing without a VR build, matching the switch being disabled in that case.
+    /// </summary>
+    [RelayCommand]
+    private void ToggleLaunchMode()
+    {
+        if (HasVr)
+        {
+            IsVrMode = !IsVrMode;
+        }
+    }
+
     [RelayCommand]
     private void ClearSearch()
     {

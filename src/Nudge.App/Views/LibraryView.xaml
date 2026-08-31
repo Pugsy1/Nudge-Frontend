@@ -562,11 +562,17 @@
              like a rounded rectangle housing a pill rather than a matching one. Narrower and a touch
              taller closes that gap: proportionally closer to the cap now, so the same curve reads as
              "the whole thing is a pill" rather than "a pill sitting in a box". -->
-        <Border Style="{StaticResource Segment.Track}"
-                Width="96" Height="32"
+        <!-- Wrapped in a Button so a controller can land on it: the whole switch is ONE stop, and A
+             flips it. Two separately focusable halves would mean two stops that each set a mode, and
+             two competing focus rings inside a single pill. The inner half-buttons stay for the
+             mouse but are Focusable="False" so the pad never sees them. -->
+        <Button Style="{StaticResource Button.Bare}"
                 Margin="{DynamicResource Gap.Right.L}"
                 IsEnabled="{Binding HasVr}"
-                ToolTip="Which Visual Pinball build a table launches on">
+                ToolTip="Which Visual Pinball build a table launches on"
+                Command="{Binding ToggleLaunchModeCommand}">
+          <Border Style="{StaticResource Segment.Track}"
+                  Width="96" Height="32">
           <Grid>
             <!-- The sliding cap: a raised accent pill that glides under whichever label is selected. -->
             <Border x:Name="SwitchCap"
@@ -624,6 +630,7 @@
                 <ColumnDefinition Width="*" />
               </Grid.ColumnDefinitions>
               <Button Grid.Column="0"
+                      Focusable="False"
                       Background="Transparent" BorderThickness="0" MinWidth="0" Padding="0"
                       Content="2D" FontSize="{DynamicResource Font.Size.Caption}"
                       FontWeight="{DynamicResource Font.Weight.SemiBold}"
@@ -640,6 +647,7 @@
                 </Button.Style>
               </Button>
               <Button Grid.Column="1"
+                      Focusable="False"
                       Background="Transparent" BorderThickness="0" MinWidth="0" Padding="0"
                       Content="VR" FontSize="{DynamicResource Font.Size.Caption}"
                       FontWeight="{DynamicResource Font.Weight.SemiBold}"
@@ -657,7 +665,8 @@
               </Button>
             </Grid>
           </Grid>
-        </Border>
+          </Border>
+        </Button>
 
         <!-- Search. The magnifier sits inside the milled slot; the placeholder clears on typing. -->
         <Grid Margin="{DynamicResource Gap.Right.M}" VerticalAlignment="Center">

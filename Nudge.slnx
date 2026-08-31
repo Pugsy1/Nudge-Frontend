@@ -14,4 +14,7 @@
     <Project Path="tests/Nudge.TestSupport/Nudge.TestSupport.csproj" />
     <Project Path="tests/Nudge.Vpx.Tests/Nudge.Vpx.Tests.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/Nudge.UiHarness/Nudge.UiHarness.csproj" />
+  </Folder>
 </Solution>

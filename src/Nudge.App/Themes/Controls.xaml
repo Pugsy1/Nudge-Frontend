@@ -15,6 +15,41 @@
     (text slots) use the inverted gradient at rest.
   -->
 
+  <!-- ============================ Focus ring ============================ -->
+  <!--
+    The keyboard/controller focus outline, drawn as its own Border layered OVER the control rather
+    than as the control's own BorderThickness.
+
+    Two earlier attempts both failed. Adding thickness on focus grew the control and shoved
+    everything after it along the header - the visible sideways-and-down jump when a pad moved onto
+    the search box. Reserving a constant transparent hairline instead fixed the jump but was silently
+    cancelled: several styles already carried their own BorderThickness="0" further down, and a later
+    Setter for the same property wins - so most controls showed no focus outline at all, which is why
+    only the two dropdowns appeared to highlight.
+
+    An overlay ring has neither problem. It sits in a Grid cell beside the control's own visual, so
+    its desired size (2x2) never exceeds the content's and it adds exactly nothing to layout, and it
+    owns its thickness outright so no style can zero it out by accident.
+  -->
+  <Style x:Key="FocusRing.Base" TargetType="Border">
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Focus}" />
+    <Setter Property="IsHitTestVisible" Value="False" />
+    <Setter Property="SnapsToDevicePixels" Value="True" />
+  </Style>
+
+  <Style x:Key="FocusRing.Button" TargetType="Border" BasedOn="{StaticResource FocusRing.Base}">
+    <Setter Property="CornerRadius" Value="{DynamicResource CornerRadius.Button}" />
+  </Style>
+
+  <Style x:Key="FocusRing.Pill" TargetType="Border" BasedOn="{StaticResource FocusRing.Base}">
+    <Setter Property="CornerRadius" Value="{DynamicResource CornerRadius.Pill}" />
+  </Style>
+
+  <Style x:Key="FocusRing.Medium" TargetType="Border" BasedOn="{StaticResource FocusRing.Base}">
+    <Setter Property="CornerRadius" Value="{DynamicResource CornerRadius.M}" />
+  </Style>
+
   <!-- ============================ Buttons ============================ -->
 
   <Style x:Key="Button.Base" TargetType="Button">
@@ -28,23 +63,26 @@
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="Button">
-          <!-- CornerRadius.Button, not .Pill: these are wide text buttons, and a fully-round
-               radius stretches into a lozenge rather than reading as round. Square icon buttons
-               (Button.Icon, TileOverlayButton) keep .Pill and stay true circles. -->
-          <Border x:Name="Root"
-                  Background="{TemplateBinding Background}"
-                  BorderBrush="{TemplateBinding BorderBrush}"
-                  BorderThickness="{TemplateBinding BorderThickness}"
-                  CornerRadius="{DynamicResource CornerRadius.Button}">
-            <ContentPresenter x:Name="Content"
-                              Margin="{TemplateBinding Padding}"
-                              HorizontalAlignment="Center"
-                              VerticalAlignment="Center"
-                              RecognizesAccessKey="True" />
-          </Border>
+          <Grid>
+            <!-- CornerRadius.Button, not .Pill: these are wide text buttons, and a fully-round
+                 radius stretches into a lozenge rather than reading as round. Square icon buttons
+                 (Button.Icon, TileOverlayButton) keep .Pill and stay true circles. -->
+            <Border x:Name="Root"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="{DynamicResource CornerRadius.Button}">
+              <ContentPresenter x:Name="Content"
+                                Margin="{TemplateBinding Padding}"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                RecognizesAccessKey="True" />
+            </Border>
+            <Border x:Name="FocusRing" Style="{StaticResource FocusRing.Button}" />
+          </Grid>
           <ControlTemplate.Triggers>
             <Trigger Property="IsKeyboardFocused" Value="True">
-              <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
+              <Setter TargetName="FocusRing" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
             </Trigger>
             <Trigger Property="IsEnabled" Value="False">
               <Setter TargetName="Root" Property="Opacity" Value="0.45" />
@@ -61,8 +99,7 @@
     <Setter Property="Background" Value="{DynamicResource Brush.Accent.Surface}" />
     <Setter Property="Foreground" Value="{DynamicResource Brush.Accent.Foreground}" />
     <Setter Property="BorderBrush" Value="Transparent" />
-    <!-- A constant hairline, transparent until focused. Focus used to ADD this thickness, which grew the control and shoved everything after it along - the visible jump when a controller moved into the header. Reserving the space always means focus only ever changes its colour. -->
-    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
+    <Setter Property="BorderThickness" Value="0" />
     <Setter Property="Effect" Value="{DynamicResource Effect.Button.Shadow}" />
     <Style.Triggers>
       <Trigger Property="IsMouseOver" Value="True">
@@ -84,8 +121,6 @@
   <Style x:Key="Button.Secondary" TargetType="Button" BasedOn="{StaticResource Button.Base}">
     <Setter Property="Background" Value="{DynamicResource Brush.Control.Background}" />
     <Setter Property="Foreground" Value="{DynamicResource Brush.Control.Foreground}" />
-    <!-- A constant hairline, transparent until focused. Focus used to ADD this thickness, which grew the control and shoved everything after it along - the visible jump when a controller moved into the header. Reserving the space always means focus only ever changes its colour. -->
-    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="Effect" Value="{DynamicResource Effect.Button.Shadow}" />
     <Style.Triggers>
@@ -103,8 +138,6 @@
   <!-- Low-emphasis inline action. Flush with the page until hovered. -->
   <Style x:Key="Button.Subtle" TargetType="Button" BasedOn="{StaticResource Button.Base}">
     <Setter Property="Background" Value="Transparent" />
-    <!-- A constant hairline, transparent until focused. Focus used to ADD this thickness, which grew the control and shoved everything after it along - the visible jump when a controller moved into the header. Reserving the space always means focus only ever changes its colour. -->
-    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
     <Setter Property="BorderBrush" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="MinWidth" Value="0" />
@@ -116,6 +149,45 @@
         <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
       </Trigger>
     </Style.Triggers>
+  </Style>
+
+  <!--
+    A button with no chrome of its own - just a hit target, a command and a focus ring around
+    whatever it contains. For composite controls that already draw themselves (the 2D/VR switch),
+    where the point is to make the whole assembly one thing a controller can land on and press,
+    without a second button face appearing behind it.
+  -->
+  <Style x:Key="Button.Bare" TargetType="Button">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Grid Background="Transparent">
+            <ContentPresenter />
+            <!-- Sits 3px outside the content it wraps, so the ring reads as being around the whole
+                 assembly rather than drawn on top of its edge. Radius 13 = the segment track's own
+                 10 plus that 3, so the two curves stay concentric. -->
+            <Border x:Name="FocusRing"
+                    Style="{StaticResource FocusRing.Base}"
+                    CornerRadius="13"
+                    Margin="-3" />
+          </Grid>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsKeyboardFocused" Value="True">
+              <Setter TargetName="FocusRing" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter Property="Opacity" Value="0.45" />
+              <Setter Property="Cursor" Value="Arrow" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
   </Style>
 
   <!-- Icon-only, square auxiliary action, e.g. the settings cog. -->
@@ -133,18 +205,21 @@
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="Button">
-          <Border x:Name="Root"
-                  Background="{TemplateBinding Background}"
-                  BorderBrush="{TemplateBinding BorderBrush}"
-                  BorderThickness="{TemplateBinding BorderThickness}"
-                  CornerRadius="{DynamicResource CornerRadius.Pill}">
-            <ContentPresenter HorizontalAlignment="Center"
-                              VerticalAlignment="Center"
-                              RecognizesAccessKey="True" />
-          </Border>
+          <Grid>
+            <Border x:Name="Root"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="{DynamicResource CornerRadius.Pill}">
+              <ContentPresenter HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                RecognizesAccessKey="True" />
+            </Border>
+            <Border x:Name="FocusRing" Style="{StaticResource FocusRing.Pill}" />
+          </Grid>
           <ControlTemplate.Triggers>
             <Trigger Property="IsKeyboardFocused" Value="True">
-              <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
+              <Setter TargetName="FocusRing" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
             </Trigger>
             <Trigger Property="IsEnabled" Value="False">
               <Setter TargetName="Root" Property="Opacity" Value="0.45" />
@@ -314,8 +389,6 @@
     <Setter Property="FontFamily" Value="{DynamicResource Font.Family.Primary}" />
     <Setter Property="FontSize" Value="{DynamicResource Font.Size.Body}" />
     <Setter Property="Foreground" Value="{DynamicResource Brush.Control.Foreground}" />
-    <!-- A constant hairline, transparent until focused. Focus used to ADD this thickness, which grew the control and shoved everything after it along - the visible jump when a controller moved into the header. Reserving the space always means focus only ever changes its colour. -->
-    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
     <Setter Property="Background" Value="{DynamicResource Brush.Surface.Recessed}" />
     <Setter Property="BorderBrush" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
@@ -326,16 +399,19 @@
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="TextBox">
-          <Border x:Name="Root"
-                  Background="{TemplateBinding Background}"
-                  BorderBrush="{TemplateBinding BorderBrush}"
-                  BorderThickness="{TemplateBinding BorderThickness}"
-                  CornerRadius="{DynamicResource CornerRadius.Button}">
-            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="Center" />
-          </Border>
+          <Grid>
+            <Border x:Name="Root"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="{DynamicResource CornerRadius.Button}">
+              <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="Center" />
+            </Border>
+            <Border x:Name="FocusRing" Style="{StaticResource FocusRing.Button}" />
+          </Grid>
           <ControlTemplate.Triggers>
             <Trigger Property="IsKeyboardFocused" Value="True">
-              <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
+              <Setter TargetName="FocusRing" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
             </Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
@@ -350,8 +426,6 @@
   <Style x:Key="TextBox.MultiLine" TargetType="TextBox">
     <Setter Property="FontFamily" Value="{DynamicResource Font.Family.Primary}" />
     <Setter Property="FontSize" Value="{DynamicResource Font.Size.Body}" />
-    <!-- A constant hairline, transparent until focused. Focus used to ADD this thickness, which grew the control and shoved everything after it along - the visible jump when a controller moved into the header. Reserving the space always means focus only ever changes its colour. -->
-    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
     <Setter Property="CaretBrush" Value="{DynamicResource Brush.Accent}" />
     <Setter Property="Background" Value="{DynamicResource Brush.Surface.Recessed}" />
     <Setter Property="BorderBrush" Value="Transparent" />
@@ -366,16 +440,19 @@
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="TextBox">
-          <Border x:Name="Root"
-                  Background="{TemplateBinding Background}"
-                  BorderBrush="{TemplateBinding BorderBrush}"
-                  BorderThickness="{TemplateBinding BorderThickness}"
-                  CornerRadius="{DynamicResource CornerRadius.M}">
-            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" />
-          </Border>
+          <Grid>
+            <Border x:Name="Root"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="{DynamicResource CornerRadius.M}">
+              <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" />
+            </Border>
+            <Border x:Name="FocusRing" Style="{StaticResource FocusRing.Medium}" />
+          </Grid>
           <ControlTemplate.Triggers>
             <Trigger Property="IsKeyboardFocused" Value="True">
-              <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
+              <Setter TargetName="FocusRing" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
             </Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
@@ -388,8 +465,6 @@
        customization page's name/author/date overrides. -->
   <Style x:Key="TextBox.SingleLine" TargetType="TextBox">
     <Setter Property="FontFamily" Value="{DynamicResource Font.Family.Primary}" />
-    <!-- A constant hairline, transparent until focused. Focus used to ADD this thickness, which grew the control and shoved everything after it along - the visible jump when a controller moved into the header. Reserving the space always means focus only ever changes its colour. -->
-    <Setter Property="BorderThickness" Value="{DynamicResource BorderThickness.Thin}" />
     <Setter Property="Foreground" Value="{DynamicResource Brush.Control.Foreground}" />
     <Setter Property="CaretBrush" Value="{DynamicResource Brush.Accent}" />
     <Setter Property="Background" Value="{DynamicResource Brush.Surface.Recessed}" />
@@ -402,16 +477,19 @@
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="TextBox">
-          <Border x:Name="Root"
-                  Background="{TemplateBinding Background}"
-                  BorderBrush="{TemplateBinding BorderBrush}"
-                  BorderThickness="{TemplateBinding BorderThickness}"
-                  CornerRadius="{DynamicResource CornerRadius.M}">
-            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="Center" />
-          </Border>
+          <Grid>
+            <Border x:Name="Root"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="{DynamicResource CornerRadius.M}">
+              <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="Center" />
+            </Border>
+            <Border x:Name="FocusRing" Style="{StaticResource FocusRing.Medium}" />
+          </Grid>
           <ControlTemplate.Triggers>
             <Trigger Property="IsKeyboardFocused" Value="True">
-              <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
+              <Setter TargetName="FocusRing" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
             </Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
@@ -483,33 +561,32 @@
                 <ControlTemplate TargetType="ToggleButton">
                   <!-- Borderless pill, shadow carries the raised edge at rest - same rule as every
                        other control in the clean-neumorphic pass. -->
-                  <!-- Hairline always present, coloured only when focused - same reasoning as the
-                       buttons and text fields. Without any focus visual at all, moving a controller
-                       from the search box onto this dropdown made the highlight simply vanish, so
-                       the pad appeared to have lost its place. -->
-                  <Border x:Name="Cap"
-                          Background="{DynamicResource Brush.Control.Background}"
-                          BorderThickness="{DynamicResource BorderThickness.Thin}"
-                          BorderBrush="Transparent"
-                          CornerRadius="{DynamicResource CornerRadius.Button}"
-                          Effect="{DynamicResource Effect.Button.Shadow}">
-                    <Grid>
-                      <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                      </Grid.ColumnDefinitions>
-                      <ContentPresenter Grid.Column="0"
-                                        Margin="{DynamicResource Padding.Button}"
-                                        VerticalAlignment="Center" />
-                      <TextBlock Grid.Column="1"
-                                 Text="&#xE70D;"
-                                 FontFamily="Segoe MDL2 Assets"
-                                 FontSize="9"
-                                 Margin="0,0,14,0"
-                                 VerticalAlignment="Center"
-                                 Foreground="{DynamicResource Brush.Text.Muted}" />
-                    </Grid>
-                  </Border>
+                  <Grid>
+                    <Border x:Name="Cap"
+                            Background="{DynamicResource Brush.Control.Background}"
+                            BorderThickness="0"
+                            BorderBrush="Transparent"
+                            CornerRadius="{DynamicResource CornerRadius.Button}"
+                            Effect="{DynamicResource Effect.Button.Shadow}">
+                      <Grid>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="*" />
+                          <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ContentPresenter Grid.Column="0"
+                                          Margin="{DynamicResource Padding.Button}"
+                                          VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1"
+                                   Text="&#xE70D;"
+                                   FontFamily="Segoe MDL2 Assets"
+                                   FontSize="9"
+                                   Margin="0,0,14,0"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource Brush.Text.Muted}" />
+                      </Grid>
+                    </Border>
+                    <Border x:Name="FocusRing" Style="{StaticResource FocusRing.Button}" />
+                  </Grid>
                   <ControlTemplate.Triggers>
                     <Trigger Property="IsMouseOver" Value="True">
                       <Setter TargetName="Cap" Property="Background" Value="{DynamicResource Brush.Control.BackgroundHover}" />
@@ -523,7 +600,7 @@
                          trigger has to look up at the templated parent rather than at its own
                          IsKeyboardFocused - which is never true here. -->
                     <DataTrigger Binding="{Binding IsKeyboardFocusWithin, RelativeSource={RelativeSource AncestorType=ComboBox}}" Value="True">
-                      <Setter TargetName="Cap" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
+                      <Setter TargetName="FocusRing" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
                     </DataTrigger>
                   </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -806,7 +883,10 @@
     <Setter Property="TickFrequency" Value="1" />
     <Setter Property="SmallChange" Value="1" />
     <Setter Property="LargeChange" Value="1" />
-    <Setter Property="Focusable" Value="False" />
+    <!-- Focusable, so a controller can land on it. It used to be Focusable="False", which meant
+         MoveFocus stepped straight over the density slider - the pad could reach every other header
+         control but simply skipped this one. -->
+    <Setter Property="Focusable" Value="True" />
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="Slider">
@@ -898,8 +978,25 @@
                 </Thumb>
               </Track.Thumb>
             </Track>
+
+            <!-- Sits around the whole control rather than the 10px groove, so the ring reads as
+                 "you are on the density slider" rather than outlining a hairline bar. -->
+            <Border x:Name="FocusRing"
+                    Style="{StaticResource FocusRing.Pill}"
+                    Margin="-6,-2,-6,-2" />
           </Grid>
           <ControlTemplate.Triggers>
+            <Trigger Property="IsKeyboardFocused" Value="True">
+              <Setter TargetName="FocusRing" Property="BorderBrush" Value="{DynamicResource Brush.Focus}" />
+            </Trigger>
+            <!-- Adjust mode, entered with A. A slider is the one header control that cannot simply
+                 be "pressed", so it needs a state of its own - without a visible difference between
+                 "passing over" and "now moving this", left/right would look identical in both and
+                 the user would have no way to tell which one they were in. -->
+            <Trigger Property="controls:SliderBehavior.IsAdjusting" Value="True">
+              <Setter TargetName="FocusRing" Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
+              <Setter TargetName="FocusRing" Property="Background" Value="{DynamicResource Brush.Accent.Subtle}" />
+            </Trigger>
             <Trigger Property="IsEnabled" Value="False">
               <Setter Property="Opacity" Value="0.45" />
               <Setter Property="Cursor" Value="Arrow" />

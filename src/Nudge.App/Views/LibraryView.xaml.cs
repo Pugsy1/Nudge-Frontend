@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -144,7 +146,7 @@ public partial class LibraryView : UserControl
                     break;
                 case ControllerAction.Activate:
                 case ControllerAction.Back:
-                    _adjustingSlider = null;
+                    StopAdjustingSlider();
                     break;
             }
 
@@ -208,23 +210,69 @@ public partial class LibraryView : UserControl
 
     private bool _inHeader;
     private Slider? _adjustingSlider;
+    private UIElement? _lastHeaderStop;
 
     /// <summary>
-    /// Moves focus out of the tile grid and into the header controls - the 2D/VR switch, search,
-    /// sort, layout and the density slider. The grid keeps its selection while up here, so dropping
-    /// back down returns to the tile you left rather than to the start.
+    /// The header controls a controller can land on, left to right: the 2D/VR switch, search, sort,
+    /// layout, the density slider, the random picker, Rescan and Settings.
+    ///
+    /// Built by walking the visual tree rather than by asking WPF to traverse focus. Two reasons.
+    /// MoveFocus(Next) does not stop at the end of a container, so pressing right on the Settings cog
+    /// walked straight out of the header and into whatever came next. And descending stops at the
+    /// first focusable element on each branch, which is what makes a composite control - the 2D/VR
+    /// switch, the labelled density slider - one stop rather than several.
+    ///
+    /// Recomputed on each move because the set genuinely changes: the density slider is only shown
+    /// for the grid layout, and the switch is disabled without a VR build.
+    /// </summary>
+    private List<UIElement> HeaderStops()
+    {
+        List<UIElement> stops = [];
+        Collect(HeaderBar);
+        return stops;
+
+        void Collect(DependencyObject node)
+        {
+            int count = VisualTreeHelper.GetChildrenCount(node);
+            for (int i = 0; i < count; i++)
+            {
+                DependencyObject child = VisualTreeHelper.GetChild(node, i);
+                if (child is UIElement { Focusable: true, IsEnabled: true, IsVisible: true } stop)
+                {
+                    stops.Add(stop);
+                    continue;
+                }
+
+                Collect(child);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Moves focus out of the tile grid and into the header. The grid keeps its selection while up
+    /// here, so dropping back down returns to the tile you left rather than to the start - and the
+    /// header does the same in reverse, resuming on the control you were last on.
     /// </summary>
     private void EnterHeader(LibraryViewModel library)
     {
+        List<UIElement> stops = HeaderStops();
+        if (stops.Count == 0)
+        {
+            return;
+        }
+
         _inHeader = true;
         library.IsHeaderFocused = true;
-        HeaderBar.MoveFocus(new TraversalRequest(FocusNavigationDirection.First));
+
+        UIElement target = _lastHeaderStop is { } last && stops.Contains(last) ? last : stops[0];
+        target.Focus();
+        _lastHeaderStop = target;
     }
 
     private void LeaveHeader(LibraryViewModel library)
     {
         _inHeader = false;
-        _adjustingSlider = null;
+        StopAdjustingSlider();
         library.IsHeaderFocused = false;
         Keyboard.ClearFocus();
     }
@@ -234,10 +282,10 @@ public partial class LibraryView : UserControl
         switch (action)
         {
             case ControllerAction.Left:
-                MoveWithinHeader(FocusNavigationDirection.Previous);
+                MoveWithinHeader(-1);
                 break;
             case ControllerAction.Right:
-                MoveWithinHeader(FocusNavigationDirection.Next);
+                MoveWithinHeader(1);
                 break;
 
             case ControllerAction.Down:
@@ -255,16 +303,26 @@ public partial class LibraryView : UserControl
         }
     }
 
-    private void MoveWithinHeader(FocusNavigationDirection direction)
+    /// <summary>
+    /// Steps one control along the header. Clamps at both ends rather than wrapping: this is a
+    /// single visible row, and having the highlight reappear at the far side would read as the input
+    /// having gone somewhere unintended.
+    /// </summary>
+    private void MoveWithinHeader(int delta)
     {
-        if (Keyboard.FocusedElement is UIElement current)
+        List<UIElement> stops = HeaderStops();
+        if (stops.Count == 0)
         {
-            current.MoveFocus(new TraversalRequest(direction));
+            return;
         }
-        else
-        {
-            HeaderBar.MoveFocus(new TraversalRequest(FocusNavigationDirection.First));
-        }
+
+        int current = stops.FindIndex(s => s.IsKeyboardFocusWithin);
+        int next = current < 0
+            ? (delta > 0 ? 0 : stops.Count - 1)
+            : Math.Clamp(current + delta, 0, stops.Count - 1);
+
+        stops[next].Focus();
+        _lastHeaderStop = stops[next];
     }
 
     /// <summary>
@@ -279,6 +337,7 @@ public partial class LibraryView : UserControl
         if (Keyboard.FocusedElement is Slider slider)
         {
             _adjustingSlider = slider;
+            SliderBehavior.SetIsAdjusting(slider, true);
             return;
         }
 
@@ -291,6 +350,15 @@ public partial class LibraryView : UserControl
         }
 
         FormControllerNavigation.ActivateFocused();
+    }
+
+    private void StopAdjustingSlider()
+    {
+        if (_adjustingSlider is { } slider)
+        {
+            SliderBehavior.SetIsAdjusting(slider, false);
+            _adjustingSlider = null;
+        }
     }
 
     /// <summary>

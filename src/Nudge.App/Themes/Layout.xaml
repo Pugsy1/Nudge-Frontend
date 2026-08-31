@@ -64,6 +64,11 @@
   <Thickness x:Key="BorderThickness.Bottom">0,0,0,1</Thickness>
   <Thickness x:Key="BorderThickness.Left.Accent">3,0,0,0</Thickness>
 
+  <!-- The keyboard/controller focus outline. Deliberately heavier than a hairline: across a room,
+       on a cabinet, one pixel is not enough to tell you where you are. It costs no layout - see the
+       FocusRing styles in Controls.xaml, which draw it as an overlay rather than as a real border. -->
+  <Thickness x:Key="BorderThickness.Focus">2</Thickness>
+
   <!-- A library tile's own outline: no top/bottom border at all, only left/right - since the
        top/bottom edges of every tile in a row line up into one continuous horizontal seam across
        the whole grid, where even a thin one reads as a much heavier line than intended. A
