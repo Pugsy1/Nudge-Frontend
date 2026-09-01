@@ -1434,6 +1434,15 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
         stats.TotalPlaySeconds += Math.Max(0, (long)duration.TotalSeconds);
         stats.LastPlayedAt = DateTimeOffset.Now;
 
+        // Logged at Information, not Debug: this is the one record Nudge keeps that cannot be
+        // recreated if it goes wrong, and it is the only way to confirm tracking is working without
+        // opening a details page and comparing numbers by eye.
+        _logger.LogInformation(
+            "Recorded a play session for {Path}: {Times} total, {Seconds}s lifetime.",
+            _redactor.Redact(tablePath),
+            stats.TimesPlayed,
+            stats.TotalPlaySeconds);
+
         try
         {
             // MutateAsync so a session ending at the same moment as any other preference save cannot

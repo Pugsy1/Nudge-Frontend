@@ -32,6 +32,25 @@ public sealed class LaunchEngineTests
         _fileSystem.AddFile(TablePath, new MockFileData([1, 2, 3]));
     }
 
+    /// <summary>
+    /// The reported duration is what play tracking accumulates as time played, so it has to be the
+    /// real time the table was open rather than the time it took to start one. Nothing covered this,
+    /// and a Duration stuck at zero would look exactly like a working feature that never adds up.
+    /// </summary>
+    [Fact]
+    public async Task Reports_how_long_the_table_was_actually_open()
+    {
+        LaunchEngine engine = CreateEngine();
+        VpxInstallation installation = BuildInstallation(ExecutablePath, VpxFlavor.DirectX9);
+        _processRunner.NextExitCode = 0;
+        _processRunner.RunFor = TimeSpan.FromMilliseconds(250);
+
+        Result<LaunchOutcome> result = await engine.LaunchAsync(installation, TablePath);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Duration.Should().BeGreaterThanOrEqualTo(TimeSpan.FromMilliseconds(200));
+    }
+
     [Fact]
     public async Task Launches_the_installations_best_desktop_executable_with_Play_and_the_table_path()
     {
@@ -282,6 +301,9 @@ public sealed class LaunchEngineTests
 
         public Exception? ThrowOnRun { get; set; }
 
+        /// <summary>How long the fake process stays "running", so the reported Duration can be checked.</summary>
+        public TimeSpan RunFor { get; set; } = TimeSpan.Zero;
+
         public bool WasCalled { get; private set; }
 
         public string? LastFileName { get; private set; }
@@ -310,7 +332,19 @@ public sealed class LaunchEngineTests
             }
 
             onProcessStarted?.Invoke(FakeProcessId);
+
+            if (RunFor > TimeSpan.Zero)
+            {
+                return Delay();
+            }
+
             return Task.FromResult(NextExitCode);
+
+            async Task<int> Delay()
+            {
+                await Task.Delay(RunFor, cancellationToken);
+                return NextExitCode;
+            }
         }
     }
 

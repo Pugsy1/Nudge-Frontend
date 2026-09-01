@@ -11,6 +11,13 @@ namespace Nudge.App.ViewModels;
 public static class PlayHistoryFormat
 {
     /// <summary>
+    /// Shown where there is nothing to report yet. An em dash rather than a hyphen: at the 28px size
+    /// these numbers are set in, a hyphen reads as a stray mark or a minus sign, where a dash of this
+    /// length is the conventional "no value" placeholder.
+    /// </summary>
+    public const string NoData = "—";
+
+    /// <summary>
     /// Rounded to whole minutes. Nobody reading "how long have I played this" wants the seconds, and
     /// showing them invites reading the number as more precise than a wall-clock measurement of a
     /// session - which includes however long the table sat on its attract screen - can be.
@@ -19,7 +26,7 @@ public static class PlayHistoryFormat
     {
         if (totalSeconds <= 0)
         {
-            return "-";
+            return NoData;
         }
 
         TimeSpan span = TimeSpan.FromSeconds(totalSeconds);

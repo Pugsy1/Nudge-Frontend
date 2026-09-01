@@ -149,7 +149,7 @@ internal static class Program
 
         (string Actual, string Expected, string What)[] cases =
         [
-            (PlayHistoryFormat.Duration(0), "-", "no time at all"),
+            (PlayHistoryFormat.Duration(0), PlayHistoryFormat.NoData, "no time at all"),
             (PlayHistoryFormat.Duration(59), "Under a minute", "under a minute"),
             (PlayHistoryFormat.Duration(60), "1 min", "exactly one minute"),
             (PlayHistoryFormat.Duration(3599), "59 min", "one second short of an hour"),

@@ -170,10 +170,12 @@
           <!-- ======================= Play history ======================= -->
           <!-- Three numbers side by side rather than three more rows in the specifications list
                below: everything there describes the table, and this describes the person reading it.
-               Hidden entirely until the table has actually been played - a row of dashes on a table
-               you have never opened is noise, and "Never / - / -" says nothing the absence of the
-               section does not. -->
-          <StackPanel Visibility="{Binding HasBeenPlayed, Converter={StaticResource BoolToVisibility}}">
+               Always shown, including on a table that has never been played. It was hidden until
+               first play, on the reasoning that a row of dashes is noise - which was wrong twice
+               over: a section that only sometimes exists is one nobody knows to look for, and there
+               is then no way to tell "not played yet" apart from "this feature is broken". "Never"
+               is an answer; an absent section is not. -->
+          <StackPanel>
             <TextBlock Style="{StaticResource Text.SectionHeading}" Margin="{DynamicResource Gap.Below.M}" Text="PLAY HISTORY" />
 
             <ContentControl Style="{StaticResource Card.Neumorphic}" Margin="{DynamicResource Gap.Below.XL}">

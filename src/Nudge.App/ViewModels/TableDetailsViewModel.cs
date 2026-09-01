@@ -117,14 +117,12 @@ public sealed partial class TableDetailsViewModel : ObservableObject
     /// </summary>
     private TablePlayStats? Stats => _library.GetPlayStats(Tile.Table.Path);
 
-    public bool HasBeenPlayed => Stats is { TimesPlayed: > 0 };
-
     public string TimesPlayedLabel => PlayHistoryFormat.TimesPlayed(Stats?.TimesPlayed ?? 0);
 
     public string TotalPlayTimeLabel => PlayHistoryFormat.Duration(Stats?.TotalPlaySeconds ?? 0);
 
     public string LastPlayedLabel =>
-        Stats?.LastPlayedAt is { } last ? PlayHistoryFormat.When(last, DateTime.Today) : "-";
+        Stats?.LastPlayedAt is { } last ? PlayHistoryFormat.When(last, DateTime.Today) : PlayHistoryFormat.NoData;
 
     private static string FormatSize(long bytes) =>
         bytes >= 1024L * 1024 * 1024
@@ -184,7 +182,6 @@ public sealed partial class TableDetailsViewModel : ObservableObject
     {
         await _library.LaunchTableCommand.ExecuteAsync(Tile).ConfigureAwait(true);
 
-        OnPropertyChanged(nameof(HasBeenPlayed));
         OnPropertyChanged(nameof(TimesPlayedLabel));
         OnPropertyChanged(nameof(TotalPlayTimeLabel));
         OnPropertyChanged(nameof(LastPlayedLabel));
