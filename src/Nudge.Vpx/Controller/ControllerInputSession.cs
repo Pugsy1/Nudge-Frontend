@@ -12,10 +12,19 @@ namespace Nudge.Vpx.Controller;
 /// </summary>
 internal sealed class ControllerInputSession : IDisposable
 {
-    private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(16); // ~60Hz
+    /// <summary>
+    /// ~125Hz. This is flipper latency: a button is not seen until the next poll, so the interval is
+    /// added to every press in the one place a player can actually feel it. Halved from 16ms, which
+    /// is a frame at 60Hz and enough to be perceptible on a fast shot.
+    ///
+    /// Not taken further: XInput is polled, and past roughly this rate the reads start costing more
+    /// than the latency they save, with the controller's own USB reporting interval setting a floor
+    /// this cannot get under anyway.
+    /// </summary>
+    private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(8);
 
     /// <summary>How many polls to skip after finding no controller connected - see <see cref="ReadController"/>. ~1 second at <see cref="PollInterval"/>.</summary>
-    private const int DisconnectedProbeIntervalTicks = 60;
+    private const int DisconnectedProbeIntervalTicks = 125;
 
     private readonly IControllerReader _controllerReader;
     private readonly IKeyboardInputSynthesizer _keyboard;

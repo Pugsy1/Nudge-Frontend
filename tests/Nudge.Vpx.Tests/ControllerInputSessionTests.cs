@@ -190,7 +190,10 @@ public sealed class ControllerInputSessionTests
         _controllerReader.Connected = true;
         _controllerReader.State = State(ControllerButton.LeftShoulder);
 
-        for (int i = 0; i < 120; i++)
+        // Comfortably more than the reconnect backoff, which is sized in polls rather than in
+        // seconds - so it moves whenever the poll rate does, and a count that only just cleared the
+        // old value would fail the next time the loop is made faster.
+        for (int i = 0; i < 400; i++)
         {
             session.Tick();
         }

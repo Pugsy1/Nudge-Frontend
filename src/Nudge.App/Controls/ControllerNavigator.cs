@@ -46,14 +46,26 @@ public enum ControllerAction
 public sealed class ControllerNavigator : IDisposable
 {
     /// <summary>
-    /// Fast enough that holding a direction feels responsive rather than laggy, slow enough that a
-    /// single deliberate press cannot be read as several.
+    /// ~60Hz, matching the in-table translation loop. This is the whole of Nudge's own input lag: a
+    /// press is not seen until the next poll, so at the previous 60ms a button could sit unnoticed
+    /// for most of a tenth of a second before anything moved.
+    ///
+    /// Polling faster cannot double-fire a press. The loop below is strictly edge-triggered - an
+    /// action fires only on the transition from up to down - so the rate decides how soon a press is
+    /// noticed and nothing else. (The older 60ms carried a note about a single press being read as
+    /// several; that was never what the rate controlled.) Reading XInput state is a cheap struct
+    /// copy, so the extra polls cost nothing worth measuring.
     /// </summary>
-    private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(60);
+    private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(16);
 
-    /// <summary>How long a direction must be held before it starts repeating, and how fast it then repeats.</summary>
-    private static readonly TimeSpan RepeatDelay = TimeSpan.FromMilliseconds(420);
-    private static readonly TimeSpan RepeatInterval = TimeSpan.FromMilliseconds(110);
+    /// <summary>
+    /// How long a direction must be held before it starts repeating, and how fast it then repeats.
+    /// Tightened from 420/110: a library is long, and holding a direction to cross it spent most of
+    /// its time waiting. Still far longer than any single deliberate press, so a normal tap cannot
+    /// trip the repeat.
+    /// </summary>
+    private static readonly TimeSpan RepeatDelay = TimeSpan.FromMilliseconds(300);
+    private static readonly TimeSpan RepeatInterval = TimeSpan.FromMilliseconds(70);
 
     private static readonly (ControllerButton Button, ControllerAction Action)[] Bindings =
     [
