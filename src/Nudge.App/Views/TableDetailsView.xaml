@@ -128,7 +128,7 @@
                            VerticalAlignment="Center"
                            Text="PLAYED" />
                 <TextBlock Grid.Column="1"
-                           Style="{StaticResource Text.Subtitle}"
+                           Style="{StaticResource Text.Body}"
                            Text="{Binding TimesPlayedLabel}" />
               </Grid>
 
@@ -143,7 +143,7 @@
                            VerticalAlignment="Center"
                            Text="TOTAL TIME" />
                 <TextBlock Grid.Column="1"
-                           Style="{StaticResource Text.Subtitle}"
+                           Style="{StaticResource Text.Body}"
                            Text="{Binding TotalPlayTimeLabel}" />
               </Grid>
 

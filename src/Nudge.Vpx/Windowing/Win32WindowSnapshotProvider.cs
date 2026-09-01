@@ -36,7 +36,22 @@ public sealed class Win32WindowSnapshotProvider : IWindowSnapshotProvider
         return found == IntPtr.Zero ? null : found;
     }
 
+    public bool IsForeground(int processId)
+    {
+        IntPtr foreground = GetForegroundWindow();
+        if (foreground == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        GetWindowThreadProcessId(foreground, out uint foregroundProcessId);
+        return foregroundProcessId == (uint)processId;
+    }
+
     private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
 
     [DllImport("user32.dll")]
     private static extern bool EnumWindows(EnumWindowsProc enumProc, IntPtr lParam);

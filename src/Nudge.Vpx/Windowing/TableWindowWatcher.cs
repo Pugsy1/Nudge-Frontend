@@ -80,11 +80,28 @@ public sealed class TableWindowWatcher : ITableWindowWatcher
                 {
                     if (candidateStableSince.Elapsed >= _stabilityWindow)
                     {
+                        // Already in front on its own, which is the usual case: leave its windows
+                        // exactly as Visual Pinball arranged them.
+                        //
+                        // This used to activate unconditionally, and that reordered VPX's own
+                        // windows. VPX opens a playfield and, when it is enabled, a separate score
+                        // display; the search below only recognises a window at least 200x200, which
+                        // a DMD strip is not, so the playfield was always the one picked - and
+                        // forcing it to the foreground put it over the DMD and hid it, on every
+                        // table. Nudge's activation exists only to stop a table opening behind
+                        // Nudge's own window, so it is only needed when Nudge (or anything else) is
+                        // still in front.
+                        if (_snapshotProvider.IsForeground(processId))
+                        {
+                            _logger.LogDebug(
+                                "The table window is already in the foreground; leaving its window order alone.");
+                            return true;
+                        }
+
                         // Best-effort: Windows' own anti-focus-stealing rules can legitimately
                         // decline this independently of whether the window is genuinely ready (see
                         // the interface's remarks) - a declined foreground steal is not treated as
-                        // "not ready", since the window most often already has focus on its own by
-                        // this point anyway.
+                        // "not ready".
                         if (!_activator.Activate(handle))
                         {
                             _logger.LogDebug(

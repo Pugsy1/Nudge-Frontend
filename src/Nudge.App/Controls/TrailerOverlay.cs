@@ -86,6 +86,20 @@ public sealed class TrailerOverlay
             {
                 await view.EnsureCoreWebView2Async().ConfigureAwait(true);
                 MapPlayerHost(view);
+
+                // A failed navigation otherwise shows the browser's own "can't reach this page" and
+                // says nothing anywhere else, which is indistinguishable from the feature being
+                // broken - and the reason (the virtual host not mapped, no network, a blocked
+                // request) is exactly what WebErrorStatus already knows.
+                view.CoreWebView2!.NavigationCompleted += (_, e) =>
+                {
+                    if (!e.IsSuccess)
+                    {
+                        Log.Warning(
+                            "The trailer player could not load a page: {Status}.",
+                            e.WebErrorStatus);
+                    }
+                };
             }
             catch (Exception ex)
             {

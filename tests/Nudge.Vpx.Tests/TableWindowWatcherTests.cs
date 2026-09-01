@@ -34,6 +34,25 @@ public sealed class TableWindowWatcherTests
         _activator.LastActivated.Should().Be(WindowHandle);
     }
 
+    /// <summary>
+    /// Visual Pinball opens a playfield and, when it is switched on, a separate score display, and it
+    /// decides how they sit relative to each other. Once VPX is in front, Nudge must not touch that:
+    /// activating the playfield raised it over the DMD and hid it on every table. Nudge only needs to
+    /// bring the table forward when something else - its own window - is still in front.
+    /// </summary>
+    [Fact]
+    public async Task Leaves_the_window_order_alone_when_the_table_is_already_in_front()
+    {
+        _snapshots.ReadyWindow = WindowHandle;
+        _snapshots.ProcessIsForeground = true;
+        TableWindowWatcher watcher = CreateWatcher();
+
+        bool result = await watcher.ActivateWhenReadyAsync(ProcessId);
+
+        result.Should().BeTrue();
+        _activator.LastActivated.Should().BeNull("VPX was already in front, so its windows must not be reordered");
+    }
+
     [Fact]
     public async Task Still_reports_ready_even_when_Windows_declines_the_foreground_request()
     {
@@ -115,6 +134,11 @@ public sealed class TableWindowWatcherTests
         public IntPtr? ReadyWindow { get; set; }
 
         public bool FlipEveryPoll { get; set; }
+
+        /// <summary>Whether the watched process already owns the foreground window.</summary>
+        public bool ProcessIsForeground { get; set; }
+
+        public bool IsForeground(int processId) => ProcessIsForeground;
 
         private bool _toggle;
 

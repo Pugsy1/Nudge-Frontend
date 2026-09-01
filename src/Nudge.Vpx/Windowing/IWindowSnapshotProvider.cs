@@ -14,4 +14,15 @@ public interface IWindowSnapshotProvider
     /// only recognise something that looks like the real playfield.
     /// </summary>
     IntPtr? FindReadyWindow(int processId, int minimumWidth, int minimumHeight);
+
+    /// <summary>
+    /// Whether the window the user is currently working in already belongs to
+    /// <paramref name="processId"/>.
+    ///
+    /// Exists so Nudge can decline to re-order a process's own windows once it has arrived on its
+    /// own. Visual Pinball opens more than one window - the playfield and, when it is turned on, the
+    /// score display - and it decides how they sit relative to each other. Forcing one of them to the
+    /// foreground rearranges that: the playfield comes up over the DMD and hides it.
+    /// </summary>
+    bool IsForeground(int processId);
 }
