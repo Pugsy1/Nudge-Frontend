@@ -16,9 +16,9 @@
     <Company>Nudge contributors</Company>
     <Authors>Nudge contributors</Authors>
     <Copyright>Copyright (c) 2026 Nudge contributors</Copyright>
-    <Version>1.0.0</Version>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.0.0</FileVersion>
+    <Version>1.0.1</Version>
+    <AssemblyVersion>1.0.1.0</AssemblyVersion>
+    <FileVersion>1.0.1.0</FileVersion>
     <RepositoryUrl>https://github.com/Pugsy1/Nudge-Frontend</RepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
