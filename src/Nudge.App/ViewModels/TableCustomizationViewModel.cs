@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
 using Nudge.App.Services;
 using Nudge.Core.Abstractions;
 using Nudge.Core.Models;
@@ -26,6 +27,11 @@ public sealed partial class TableCustomizationViewModel : ObservableObject
     private readonly ICustomArtworkStore _customArtworkStore;
     private readonly ITableTrailerProvider _tableTrailerProvider;
 
+    /// <summary>For the three "Nudge could not reach X" paths below. Each one already tells the user
+    /// something went wrong; without a log line there is nothing to say WHAT, which on a public
+    /// release is the difference between a diagnosable report and "it just does not work".</summary>
+    private readonly ILogger _logger;
+
     public TableCustomizationViewModel(
         TableTileViewModel tile,
         LibraryViewModel library,
@@ -35,7 +41,8 @@ public sealed partial class TableCustomizationViewModel : ObservableObject
         ITableTrailerProvider tableTrailerProvider,
         IArtworkBrowser artworkBrowser,
         IRomNameReader romNameReader,
-        IRomAvailabilityChecker romAvailabilityChecker)
+        IRomAvailabilityChecker romAvailabilityChecker,
+        ILogger logger)
     {
         Tile = tile;
         Library = library;
@@ -46,6 +53,7 @@ public sealed partial class TableCustomizationViewModel : ObservableObject
         _artworkBrowser = artworkBrowser;
         _romNameReader = romNameReader;
         _romAvailabilityChecker = romAvailabilityChecker;
+        _logger = logger;
 
         // "vps-db" first if it's there (it always is), and Google Images only ever offered once its
         // two settings fields are actually filled in - picking it otherwise would just search a
@@ -162,8 +170,9 @@ public sealed partial class TableCustomizationViewModel : ObservableObject
                     break;
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Checking the ROM for a table failed.");
             RomStatusMessage = "Nudge couldn't check this table's ROM right now.";
             RomLooksGood = false;
             RomLooksMissing = false;
@@ -271,8 +280,9 @@ public sealed partial class TableCustomizationViewModel : ObservableObject
                 TrailerStatusMessage = "No trailer found for this table. You can still point Nudge at your own video file above.";
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Searching for a trailer failed.");
             TrailerStatusMessage = "Nudge couldn't reach the video database right now.";
         }
         finally
@@ -360,8 +370,9 @@ public sealed partial class TableCustomizationViewModel : ObservableObject
                 BrowseStatusMessage = $"No images found from {sourceName} for this table.";
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Browsing artwork from {Source} failed.", sourceName);
             BrowseStatusMessage = $"Nudge couldn't reach {sourceName} right now.";
         }
         finally

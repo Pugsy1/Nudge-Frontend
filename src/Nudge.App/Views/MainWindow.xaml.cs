@@ -73,6 +73,13 @@ public partial class MainWindow : Window
 
         PreviewKeyDown += OnPreviewKeyDown;
 
+        // Watched here rather than on the library page, because it has to hold for every screen.
+        // While the pad is driving, the pointer is hidden; only a real mouse movement brings it back
+        // - and until this moved up to the window, only the library was listening. Reaching Settings
+        // or a table's details with a controller and then picking up the mouse left the cursor
+        // invisible, with no way to recover it short of navigating back to the library first.
+        PreviewMouseMove += OnPreviewMouseMove;
+
         // Fixes a well-known WPF issue: a borderless window using WindowChrome, when maximized,
         // otherwise renders a few pixels past every edge of the monitor (confirmed directly on this
         // window - GetWindowRect returned Left=-7,Top=-7,Right=1927,Bottom=1087 on a 1920x1080
@@ -87,6 +94,48 @@ public partial class MainWindow : Window
             (PresentationSource.FromVisual(this) as HwndSource)?.AddHook(WindowProc);
             ToggleFullscreen();
         };
+    }
+
+    /// <summary>How far the physical pointer must travel, in device pixels, to count as "the user reached for the mouse".</summary>
+    private const double MouseWakeDistance = 6;
+
+    private Point? _lastMousePosition;
+
+    /// <summary>
+    /// Hands the UI back to pointer input, but only on genuine movement.
+    ///
+    /// Measured in SCREEN coordinates: a position relative to an element changes whenever the layout
+    /// moves under a stationary cursor, which is exactly what opening a dropdown does - and that read
+    /// as "the mouse moved", dropping controller mode and taking the button legend off the header
+    /// with it. A popup also takes a mouse capture as it opens and releases it as it closes, and the
+    /// reported position can jump at those two moments, so anything holding capture is ignored.
+    /// </summary>
+    private void OnPreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (Mouse.Captured is not null || DataContext is not ShellViewModel shell)
+        {
+            return;
+        }
+
+        Point position = PointToScreen(e.GetPosition(this));
+
+        // No baseline yet: record where the pointer is and wait for it to actually move, rather than
+        // handing control back on whatever synthetic move happens to arrive first.
+        if (_lastMousePosition is not { } last)
+        {
+            _lastMousePosition = position;
+            return;
+        }
+
+        // Reaching for the mouse moves it a long way; a knock against the desk, or the last pixel of
+        // a settling animation, does not.
+        if ((position - last).Length < MouseWakeDistance)
+        {
+            return;
+        }
+
+        _lastMousePosition = position;
+        shell.Library.ExitControllerMode();
     }
 
     private static IntPtr WindowProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)

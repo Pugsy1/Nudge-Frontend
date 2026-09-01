@@ -36,6 +36,24 @@ public partial class LibraryView : UserControl
         {
             _controller?.Dispose();
             _controller = null;
+
+            // The view model outlives this view, so leaving this subscribed keeps a torn-down view
+            // alive AND keeps calling it - a dead page scrolling an ItemsControl nobody can see.
+            if (DataContext is LibraryViewModel model)
+            {
+                model.SelectionMoved -= OnSelectionMoved;
+            }
+
+            // LayoutUpdated keeps a torn-down view alive if it is left subscribed - the layout
+            // system holds the handler, not this element - and this view is rebuilt every time the
+            // user goes to Settings and comes back.
+            if (_reportColumns is not null)
+            {
+                LayoutUpdated -= _reportColumns;
+                _reportColumns = null;
+            }
+
+            _compactPanel = null;
         };
     }
 
@@ -70,56 +88,20 @@ public partial class LibraryView : UserControl
         // The Compact layout asks its panel for "as many columns as fit" rather than a fixed count,
         // so how many tiles are in a row is only knowable after a layout pass. Reported back on every
         // one, since resizing the window changes it.
-        LayoutUpdated += (_, _) => ReportRealizedColumns(library);
-
-        // Real movement only - WPF raises MouseMove for all sorts of reasons while the pointer sits
-        // still (layout changes under it, scrolling), and any of those would kick the UI straight
-        // back out of controller mode mid-navigation.
         //
-        // Measured in SCREEN coordinates, not coordinates relative to this view. An element-relative
-        // position changes whenever the layout moves under a stationary cursor, which is exactly what
-        // opening a dropdown does - so opening sort or layout on a pad read as "the mouse moved",
-        // dropped controller mode, and took the button legend off the header with it. The physical
-        // pointer is the only thing that can say whether the user reached for the mouse.
-        PreviewMouseMove += (_, e) =>
-        {
-            // A popup captures the mouse while it is open, and opening one moves what is under the
-            // pointer without the pointer itself moving. That is the second half of the dropdown fix:
-            // screen coordinates stop the ordinary case, and this covers the moment the capture is
-            // taken or released, when the reported position can jump.
-            if (Mouse.Captured is not null)
-            {
-                return;
-            }
+        // Explicitly unsubscribed when the view unloads. LayoutUpdated is a well-known WPF leak: the
+        // layout system holds the handler, so a view that has been torn down but is still subscribed
+        // stays alive and keeps being called - and this view IS torn down and rebuilt on every trip
+        // through Settings.
+        _reportColumns = (_, _) => ReportRealizedColumns(library);
+        LayoutUpdated += _reportColumns;
 
-            Point position = PointToScreen(e.GetPosition(this));
-
-            // No baseline yet: record where the pointer is and wait for it to actually move. Treating
-            // the first event as movement would hand control back on whatever synthetic move happens
-            // to arrive first.
-            if (_lastMousePosition is not { } last)
-            {
-                _lastMousePosition = position;
-                return;
-            }
-
-            // Reaching for the mouse moves it a long way; a knock against the desk, or the last pixel
-            // of a settling animation, does not. Deliberately well above the 1-2px that any amount of
-            // rounding or DPI scaling can account for.
-            if ((position - last).Length < MouseWakeDistance)
-            {
-                return;
-            }
-
-            _lastMousePosition = position;
-            library.ExitControllerMode();
-        };
+        // Mouse movement is watched by MainWindow, not here: handing control back to the pointer has
+        // to work on every screen, and while this page owned it, reaching Settings or a table's
+        // details with a pad and then picking up the mouse left the cursor hidden with no way back.
     }
 
-    /// <summary>How far the physical pointer must travel, in device pixels, to count as "the user reached for the mouse".</summary>
-    private const double MouseWakeDistance = 6;
-
-    private Point? _lastMousePosition;
+    private EventHandler? _reportColumns;
 
     private VirtualizingWrapPanel? _compactPanel;
 

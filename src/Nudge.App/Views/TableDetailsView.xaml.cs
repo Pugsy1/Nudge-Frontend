@@ -35,12 +35,25 @@ public partial class TableDetailsView : UserControl
             // Explicitly, not just on collapse: leaving the page while a video is playing must stop
             // it, or the audio (once unmuted by the viewer) keeps going over the library.
             _player?.Hide();
+
+            // And the layout hook has to go with it. LayoutUpdated is held by the layout system, not
+            // by this element, so a details page left subscribed stays alive after it is torn down
+            // and keeps calling PositionPlayer - which drives the SHARED trailer player, and would
+            // put a dead page's video back on screen over the library.
+            if (_positionPlayer is not null)
+            {
+                PlayerSlot.LayoutUpdated -= _positionPlayer;
+                _positionPlayer = null;
+            }
         };
 
         // The slot moves as the page scrolls and as content above it resizes, so the player has to
         // follow rather than being placed once.
-        PlayerSlot.LayoutUpdated += (_, _) => PositionPlayer();
+        _positionPlayer = (_, _) => PositionPlayer();
+        PlayerSlot.LayoutUpdated += _positionPlayer;
     }
+
+    private EventHandler? _positionPlayer;
 
     private TableDetailsViewModel? Model => DataContext as TableDetailsViewModel;
 

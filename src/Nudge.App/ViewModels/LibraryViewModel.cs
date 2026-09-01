@@ -629,7 +629,8 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
             _tableTrailerProvider,
             _artworkBrowser,
             _romNameReader,
-            _romAvailabilityChecker);
+            _romAvailabilityChecker,
+            _logger);
     }
 
     /// <summary>
@@ -1461,6 +1462,14 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
         if (SelectedSort?.Value is TableSortOrder.MostPlayed or TableSortOrder.RecentlyPlayed)
         {
             ApplySort();
+
+            // The table just played has usually moved to the front, and the grid does not follow a
+            // re-sort on its own - so without this the selection ring is left sitting on whichever
+            // table slid into the position the eye was last on.
+            if (SelectedTile is { } selected)
+            {
+                SelectionMoved?.Invoke(selected);
+            }
         }
     }
 
