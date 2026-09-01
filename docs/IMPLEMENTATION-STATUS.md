@@ -285,18 +285,16 @@ touches the destination's last-write time throughout the copy) doesn't trigger a
 calls back at most once per burst of activity. `Watch(...)` returns an `IDisposable` handle; a
 missing folder returns a harmless no-op handle instead of throwing.
 
-**For the UI/composition session**: this is a new capability, not a wired-up feature - nothing calls
-it yet. `LibraryViewModel` (wherever it currently calls the existing `ScanAsync()` after loading an
-installation - see its `InitializeAsync`) should also do something like:
-```csharp
-_watcherSession?.Dispose();
-_watcherSession = _tableFolderWatcher.Watch(installation.TablesPath, RescanCommand.ExecuteAsync);
-```
-and dispose `_watcherSession` when the installation changes or the view is torn down.
-`ITableFolderWatcher` is resolved like any other Nudge.Library service (already registered by the
-existing `AddNudgeLibrary()` call). Marshal back to the UI thread inside the callback if
-`RescanCommand`/`ScanAsync` touch bound properties directly rather than through `Progress<T>` (which
-already marshals itself, per the existing comment in `LibraryViewModel.ScanAsync`).
+**Wired up and verified end to end (2026-08-31).** `LibraryViewModel` now holds an
+`ITableFolderWatcher` and starts a watch on the effective tables folder, disposing it when the
+installation changes or the app shuts down.
+
+Confirmed against the real running app and the maintainer's real tables folder, rather than only by
+unit test: with Nudge open and idle on the library, a `.vpx` file was copied into the folder and the
+app logged `1 scanned` ~15 seconds later entirely on its own; the same file was then deleted and the
+app logged `1 removed`, again with no restart and no "Rescan" click. That is the maintainer's
+original "the scanner doesn't seem to be working" report closed out against the actual behaviour
+they were seeing, not against a reproduction of it.
 
 **Verified**: 5 new tests in `TableFolderWatcherTests` (`Nudge.Library.Tests`) against a real
 temporary folder and the real `FileSystem` (not `MockFileSystem` - this version of
@@ -337,11 +335,12 @@ Two flavors are excluded outright, not just ranked low:
 
 ### What's deliberately not built (Phase 5 scope)
 
-- **No UI uses this yet.** No table detail screen, no Play button, no "now playing" state. That's
-  the other half of Phase 5.
-- **No VR launch path.** Deliberately deferred to Phase 6, which is also where the maintainer's
-  stated direction for the eventual UI - default Play to DirectX9, with a separate explicit way to
-  choose VR, exact interaction undecided - is recorded (docs/RESEARCH-NOTES.md).
+- ~~**No UI uses this yet.**~~ **Since built.** There is a table detail screen, a Play button, a
+  launching state, and launching by controller. Kept here for the record of what Phase 5's own
+  backend scope was.
+- ~~**No VR launch path.**~~ **Since built.** The library has a 2D/VR switch which routes to
+  `VpxInstallation.BestVrExecutable`, relying on Visual Pinball's own headset autodetection. The
+  maintainer's stated direction for it is recorded in docs/RESEARCH-NOTES.md.
 - **No crash interpretation.** A non-zero exit code is recorded on `LaunchOutcome` but nothing reads
   it yet - that's the health system, Phase 7.
 
@@ -445,9 +444,9 @@ interface and setting reported below.**
 
 ### What's deliberately not built
 
-- **No UI uses this yet.** No image renders anywhere; tiles still show the placeholder initial. The
-  composition root also does not call `AddNudgeMedia()` yet - see "For the UI/composition session"
-  below.
+- ~~**No UI uses this yet.**~~ **Since built.** `AddNudgeMedia()` is called from the composition
+  root and tiles render real artwork, falling back to the placeholder initial only when nothing is
+  found. Kept here for the record of what this phase's own backend scope was.
 - **No local artwork source at all** - not `.directb2s` (built and verified, but not wired in), not
   embedded `GameStg` images (investigated, rejected as unreliable), not a media folder (does not
   apply). Artwork is 100% network-sourced right now; a table gets nothing if vps-db has no match or
