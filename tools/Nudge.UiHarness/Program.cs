@@ -75,6 +75,7 @@ internal static class Program
         failed += CheckPlayHistoryFormatting();
         failed += CheckPlayHistorySorting();
         failed += CheckFocusRingsContrastWithTheirButtons();
+        failed += CheckPlayHistoryIsOnTheDetailsPage();
 
         Console.WriteLine();
         Console.WriteLine(failed == 0 ? "ALL CHECKS PASSED" : $"{failed} CHECK(S) FAILED");
@@ -194,6 +195,64 @@ internal static class Program
         }
 
         return failed;
+    }
+
+    /// <summary>
+    /// The play-history block has to be ON the details page, VISIBLE, and visible with no data.
+    ///
+    /// All three failed at once in the first attempt: it was bound to a "has been played" flag, so a
+    /// table you had never played showed nothing at all - which is indistinguishable from the feature
+    /// not working, and is exactly how it was reported. Checked with no DataContext, which is the
+    /// never-played case as far as the layout is concerned.
+    /// </summary>
+    private static int CheckPlayHistoryIsOnTheDetailsPage()
+    {
+        TableDetailsView view = new();
+        Window host = new() { Width = 1920, Height = 1080, Content = view };
+        host.Show();
+        host.UpdateLayout();
+
+        string[] required = ["PLAY HISTORY", "PLAYED", "TOTAL TIME", "LAST PLAYED"];
+        List<string> missing = [];
+
+        foreach (string label in required)
+        {
+            if (!HasVisibleText(host, label))
+            {
+                missing.Add(label);
+            }
+        }
+
+        host.Close();
+
+        if (missing.Count > 0)
+        {
+            Console.WriteLine($"FAIL  details page: play history not visible - missing {string.Join(", ", missing)}");
+            return 1;
+        }
+
+        Console.WriteLine("Play history: visible on the details page with no data at all");
+        return 0;
+
+        static bool HasVisibleText(DependencyObject node, string text)
+        {
+            if (node is TextBlock { IsVisible: true } block
+                && string.Equals(block.Text, text, StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            int count = VisualTreeHelper.GetChildrenCount(node);
+            for (int i = 0; i < count; i++)
+            {
+                if (HasVisibleText(VisualTreeHelper.GetChild(node, i), text))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
     }
 
     /// <summary>

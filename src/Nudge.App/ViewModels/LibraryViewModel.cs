@@ -1421,8 +1421,14 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
     /// sessions under some threshold - means a user who starts a table, changes their mind and quits
     /// sees the count not move, which reads as the feature being broken; a table that genuinely
     /// crashed on load is the rarer case and is at least honestly recorded.
+    ///
+    /// Split into two moments on purpose. The COUNT is written as soon as the table's window appears,
+    /// so it survives Nudge being closed while Visual Pinball is still open - otherwise a session is
+    /// only ever recorded if Nudge lives long enough to watch VPX exit, and the count, which is the
+    /// number people actually look at, would silently be the one thing lost. The TIME can only be
+    /// known at the end, so it is added then.
     /// </summary>
-    private async Task RecordPlaySessionAsync(string tablePath, TimeSpan duration)
+    private async Task RecordPlaySessionAsync(string tablePath, TimeSpan duration, bool countIt)
     {
         if (!_playStats.TryGetValue(tablePath, out TablePlayStats? stats))
         {
@@ -1430,9 +1436,13 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
             _playStats[tablePath] = stats;
         }
 
-        stats.TimesPlayed++;
+        if (countIt)
+        {
+            stats.TimesPlayed++;
+            stats.LastPlayedAt = DateTimeOffset.Now;
+        }
+
         stats.TotalPlaySeconds += Math.Max(0, (long)duration.TotalSeconds);
-        stats.LastPlayedAt = DateTimeOffset.Now;
 
         // Logged at Information, not Debug: this is the one record Nudge keeps that cannot be
         // recreated if it goes wrong, and it is the only way to confirm tracking is working without
@@ -2051,9 +2061,22 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
 
         try
         {
+            // Counted the moment the table's own window appears rather than when VPX finally exits,
+            // so closing Nudge mid-session does not lose the play. The flag is only ever written on
+            // the UI thread (the callback marshals), so the check after the await below is safe.
+            bool counted = false;
+            void OnTableWindowReady() => _ = Application.Current?.Dispatcher.InvokeAsync(() =>
+            {
+                if (!counted)
+                {
+                    counted = true;
+                    _ = RecordPlaySessionAsync(tile.Table.Path, TimeSpan.Zero, countIt: true);
+                }
+            });
+
             Result<LaunchOutcome> result = vrExecutable is not null
-                ? await _launchEngine.LaunchAsync(vrExecutable, tile.Table.Path).ConfigureAwait(true)
-                : await _launchEngine.LaunchAsync(_installation, tile.Table.Path).ConfigureAwait(true);
+                ? await _launchEngine.LaunchAsync(vrExecutable, tile.Table.Path, onTableWindowReady: OnTableWindowReady).ConfigureAwait(true)
+                : await _launchEngine.LaunchAsync(_installation, tile.Table.Path, onTableWindowReady: OnTableWindowReady).ConfigureAwait(true);
 
             if (result.IsFailure)
             {
@@ -2070,8 +2093,11 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
                 result.Value.Duration);
 
             // The launch engine waits for the table's process to exit, so by here the session is over
-            // and its duration is measured rather than estimated.
-            await RecordPlaySessionAsync(tile.Table.Path, result.Value.Duration).ConfigureAwait(true);
+            // and its duration is measured rather than estimated. Counted here only if the window
+            // never announced itself - a fast failure, or a load slower than the watcher's timeout -
+            // so a played table is counted exactly once either way.
+            await RecordPlaySessionAsync(tile.Table.Path, result.Value.Duration, countIt: !counted)
+                .ConfigureAwait(true);
         }
         catch (Exception ex)
         {

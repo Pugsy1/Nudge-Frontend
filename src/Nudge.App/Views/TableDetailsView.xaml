@@ -95,6 +95,76 @@
                   HorizontalAlignment="Stretch"
                   Margin="{DynamicResource Gap.Above.S}"
                   Command="{Binding CustomizeCommand}" />
+
+          <!-- ======================= Play history ======================= -->
+          <!--
+            Directly under the cover and the Play button, not down the right-hand column past the
+            description and the rules. Two reasons, both learned the hard way.
+
+            It belongs here: everything in the right-hand column describes the TABLE, and this
+            describes what you have done with it - the same thing the Play button above it does.
+
+            And it has to be visible without scrolling. Buried below ABOUT and HOW TO PLAY it was
+            off the bottom of the page on any table with a real description, which on a page opened
+            specifically to check "how much have I played this" is the same as not being there.
+
+            Always shown, including on a table never played. Hiding it until first play - which it
+            did - left no way to tell "not played yet" apart from "this feature is broken".
+          -->
+          <TextBlock Style="{StaticResource Text.SectionHeading}"
+                     Margin="0,28,0,0"
+                     Text="PLAY HISTORY" />
+
+          <ContentControl Style="{StaticResource Card.Neumorphic}" Margin="{DynamicResource Gap.Above.M}">
+            <StackPanel>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           Style="{StaticResource Text.Caption}"
+                           Foreground="{DynamicResource Brush.Text.Muted}"
+                           VerticalAlignment="Center"
+                           Text="PLAYED" />
+                <TextBlock Grid.Column="1"
+                           Style="{StaticResource Text.Subtitle}"
+                           Text="{Binding TimesPlayedLabel}" />
+              </Grid>
+
+              <Grid Margin="{DynamicResource Gap.Above.M}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           Style="{StaticResource Text.Caption}"
+                           Foreground="{DynamicResource Brush.Text.Muted}"
+                           VerticalAlignment="Center"
+                           Text="TOTAL TIME" />
+                <TextBlock Grid.Column="1"
+                           Style="{StaticResource Text.Subtitle}"
+                           Text="{Binding TotalPlayTimeLabel}" />
+              </Grid>
+
+              <Grid Margin="{DynamicResource Gap.Above.M}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           Style="{StaticResource Text.Caption}"
+                           Foreground="{DynamicResource Brush.Text.Muted}"
+                           VerticalAlignment="Center"
+                           Text="LAST PLAYED" />
+                <TextBlock Grid.Column="1"
+                           Style="{StaticResource Text.Body}"
+                           TextAlignment="Right"
+                           TextWrapping="Wrap"
+                           Text="{Binding LastPlayedLabel}" />
+              </Grid>
+            </StackPanel>
+          </ContentControl>
         </StackPanel>
 
         <StackPanel Grid.Column="1">
@@ -167,45 +237,6 @@
             </ContentControl>
           </StackPanel>
 
-          <!-- ======================= Play history ======================= -->
-          <!-- Three numbers side by side rather than three more rows in the specifications list
-               below: everything there describes the table, and this describes the person reading it.
-               Always shown, including on a table that has never been played. It was hidden until
-               first play, on the reasoning that a row of dashes is noise - which was wrong twice
-               over: a section that only sometimes exists is one nobody knows to look for, and there
-               is then no way to tell "not played yet" apart from "this feature is broken". "Never"
-               is an answer; an absent section is not. -->
-          <StackPanel>
-            <TextBlock Style="{StaticResource Text.SectionHeading}" Margin="{DynamicResource Gap.Below.M}" Text="PLAY HISTORY" />
-
-            <ContentControl Style="{StaticResource Card.Neumorphic}" Margin="{DynamicResource Gap.Below.XL}">
-              <UniformGrid Columns="3">
-                <StackPanel>
-                  <TextBlock Style="{StaticResource Text.Title}" Text="{Binding TimesPlayedLabel}" />
-                  <TextBlock Style="{StaticResource Text.Caption}"
-                             Margin="{DynamicResource Gap.Above.S}"
-                             Foreground="{DynamicResource Brush.Text.Muted}"
-                             Text="PLAYED" />
-                </StackPanel>
-                <StackPanel>
-                  <TextBlock Style="{StaticResource Text.Title}" Text="{Binding TotalPlayTimeLabel}" />
-                  <TextBlock Style="{StaticResource Text.Caption}"
-                             Margin="{DynamicResource Gap.Above.S}"
-                             Foreground="{DynamicResource Brush.Text.Muted}"
-                             Text="TOTAL TIME" />
-                </StackPanel>
-                <StackPanel>
-                  <TextBlock Style="{StaticResource Text.Title}"
-                             TextWrapping="Wrap"
-                             Text="{Binding LastPlayedLabel}" />
-                  <TextBlock Style="{StaticResource Text.Caption}"
-                             Margin="{DynamicResource Gap.Above.S}"
-                             Foreground="{DynamicResource Brush.Text.Muted}"
-                             Text="LAST PLAYED" />
-                </StackPanel>
-              </UniformGrid>
-            </ContentControl>
-          </StackPanel>
 
           <!-- ======================= Specifications ======================= -->
           <TextBlock Style="{StaticResource Text.SectionHeading}" Margin="{DynamicResource Gap.Below.M}" Text="DETAILS" />
